@@ -150,3 +150,82 @@ document.addEventListener('DOMContentLoaded', () => {
     CW_ACCESS.injectSidebar(PAGE_KEY);
   }
 });
+
+// ─── INVENTORY ITEMS PATCH ─────────────────────────────────────
+// Loads inventory items from edge function and populates the Items tab
+// Works regardless of what version of inventory.html is live
+(function() {
+  const EDGE = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/get-inventory-items';
+  
+  function renderItems(items) {
+    const tbl = document.getElementById('tItems');
+    if (!tbl) return;
+    if (!items || !items.length) {
+      tbl.innerHTML = '<tr class="empty"><td colspan="10">No items yet. Click + Add Item above.</td></tr>';
+      return;
+    }
+    tbl.innerHTML = items.map(it => {
+      const nm = it.item_name || it.name || '—';
+      const cat = it.category_name || it.category || '—';
+      const unit = it.unit_of_measure || it.unit || '—';
+      return `<tr>
+        <td><strong>${nm}</strong></td>
+        <td style="font-size:12px">${cat}</td>
+        <td style="font-family:monospace;font-size:12px">${unit}</td>
+        <td style="font-family:monospace;font-size:12px">${it.min_qty||0}</td>
+        <td style="font-family:monospace;font-size:12px">${it.max_qty||0}</td>
+        <td style="font-family:monospace;font-size:12px">${it.monthly_consumption||0}</td>
+        <td style="font-family:monospace;font-size:12px">${it.lead_time_days||0}d</td>
+        <td>${it.auto_requisition_enabled?'<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">On</span>':'<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">Off</span>'}</td>
+        <td style="font-family:monospace;font-size:12px">—</td>
+        <td><div style="display:flex;gap:5px">
+          <button class="btn b-gho b-sm" onclick="doEditItem && doEditItem('${it.id}')">✏ Edit</button>
+          <button class="btn b-grn b-sm" onclick="doAddLot && doAddLot('${it.id}')">+ Lot</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+    // Update KPI
+    const kItems = document.getElementById('kItems');
+    if (kItems) kItems.textContent = items.length;
+    // Update item dropdowns
+    ['lIt','fItem'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— Select item —</option>' + 
+        items.map(it => {
+          const nm = it.item_name||it.name||'?';
+          const u = it.unit_of_measure||it.unit||'';
+          return `<option value="${it.id}" data-name="${nm}" data-unit="${u}">${nm}${u?' ('+u+')':''}</option>`;
+        }).join('');
+      if (cur) sel.value = cur;
+    });
+  }
+  
+  async function patchItemsTab() {
+    if (!document.getElementById('tItems')) return; // not inventory page
+    try {
+      const res = await fetch(EDGE);
+      const json = await res.json();
+      renderItems(json.data || []);
+      // Also expose to allItems global if it exists
+      if (typeof window !== 'undefined') window._patchedItems = json.data || [];
+      // Re-run every 30s to keep in sync
+      setTimeout(patchItemsTab, 30000);
+    } catch(e) {
+      console.warn('items patch:', e.message);
+      setTimeout(patchItemsTab, 5000);
+    }
+  }
+
+  // Run after page load + after tab click on Items
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(patchItemsTab, 800); // slight delay for page init
+    // Also patch when Items tab is clicked
+    document.addEventListener('click', e => {
+      if (e.target && e.target.dataset && e.target.dataset.t === 'items') {
+        setTimeout(patchItemsTab, 100);
+      }
+    });
+  });
+})();
