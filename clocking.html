@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings — Clocking Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;--blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;--green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;--amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;--red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;--f:"DM Sans",sans-serif;--mono:"JetBrains Mono",monospace;--sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);--sh2:0 6px 24px rgba(0,0,0,.09),0 0 0 1px rgba(0,0,0,.04)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh}
+/* TOPBAR */
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tbl{display:flex;align-items:center;gap:12px}
+.tlogo{width:34px;height:34px;background:linear-gradient(135deg,#3b5fe2,#6366f1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.tnm{font-weight:800;font-size:15px}.tsep{width:1px;height:20px;background:var(--bdr)}.tpg{font-size:13px;font-weight:600;color:var(--mu)}
+.tbr{display:flex;align-items:center;gap:10px}
+.epill{display:flex;align-items:center;gap:7px;background:var(--g50);border:1.5px solid var(--g100);padding:6px 14px;border-radius:999px;font-size:13px;font-weight:700;color:#15803d;cursor:pointer}
+.epill:hover{background:var(--g100)}
+.ldot{width:8px;height:8px;border-radius:50%;background:#16a34a;animation:pu 2s infinite;display:inline-block}
+@keyframes pu{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.4)}60%{box-shadow:0 0 0 6px rgba(22,163,74,0)}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:600;border:none;border-radius:9px;cursor:pointer;font-family:var(--f);transition:all .12s;text-decoration:none}
+.bb{background:var(--blue);color:#fff}.bg-btn{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}
+.bn{background:var(--b50);color:var(--blue);border:1px solid var(--b100)}
+/* ALERT BANNER */
+.alert-banner{position:fixed;top:58px;left:0;right:0;z-index:200;background:linear-gradient(90deg,#dc2626,#b91c1c);color:#fff;padding:12px 24px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 4px 20px rgba(220,38,38,.35)}
+.alert-banner.on{display:flex}
+.ab-msg{font-size:13px;font-weight:800}.ab-sub{font-size:11px;opacity:.85;margin-top:2px}
+.ab-btns{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.ab-btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f);border:none}
+.ab-white{background:#fff;color:#dc2626}.ab-ghost{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff}.ab-x{background:rgba(0,0,0,.2);color:#fff;padding:7px 10px}
+/* BODY */
+.body{padding:20px 28px 80px;max-width:1400px;margin:0 auto}
+/* EMPLOYEE PICKER OVERLAY */
+
+/* MAIN GRID */
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:22px;margin-bottom:16px}
+.card:last-child{margin-bottom:0}
+.ct{font-size:15px;font-weight:800;margin-bottom:4px}
+.cs{font-size:12px;color:var(--mu);line-height:1.6;margin-bottom:16px}
+lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.fi{width:100%;padding:11px 14px;border:1.5px solid var(--bdr);border-radius:10px;font-family:var(--f);font-size:14px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
+.fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--dim)}
+.ord-opt{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bdr);transition:background .1s}
+.ord-opt:last-child{border:none}
+.ord-opt:hover,.ord-opt.sel{background:var(--b50)}
+.ord-opt .ord-id{font-weight:800;color:var(--blue);font-family:var(--mono);font-size:12px}
+.ord-opt .ord-patient{font-weight:600;color:var(--txt);margin-top:1px}
+.ord-opt .ord-status{font-size:10px;color:var(--mu);margin-top:1px}
+.fg{margin-bottom:14px}
+/* PIPELINE */
+.pipe{display:flex;align-items:center;overflow-x:auto;padding-bottom:4px}
+.ps{display:flex;flex-direction:column;align-items:center;flex-shrink:0;position:relative}
+.psc{width:32px;height:32px;border-radius:50%;border:2px solid var(--bdr);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;margin-bottom:5px;position:relative;z-index:1}
+.ps.done .psc{border-color:#16a34a;background:var(--g50)}
+.ps.done .psc::after{content:"✓";position:absolute;bottom:-4px;right:-4px;width:14px;height:14px;background:#16a34a;border-radius:50%;font-size:8px;color:#fff;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;font-weight:700}
+.ps.active .psc{border-color:var(--blue);background:var(--b50);box-shadow:0 0 0 4px rgba(59,95,226,.12)}
+.ps.paused .psc{border-color:#d97706;background:var(--a50)}
+.ps.next .psc{border-color:var(--blue);background:var(--b50)}
+.ps.locked .psc{opacity:.3}
+.ps.next::before{content:"NEXT";position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;font-size:7px;font-weight:800;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.ps.paused::before{content:"PAUSED";position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#d97706;color:#fff;font-size:7px;font-weight:800;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.pslbl{font-size:9px;font-weight:600;color:var(--mu);text-align:center;max-width:56px;line-height:1.2}
+.ps.done .pslbl{color:#16a34a;font-weight:700}
+.ps.active .pslbl{color:var(--blue);font-weight:800}
+.ps.paused .pslbl{color:#d97706;font-weight:700}
+.ps.next .pslbl{color:var(--blue);font-weight:800}
+.pcon{flex:1;height:2px;background:var(--bdr);margin-top:-18px;min-width:10px}
+.pcon.done{background:#16a34a}
+/* ACTIVE JOB BOX */
+.job-box{border-radius:13px;padding:16px;margin-bottom:14px;border:1.5px solid}
+.job-box.prod{background:linear-gradient(135deg,var(--g50),#ecfdf5);border-color:var(--g100)}
+.job-box.waste{background:linear-gradient(135deg,var(--a50),#fefce8);border-color:var(--a100)}
+.jb-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.jb-badge{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.jb-badge.prod{color:#15803d}.jb-badge.waste{color:#92400e}
+.jb-title{font-size:16px;font-weight:800;margin-bottom:4px}
+.jb-meta{font-size:12px;color:var(--mu);line-height:1.6}
+.jb-timer{font-family:var(--mono);font-size:34px;font-weight:800;line-height:1}
+.jb-timer.prod{color:#15803d}.jb-timer.waste{color:#d97706}
+.jb-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.06)}
+.jb-pause{background:#fff;border:1.5px solid var(--g100);color:#15803d;padding:9px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--f)}
+.jb-pause:hover{background:var(--g50)}
+.jb-next{background:linear-gradient(135deg,#3b5fe2,#6366f1);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--f);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.jb-next:hover{opacity:.85;transform:translateX(2px)}
+/* STEP GRID */
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.sb{padding:10px 7px;border-radius:11px;font-size:11px;font-weight:700;cursor:not-allowed;font-family:var(--f);text-align:center;line-height:1.4;transition:all .15s;position:relative;border:1.5px solid var(--bdr);background:#f8fafc;color:var(--dim)}
+.sb .si{font-size:14px;display:block;margin-bottom:3px}
+.sb.can{cursor:pointer;background:var(--b50);border-color:var(--blue);color:#1d4ed8;font-weight:800}
+.sb.can:hover{background:var(--b100);transform:translateY(-1px)}
+.sb.can::after{content:"TAP";position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;font-size:7px;font-weight:800;padding:1px 5px;border-radius:3px}
+.sb.done{background:var(--g50);border-color:var(--g100);color:#86efac}
+.sb.active{background:var(--b50);border-color:var(--blue);color:var(--blue)}
+.sb.paused{background:var(--a50);border-color:var(--a100);color:#d97706;cursor:pointer}
+.sb.paused::after{content:"RESUME";position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#d97706;color:#fff;font-size:7px;font-weight:800;padding:1px 5px;border-radius:3px}
+/* WASTE GRID */
+.wg{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.wb{padding:9px 6px;border-radius:10px;border:1.5px solid var(--a100);background:var(--a50);color:#92400e;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--f);text-align:center;line-height:1.5;transition:all .12s}
+.wb:hover{border-color:#d97706;background:var(--a100)}
+/* STATUS BOX */
+.sbox{padding:12px 16px;border-radius:11px;background:var(--bg);border:1.5px solid var(--bdr);margin-top:12px}
+.sbox.ok{background:var(--g50);border-color:var(--g100)}.sbox.err{background:var(--r50);border-color:var(--r100)}
+.st{font-weight:700;margin-bottom:3px;font-size:13px}.sd{font-size:12px;color:var(--mu)}
+/* RIGHT PANEL */
+.clk{font-family:var(--mono);font-size:48px;font-weight:800;letter-spacing:-2px;text-align:center;line-height:1;padding:12px 0 5px}
+.clkd{font-size:12px;color:var(--mu);text-align:center;margin-bottom:16px}
+.an-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.an-box{background:var(--bg);border-radius:10px;padding:11px;border:1px solid var(--bdr)}
+.an-l{font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.an-v{font-size:19px;font-weight:800;font-family:var(--mono)}
+/* SUMMARY */
+.sg2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.sb3{border-radius:10px;padding:12px;text-align:center}
+.sb3.g{background:var(--g50);border:1px solid var(--g100)}.sb3.a{background:var(--a50);border:1px solid var(--a100)}.sb3.b{background:var(--b50);border:1px solid var(--b100)}
+.sv2{font-size:22px;font-weight:800;font-family:var(--mono);line-height:1}
+.sl{font-size:9px;color:var(--mu);margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+/* TODAY PIPELINE */
+.ord-pipe{background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--bdr)}
+.op-ord{font-size:10px;font-weight:700;color:var(--mu);font-family:var(--mono);margin-bottom:7px}
+.op-dots{display:flex;align-items:center;gap:0}
+.op-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;border:1.5px solid var(--bdr);background:var(--card);color:var(--dim)}
+.op-dot.d{border-color:#16a34a;background:var(--g50);color:#16a34a}
+.op-dot.p{border-color:#d97706;background:var(--a50);color:#d97706}
+.op-dot.a{border-color:var(--blue);background:var(--b50);color:var(--blue)}
+.op-con{flex:1;height:1.5px;background:var(--bdr);margin-top:-4px;min-width:4px}
+.op-con.d{background:#16a34a}
+/* TIMELINE */
+.tl{padding:9px 12px;border-radius:9px;background:var(--bg);border:1px solid var(--bdr);margin-bottom:6px;border-left:3px solid var(--bdr)}
+.tl.productive{border-left-color:#16a34a;background:linear-gradient(to right,#f0fdf4,var(--bg))}
+.tl.waste{border-left-color:#d97706;background:linear-gradient(to right,#fffbeb,var(--bg))}
+.tl.w9{border-left-color:#94a3b8;background:linear-gradient(to right,#f8fafc,var(--bg));opacity:.8}
+.tl.paused{border-left-color:#d97706;opacity:.7}
+.tl.machine_running{border-left-color:#3b5fe2;background:linear-gradient(to right,#eef2ff,var(--bg))}
+.tlm{font-size:12px;font-weight:600}.tls{font-size:10px;color:var(--mu);font-family:var(--mono);margin-top:2px}
+/* MACHINE RUNNING BOX */
+.mr-box{background:linear-gradient(135deg,#eef2ff,#e0e7ff);border:1.5px solid var(--b100);border-radius:13px;padding:14px 16px;margin-bottom:14px}
+.mr-title{font-size:12px;font-weight:800;color:var(--blue);margin-bottom:6px}
+.mr-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.mr-info{font-size:12px;color:var(--mu);line-height:1.7}
+.mr-timer{font-family:var(--mono);font-size:22px;font-weight:800;color:var(--blue)}
+.mr-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.mr-resume{background:var(--blue);color:#fff;border:none;padding:8px 16px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f)}
+.mr-complete{background:#fff;border:2px solid #16a34a;color:#15803d;padding:8px 16px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f)}
+.mr-complete:hover{background:var(--g50)}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}.sg,.wg{grid-template-columns:repeat(2,1fr)}}
+</style>
+<script>const PAGE_KEY='clocking'</script>
+<script src="access.js"></script>
+<script src="lang.js"></script>
+<script src="orders.js"></script>
+</head>
+<body>
+
+
+
+<!-- 1-HOUR ALERT BANNER -->
+<div class="alert-banner" id="alertBanner">
+  <div>
+    <div class="ab-msg" id="abMsg">Session running over 1 hour!</div>
+    <div class="ab-sub" id="abSub">Consider ending and starting a new task to keep timing accurate.</div>
+  </div>
+  <div class="ab-btns">
+    <button class="ab-btn ab-white" onclick="endFromBanner()">&#9632; End Session Now</button>
+    <button class="ab-btn ab-ghost" onclick="newTaskFromBanner()">&#8595; Clock New Task</button>
+    <a class="ab-btn ab-ghost" id="abCorrect" href="employee_profile.html" style="text-decoration:none">&#128295; Correct Timing</a>
+    <button class="ab-btn ab-x" onclick="document.getElementById('alertBanner').classList.remove('on')">&#10005;</button>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  
+  <div class="tbl">
+    <div class="tlogo">&#9881;</div>
+    <div class="tnm">Cedarwings SAS</div>
+    <div class="tsep"></div>
+    <div class="tpg">&#9201; Clocking Terminal</div>
+  </div>
+  <div class="tbr">
+    <div class="ldot"></div>
+    <div class="epill" id="epill" onclick="changeEmp()">
+      &#128119; <span id="empNm">Loading&hellip;</span> <span style="font-size:10px;opacity:.6">&#9660;</span>
+    </div>
+    <a id="profileLink" href="employee_profile.html" class="btn bn" style="text-decoration:none">&#128100; My Profile</a>
+    <a href="index.html" class="btn bg-btn" style="text-decoration:none">&#8592; Home</a>
+  </div>
+</header>
+
+<div class="body">
+  <div class="grid">
+
+    <!-- LEFT: CLOCKING FORM -->
+    <div>
+      <div class="card">
+        <div class="ct">Clock In</div>
+        <div class="cs">Enter order number &rarr; tap a step to instantly clock in. Tapping a new step auto-closes the previous session. Use <strong>Pause</strong> to stop without completing the step.</div>
+
+        <!-- ORDER NUMBER + PIPELINE -->
+        <div class="fg">
+          <lbl>Order Number *</lbl>
+          <div style="position:relative">
+            <input class="fi" id="ord" placeholder="Type to search orders…" autocomplete="off" 
+              oninput="window._filterOrders&&window._filterOrders(this.value)" 
+              onfocus="window._showOrderList&&window._showOrderList()" 
+              style="padding-right:36px"/>
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
+          </div>
+          <!-- ORDER DROPDOWN -->
+          <div id="ordDropdown" style="display:none;position:absolute;z-index:200;background:#fff;border:1.5px solid var(--bdr);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:280px;overflow-y:auto;width:100%;margin-top:4px">
+            <div id="ordList"></div>
+          </div>
+        </div>
+        <div id="ordMsg" style="font-size:11px;margin:-10px 0 10px;padding:0 2px;min-height:14px"></div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+          <div style="font-size:9px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Production Pipeline</div>
+          <div class="pipe" id="pipe"></div>
+          <div id="pinfo" style="font-size:11px;color:var(--mu);margin-top:8px"></div>
+        </div>
+
+        <!-- ACTIVE JOB BOX -->
+        <div class="job-box prod" id="jobBox" style="display:none">
+          <div class="jb-top">
+            <div>
+              <div class="jb-badge prod" id="jbBadge">ON JOB</div>
+              <div class="jb-title" id="jbTitle">—</div>
+              <div class="jb-meta" id="jbMeta">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="jb-timer prod" id="jbTimer">00:00:00</div>
+              <div style="font-size:10px;color:var(--mu);margin-top:3px">elapsed</div>
+            </div>
+          </div>
+          <div class="jb-actions">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="jb-pause" onclick="showPauseDialog()">&#9208; Stop working on this task</button>
+              <button id="btnNextStep" class="jb-next" onclick="moveToNextStep()" style="display:none">
+                &#9654; Move to Next Step: <span id="nextStepLabel">—</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MACHINE RUNNING BOX (shown when step is machine_running) -->
+        <div class="mr-box" id="mrBox" style="display:none">
+          <div class="mr-title">&#128260; Machine Running on this Order</div>
+          <div class="mr-row">
+            <div class="mr-info" id="mrInfo">—</div>
+            <div>
+              <div style="font-size:9px;color:var(--mu);margin-bottom:2px">Machine running for</div>
+              <div class="mr-timer" id="mrTimer">00:00:00</div>
+            </div>
+          </div>
+          <div class="mr-btns">
+            <button class="mr-resume" id="mrResumeBtn">&#9654; Resume working on this step</button>
+            <button class="mr-complete" id="mrCompleteBtn">&#10003; Mark Step Complete</button>
+          </div>
+        </div>
+
+        <!-- STEP BUTTONS -->
+        <div class="fg">
+          <lbl>&#10003; Tap a step to clock in</lbl>
+          <div class="sg" id="stepGrid">
+            <button class="sb" data-step="Printing" data-mach="3D Printing Machine 1"><span class="si">&#128424;</span>Printing</button>
+            <button class="sb" data-step="Cleaning" data-mach="Cleaning Station"><span class="si">&#129529;</span>Cleaning</button>
+            <button class="sb" data-step="Thermoforming" data-mach="Thermoforming Machine 1"><span class="si">&#128260;</span>Thermoforming</button>
+            <button class="sb" data-step="Line Cut" data-mach="Line Cut Station"><span class="si">&#9986;</span>Line Cut</button>
+            <button class="sb" data-step="Laser Marking" data-mach="Laser Marking Station"><span class="si">&#128294;</span>Laser Marking</button>
+            <button class="sb" data-step="Packaging" data-mach="Packaging Station"><span class="si">&#128230;</span>Packaging</button>
+          </div>
+        </div>
+
+        <!-- WASTE BUTTONS -->
+        <div class="fg">
+          <lbl>&#9888; Non-Productive</lbl>
+          <div class="wg">
+            <button class="wb" data-w="Waiting for next job">&#8987;<br/>W1 Waiting</button>
+            <button class="wb" data-w="General cleaning">&#129531;<br/>W2 Cleaning</button>
+            <button class="wb" data-w="Machine down">&#128295;<br/>W3 Machine</button>
+            <button class="wb" data-w="Waiting for material">&#128230;<br/>W4 Material</button>
+            <button class="wb" data-w="Break">&#9749;<br/>W5 Break</button>
+            <button class="wb" data-w="Rework">&#128260;<br/>W6 Rework</button>
+          </div>
+        </div>
+
+        <!-- END OF DAY -->
+        <div style="margin-top:18px;padding-top:16px;border-top:1.5px solid var(--bdr)">
+          <button onclick="endOfDay()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:9px;transition:all .15s;letter-spacing:-.1px">
+            <span style="font-size:18px">&#127968;</span> End of Day — Clock Out
+          </button>
+        </div>
+
+        <!-- STATUS -->
+        <div class="sbox" id="sbox"><div class="st" id="stT">Ready</div><div class="sd" id="stD">Enter an order number and tap a step to begin.</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div>
+      <!-- CLOCK -->
+      <div class="card">
+        <div class="clk" id="clk">--:--:--</div>
+        <div class="clkd" id="clkd"></div>
+        <div class="an-row">
+          <div class="an-box"><div class="an-l">Day Start</div><div class="an-v" id="anS">08:00</div></div>
+          <div class="an-box"><div class="an-l">First Clock-In</div><div class="an-v" id="anF">&mdash;</div></div>
+        </div>
+      </div>
+
+      <!-- DAY SUMMARY -->
+      <div class="card">
+        <div class="ct" style="margin-bottom:12px">Day Summary</div>
+        <div class="sg2">
+          <div class="sb3 g"><div class="sv2" style="color:#15803d" id="sP">00:00</div><div class="sl">Productive</div></div>
+          <div class="sb3 a"><div class="sv2" style="color:#d97706" id="sW">00:00</div><div class="sl">Non-Prod.</div></div>
+          <div class="sb3 b"><div class="sv2" style="color:var(--blue)" id="sE">0%</div><div class="sl">Efficiency</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--mu)" id="sSess">0 sessions today</div>
+      </div>
+
+      <!-- TODAY'S ACTIVITY -->
+      <div class="card" style="max-height:420px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div class="ct">My Activity Today</div>
+          <span id="tlBadge" style="font-size:10px;font-weight:700;background:var(--bg);border:1px solid var(--bdr);padding:2px 8px;border-radius:999px;color:var(--mu)">0 sessions</span>
+        </div>
+        <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Sessions + pipeline per order</div>
+        <div id="todayPipe" style="margin-bottom:8px"></div>
+        <div style="overflow-y:auto;flex:1" id="tldiv"><div style="color:var(--dim);font-size:13px;text-align:center;padding:20px">No sessions yet.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import{createClient}from"https://esm.sh/@supabase/supabase-js@2"
+import{SUPABASE_CONFIG}from"./config.js"
+const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
+
+const STEPS=["Printing","Cleaning","Thermoforming","Line Cut","Laser Marking","Packaging"]
+const ICO={Printing:"&#128424;",Cleaning:"&#129529;",Thermoforming:"&#128260;","Line Cut":"&#9986;","Laser Marking":"&#128294;",Packaging:"&#128230;"}
+const AVCOLORS=["#3b5fe2","#16a34a","#d97706","#dc2626","#7c3aed","#0d9488","#db2777","#ea580c"]
+const avCol=n=>AVCOLORS[(n||"").charCodeAt(0)%AVCOLORS.length]
+const ini=n=>(n||"?").trim().split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2)
+const EK="cw_current_emp"
+const ts=()=>{const d=new Date();d.setHours(0,0,0,0);return d}
+const te=()=>{const d=new Date();d.setHours(23,59,59,999);return d}
+const hm=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")
+const hms=ms=>{const t=Math.max(0,Math.floor(ms/1000));return String(Math.floor(t/3600)).padStart(2,"0")+":"+String(Math.floor(t%3600/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0")}
+const fT=v=>v?new Date(v).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—"
+const mins=(a,b)=>Math.max(0,Math.round((b-a)/60000))
+const gB=()=>"B-"+new Date().toISOString().replace(/[-:TZ.]/g,"").slice(2,14)
+
+let emp="",activeSession=null,timerInt=null,todaySessions=[]
+
+/* ===================== W9 AUTO GAP FILL ===================== */
+async function fillW9Gap(empName,newSessionStart){
+  // Find the last ended session for this employee today
+  const todayStart=new Date();todayStart.setHours(0,0,0,0)
+  const{data}=await sb.from("time_sessions")
+    .select("ended_at,started_at,waste_category")
+    .eq("employee_name",empName)
+    .gte("started_at",todayStart.toISOString())
+    .not("ended_at","is",null) // only ended sessions
+    .order("ended_at",{ascending:false})
+    .limit(1)
+  if(!data||!data.length)return // no previous session today = no gap
+  const lastEnd=new Date(data[0].ended_at)
+  const gapMs=newSessionStart.getTime()-lastEnd.getTime()
+  if(gapMs<=0)return // no gap
+  // Skip tiny gaps under 30 seconds (clock-in overlap noise)
+  if(gapMs<30000)return
+  // Skip large gaps over 30 minutes — means previous session was left open incorrectly, not a real transition
+  if(gapMs>30*60*1000)return
+  // Skip if last session was already a W9 (avoid chaining)
+  if(data[0].waste_category==="W9 - Transition Time")return
+  // Insert W9 gap session
+  await sb.from("time_sessions").insert([{
+    employee_name:empName,
+    session_type:"waste",
+    work_type:"Waste Time",
+    waste_category:"W9 - Transition Time",
+    order_no:null,
+    batch_id:"W9-"+Date.now(),
+    started_at:lastEnd.toISOString(),
+    ended_at:newSessionStart.toISOString(),
+    pause_reason:null
+  }])
+  console.log(`W9 auto-created: ${Math.round(gapMs/60000)}min gap filled`)
+}
+
+/* ===================== EMPLOYEE ===================== */
+function initEmp(){
+  // Identity comes from index.html login — no picker needed
+  const name=sessionStorage.getItem(EK)||localStorage.getItem(EK)
+  if(name){setEmp(name)}
+  else{window.location.href="index.html"} // Not logged in → go to login
+}
+
+async function setEmp(name){
+  emp=name
+  document.getElementById("empNm").textContent=name
+  document.getElementById("profileLink").href="employee_profile.html?emp="+encodeURIComponent(name)
+  document.getElementById("abCorrect").href="employee_profile.html?emp="+encodeURIComponent(name)+"&tab=admin"
+
+  // RULE: On page load, close any orphan open sessions from previous day or lost state
+  const todayStart=new Date();todayStart.setHours(0,0,0,0)
+  const{data:openSess}=await sb.from("time_sessions")
+    .select("id,started_at,work_type")
+    .eq("employee_name",name)
+    .is("ended_at",null)
+    .order("started_at",{ascending:false})
+  
+  if(openSess&&openSess.length>0){
+    // Keep the most recent one as potentially active, close all others
+    const toClose=openSess.slice(1) // all except most recent
+    const mostRecent=openSess[0]
+    const startedAt=new Date(mostRecent.started_at)
+    const isToday=startedAt>=todayStart
+    
+    if(toClose.length>0){
+      // Close all duplicate sessions
+      await sb.from("time_sessions")
+        .update({ended_at:new Date().toISOString()})
+        .in("id",toClose.map(s=>s.id))
+    }
+    
+    if(!isToday){
+      // Session from a previous day — close it at 23:59 of that day
+      const endOfDay=new Date(startedAt)
+      endOfDay.setHours(23,59,59,0)
+      await sb.from("time_sessions").update({ended_at:endOfDay.toISOString()}).eq("id",mostRecent.id)
+      activeSession=null
+    } else {
+      // Session from today — restore it as active
+      activeSession={id:mostRecent.id,step:mostRecent.work_type,order:mostRecent.order_no,type:"productive",startTime:startedAt}
+      showJobBox(mostRecent.work_type,mostRecent.order_no,"productive",startedAt,mostRecent.machine)
+      startTimer()
+    }
+  }
+
+  loadToday()
+}
+
+window.changeEmp=()=>{
+  // Switch user = go back to login
+  sessionStorage.removeItem(EK)
+  window.location.href="index.html"
+}
+
+/* ===================== PIPELINE ===================== */
+let machineRunningData={} // {step: {id,first_started_at,step}}
+
+async function renderPipeline(ord){
+  const pipe=document.getElementById("pipe"),pinfo=document.getElementById("pinfo")
+  document.getElementById("mrBox").style.display="none"
+  clearInterval(window.mrTimerInt)
+  if(!ord){
+    pipe.innerHTML=STEPS.map((s,i)=>(i>0?'<div class="pcon"></div>':'')+`<div class="ps locked"><div class="psc">${ICO[s]||"·"}</div><div class="pslbl">${s}</div></div>`).join("")
+    pinfo.textContent="Enter order number to see pipeline"
+    updateStepButtons(null,new Set(),new Set(),new Set(),null)
+    return
+  }
+  // Load time_sessions for this order
+  const{data:rows}=await sb.from("time_sessions").select("work_type,session_type,ended_at,pause_reason,started_at").eq("order_no",ord).order("started_at",{ascending:true})
+  // Load step tracking for this order
+  const{data:tracking}=await sb.from("order_step_tracking").select("*").eq("order_no",ord)
+  const trackMap={}; (tracking||[]).forEach(t=>trackMap[t.step]=t)
+
+  const rws=rows||[]
+  
+  // BUILD STATUS FROM BOTH SOURCES
+  // Primary: order_step_tracking (new sessions)
+  // Fallback: derive from time_sessions directly (old sessions before table existed)
+  const done=new Set()
+  const machineRunning=new Set()
+  const inProgress=new Set()
+  
+  // From order_step_tracking
+  ;(tracking||[]).forEach(t=>{
+    if(t.status==="complete")done.add(t.step)
+    else if(t.status==="machine_running")machineRunning.add(t.step)
+    else if(t.status==="in_progress")inProgress.add(t.step)
+  })
+  
+  // Fallback from time_sessions for steps NOT in tracking table
+  const trackedSteps=new Set(Object.keys(trackMap))
+  STEPS.forEach(step=>{
+    if(trackedSteps.has(step))return // already handled above
+    const stepSessions=rws.filter(r=>r.work_type===step&&r.session_type==="productive")
+    if(!stepSessions.length)return
+    // Check if any session is still open (active)
+    const hasOpen=stepSessions.some(r=>!r.ended_at)
+    if(hasOpen){inProgress.add(step);return}
+    // All ended - check last pause_reason
+    const last=stepSessions[stepSessions.length-1]
+    if(last.pause_reason==="machine_running")machineRunning.add(step)
+    else if(last.pause_reason==="paused"||last.pause_reason){}// paused - don't mark done
+    else done.add(step) // properly completed
+    // Build a virtual trackMap entry for machine running display
+    if(last.pause_reason==="machine_running"&&!trackMap[step]){
+      trackMap[step]={step,order_no:ord,status:"machine_running",first_started_at:stepSessions[0].started_at}
+    }
+  })
+  
+  machineRunningData=trackMap
+
+  const lastDone=STEPS.filter(s=>done.has(s)).pop()||null
+  const nextIdx=lastDone?STEPS.indexOf(lastDone)+1:0
+  // Order is complete when ALL 6 steps are done
+  const allDone=STEPS.every(s=>done.has(s))
+
+  // Next = machine_running step OR next undone step — null if all done
+  const mrStep=STEPS.find(s=>machineRunning.has(s))
+  const next=allDone?null:(mrStep||STEPS[nextIdx]||null)
+  const actStep=activeSession?.order===ord?activeSession.step:null
+
+  pipe.innerHTML=STEPS.map((s,i)=>{
+    const d=done.has(s),mr=machineRunning.has(s),ip=inProgress.has(s),a=s===actStep
+    const ldIdx=lastDone?STEPS.indexOf(lastDone):-1
+    const con=i>0?`<div class="pcon${d||STEPS.indexOf(s)<=ldIdx?" done":""}"></div>`:""
+    let cls="locked"
+    if(d)cls="done"
+    else if(a)cls="active"
+    else if(mr)cls="paused" // orange = machine running
+    else if(ip&&!a)cls="active"
+    else if(s===next&&!a&&!mr)cls="next"
+    return con+`<div class="ps ${cls}"><div class="psc">${d?"✓":mr?"⚙":a?"▶":ICO[s]||s[0]}</div><div class="pslbl">${s}</div></div>`
+  }).join("")
+
+  // Show machine running box if applicable for this order
+  if(mrStep&&trackMap[mrStep]){
+    const t=trackMap[mrStep]
+    const mrBox=document.getElementById("mrBox")
+    document.getElementById("mrInfo").innerHTML=`<strong>${mrStep}</strong> on ${ord}<br>Started: ${fT(t.first_started_at)}`
+    mrBox.style.display="block"
+    clearInterval(window.mrTimerInt)
+    window.mrTimerInt=setInterval(()=>{
+      document.getElementById("mrTimer").textContent=hms(Date.now()-new Date(t.first_started_at).getTime())
+    },1000)
+    document.getElementById("mrResumeBtn").onclick=()=>window._clockStep(mrStep)
+    document.getElementById("mrCompleteBtn").onclick=()=>markStepComplete(mrStep,ord)
+  }
+
+  const comp=done.size,tot=STEPS.length
+  pinfo.innerHTML=allDone
+    ?`<span style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:5px 14px;border-radius:999px;font-weight:800;font-size:12px">&#10003; Order complete — no further clocking allowed</span>`
+    :`<span style="color:#16a34a;font-weight:700">${comp}/${tot} complete</span>`
+    +(mrStep?` &middot; <span style="color:var(--blue);font-weight:700">&#9881; ${mrStep} machine running</span>`:"")
+    +(next&&!mrStep?` &middot; <strong>Next: ${next}</strong>`:"")
+  updateStepButtons(next,done,machineRunning,inProgress,actStep,allDone)
+}
+
+function updateStepButtons(next,done,machineRunning,inProgress,actStep,allDone){
+  document.querySelectorAll(".sb").forEach(b=>{
+    const s=b.dataset.step
+    b.className="sb";b.onclick=null;b.style.pointerEvents="none"
+
+    if(allDone){b.classList.add("done");return}
+
+    if(s===actStep){
+      // Currently active — just show as active, not clickable
+      // Technician taps NEXT step to move forward (doClockIn auto-completes this one)
+      b.classList.add("active")
+    }
+    else if(done?.has(s)){
+      b.classList.add("done")
+    }
+    else if(machineRunning?.has(s)){
+      b.classList.add("paused");b.style.pointerEvents="auto"
+      b.onclick=()=>window._clockStep(s)
+    }
+    else if(next&&s===next){
+      // NEXT step is ALWAYS clickable — even if something is currently active
+      // doClockIn will auto-complete the current step when clocking into the next one
+      b.classList.add("can");b.style.pointerEvents="auto"
+      b.onclick=()=>window._clockStep(s)
+    }
+  })
+}
+/* ===================== CLOCK IN ===================== */
+window.moveToNextStep=async()=>{
+  console.log('[Clock] moveToNextStep called')
+  const btn=document.getElementById("btnNextStep")
+  if(!btn){console.log('[Clock] btnNextStep not found');return}
+  const nextStep=btn.dataset.next
+  const ord=btn.dataset.ord||document.getElementById("ord").value.trim()
+  console.log('[Clock] nextStep=',nextStep,'ord=',ord)
+  if(!nextStep||!ord){setSt("Error","Cannot determine next step","err");return}
+  setSt(`Moving to ${nextStep}...`,"","ok")
+  await window._clockStep(nextStep)
+}
+
+window._clockStep=async(step)=>{
+  const ord=document.getElementById("ord").value.trim()
+  if(!ord){setSt("Enter order number first","Type the order number above.","err");return}
+  if(!emp){window.location.href="index.html";return}
+  // Show machine picker for this step
+  await showMachinePicker(step,ord)
+}
+
+// Map step → machine type keyword for fallback lookup
+const STEP_MACHINE_TYPE={"Printing":"Printer","Cleaning":"Cleaning","Thermoforming":"Thermoformer","Line Cut":"Cutting","Laser Marking":"Laser","Packaging":"Packaging"}
+
+async function showMachinePicker(step,ord){
+  // Load machines linked to this step from step_machines
+  let machines=[]
+  try{
+    const{data:sm}=await sb.from("step_machines").select("*").eq("step",step).eq("is_active",true)
+    machines=sm||[]
+  }catch(e){}
+
+  // Fallback: if step_machines empty for this step, search machines table by type keyword
+  if(!machines.length){
+    try{
+      const kw=STEP_MACHINE_TYPE[step]||step.split(" ")[0]
+      const{data:allM}=await sb.from("machines").select("id,machine_name,machine_type").ilike("machine_type",`%${kw}%`)
+      if(allM&&allM.length) machines=allM.map(m=>({machine_id:m.id,machine_name:m.machine_name,machine_type:m.machine_type}))
+    }catch(e){}
+  }
+
+  // Still nothing → clock in without machine
+  if(!machines.length){ await doClockIn(step,ord,null,null); return }
+
+  // Single machine → auto-select silently
+  if(machines.length===1){ await doClockIn(step,ord,machines[0].machine_name,machines[0].machine_id||null); return }
+
+  // Multiple → show picker
+  document.getElementById("machModalTitle").textContent=`${step} — Choisir la machine`
+  document.getElementById("machModalSub").textContent=`Order ${ord} · Select machine que vous utilisez`
+  const COLORS=["#3b5fe2","#16a34a","#d97706","#dc2626","#7c3aed","#0d9488"]
+  document.getElementById("machList").innerHTML=[
+    `<div onclick="window._pickMachine('${step}','${ord}','','')"
+      style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:13px;padding:14px;text-align:center;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='#64748b';this.style.background='#f1f5f9'"
+      onmouseout="this.style.borderColor='#cbd5e1';this.style.background='#f8fafc'">
+      <div style="font-size:20px;margin-bottom:6px">👷</div>
+      <div style="font-size:12px;font-weight:700;color:#64748b">Sans machine</div>
+    </div>`,
+    ...machines.map((m,i)=>`
+    <div onclick="window._pickMachine('${step}','${ord}','${(m.machine_name||'').replace(/'/g,"\'")}','${m.machine_id||''}')"
+      style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:13px;padding:14px;text-align:center;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='${COLORS[i%COLORS.length]}';this.style.background='#eef2ff'"
+      onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+      <div style="font-size:24px;margin-bottom:8px">⚙</div>
+      <div style="font-size:13px;font-weight:800;color:#0f172a">${m.machine_name}</div>
+      ${m.machine_type?`<div style="font-size:10px;color:#64748b;margin-top:3px">${m.machine_type}</div>`:''}
+    </div>`)
+  ].join("")
+  document.getElementById("machModal").style.display="flex"
+}
+
+
+window._pickMachine=async(step,ord,machName,machId)=>{
+  document.getElementById("machModal").style.display="none"
+  await doClockIn(step,ord,machName,machId||null)
+}
+
+async function doClockIn(step,ord,machName,machId){
+  const now=new Date()
+
+  // RULE 1: If switching to a DIFFERENT order — mark the current active step as COMPLETE
+  if(activeSession && activeSession.order && String(activeSession.order)!==String(ord)){
+    const prevOrd=activeSession.order
+    const prevStep=activeSession.step
+    try{
+      const{data:tr}=await sb.from("order_step_tracking")
+        .select("id,status").eq("order_no",prevOrd).eq("step",prevStep).limit(1)
+      if(tr&&tr.length&&tr[0].status==="in_progress"){
+        await sb.from("order_step_tracking").update({
+          status:"complete",
+          completed_at:now.toISOString(),
+          completed_by:emp,
+          machine_ended_at:now.toISOString()  // Machine stops when step is completed
+        }).eq("id",tr[0].id)
+      }
+    }catch(e){}
+  }
+
+  // RULE 2: Kill ALL open sessions for this employee (prevent duplicates)
+  await sb.from("time_sessions")
+    .update({ended_at:now.toISOString()})
+    .eq("employee_name",emp)
+    .is("ended_at",null)
+
+  // RULE 3: Auto-complete ANY in_progress step on the SAME order
+  // This covers all steps — not just the immediately previous one
+  try{
+    const{data:allInProgress}=await sb.from("order_step_tracking")
+      .select("id,step,status")
+      .eq("order_no",ord)
+      .eq("status","in_progress")
+    if(allInProgress&&allInProgress.length){
+      for(const ps of allInProgress){
+        if(ps.step!==step){ // don't complete the step we are about to start
+          await sb.from("order_step_tracking").update({
+            status:"complete",completed_at:now.toISOString(),completed_by:emp,machine_ended_at:now.toISOString()
+          }).eq("id",ps.id)
+        }
+      }
+    }
+  }catch(e){}
+
+  clearInterval(timerInt)
+
+  // AUTO W9: fill any gap since last ended session
+  await fillW9Gap(emp,now)
+
+  const batchId=gB()
+  const{data:row,error}=await sb.from("time_sessions").insert([{
+    employee_name:emp,
+    session_type:"productive",
+    work_type:step,
+    machine:machName||null,
+    machine_id:machId||null,
+    order_no:ord,
+    batch_id:batchId,
+    started_at:now.toISOString(),
+    ended_at:null,
+    pause_reason:null
+  }]).select().single()
+  if(error){setSt("Error",error.message,"err");return}
+
+  // Create or update step tracking
+  const{data:existing}=await sb.from("order_step_tracking")
+    .select("id,first_started_at").eq("order_no",ord).eq("step",step).limit(1)
+  if(existing&&existing.length){
+    await sb.from("order_step_tracking").update({
+      status:"in_progress",
+      last_resumed_at:now.toISOString()
+    }).eq("id",existing[0].id)
+  }else{
+    await sb.from("order_step_tracking").insert([{
+      order_no:ord,step,status:"in_progress",
+      first_started_at:now.toISOString(),
+      machine_started_at:now.toISOString()  // Machine starts when first technician clocks in
+    }])
+  }
+
+  activeSession={id:row?.id,step,order:ord,type:"productive",startTime:now,machine:machName}
+  showJobBox(step,ord,"productive",now,machName)
+  startTimer()
+  setSt("Clocked in: "+step,`${emp} · ${ord} · ${fT(now.toISOString())}`, "ok")
+  // Clear order field so employee can immediately type a new order
+  document.getElementById("ord").value=""
+  // Reset pipeline to blank — ready for next order entry
+  renderPipeline("")
+  loadToday()
+}
+
+document.querySelectorAll(".wb").forEach(b=>b.addEventListener("click",async()=>{
+  const ord=document.getElementById("ord").value.trim()||null  // order optional for waste
+  if(!emp){window.location.href="index.html";return}
+  const now=new Date()
+  if(activeSession?.id){await sb.from("time_sessions").update({ended_at:now.toISOString()}).eq("id",activeSession.id)}
+  clearInterval(timerInt)
+  // AUTO W9: fill gap between last ended session and now
+  await fillW9Gap(emp,now)
+  const{data:row,error}=await sb.from("time_sessions").insert([{employee_name:emp,session_type:"waste",work_type:"Waste Time",waste_category:b.dataset.w,order_no:ord,batch_id:gB(),started_at:now.toISOString(),ended_at:null}]).select().single()
+  if(error){setSt("Error",error.message,"err");return}
+  activeSession={id:row?.id,step:b.dataset.w,order:ord,type:"waste",startTime:now}
+  showJobBox(b.dataset.w,ord||"—","waste",now)
+  startTimer()
+  setSt("Non-productive: "+b.dataset.w,`${emp}${ord?" · "+ord:""} · ${fT(now.toISOString())}`,"ok")
+  // Clear order field — page ready for next task
+  document.getElementById("ord").value=""
+  renderPipeline("")
+  loadToday()
+}))
+
+/* ===================== INACTIVITY WATCHER ===================== */
+let inactivityInt=null
+
+function startInactivityWatch(){
+  clearInterval(inactivityInt)
+  inactivityInt=setInterval(async()=>{
+    if(!activeSession?.id)return
+    const elapsed=Date.now()-activeSession.startTime.getTime()
+    const ONE_HOUR=60*60*1000
+    if(elapsed>=ONE_HOUR){
+      clearInterval(inactivityInt)
+      // Show red fullscreen warning
+      document.getElementById("inactivityInfo").textContent=
+        `Step: ${activeSession.step} · Order: ${activeSession.order||"—"} · Started at ${fT(activeSession.startTime.toISOString())}`
+      document.getElementById("inactivityModal").style.display="flex"
+    }
+  },60000) // check every minute
+}
+
+window.inactivityStillWorking=()=>{
+  // Employee confirms still working — reset the watch timer from now
+  document.getElementById("inactivityModal").style.display="none"
+  if(activeSession) activeSession.startTime=new Date() // reset clock
+  startInactivityWatch()
+}
+
+window.inactivityStop=async()=>{
+  document.getElementById("inactivityModal").style.display="none"
+  if(!activeSession?.id)return
+  const now=new Date()
+  // Close the session
+  await sb.from("time_sessions")
+    .update({ended_at:now.toISOString(),pause_reason:"inactivity_auto_close"})
+    .eq("id",activeSession.id)
+  // Keep step in_progress so anyone can resume
+  clearInterval(timerInt);clearInterval(inactivityInt)
+  activeSession=null
+  document.getElementById("jobBox").style.display="none"
+  document.getElementById("alertBanner").classList.remove("on")
+  setSt("Session auto-closed","Taskhe toujours ouverte — un autre employé peut reprendre.","ok")
+  document.getElementById("ord").value=""
+  renderPipeline("")
+  loadToday()
+}
+
+/* ===================== PAUSE ===================== */
+window.showPauseDialog=()=>{
+  if(!activeSession)return
+  document.getElementById("pauseModalSub").textContent=`Stopping: ${activeSession.step} on order ${activeSession.order}`
+  document.getElementById("pauseModal").style.display="flex"
+}
+
+window.confirmPause=async(reason)=>{
+  document.getElementById("pauseModal").style.display="none"
+  if(!activeSession?.id)return
+  const now=new Date();const ord=activeSession.order;const step=activeSession.step
+
+  // RULE: Close the time session (employee stops working)
+  await sb.from("time_sessions").update({
+    ended_at:now.toISOString(),
+    pause_reason:reason
+  }).eq("id",activeSession.id)
+
+  // RULE: Step stays in_progress (NOT complete, NOT paused)
+  // So any employee can resume and continue — total hours = sum of all sessions
+  // Only exception: machine_running = machine still running autonomously
+  const{data:existing}=await sb.from("order_step_tracking").select("id").eq("order_no",ord).eq("step",step).limit(1)
+  const newStatus=reason==="machine_running"?"machine_running":"in_progress"
+  if(existing&&existing.length){
+    await sb.from("order_step_tracking").update({status:newStatus}).eq("id",existing[0].id)
+  }else{
+    await sb.from("order_step_tracking").insert([{order_no:ord,step,status:newStatus,first_started_at:now.toISOString()}])
+  }
+
+  clearInterval(timerInt);activeSession=null
+  document.getElementById("jobBox").style.display="none"
+  document.getElementById("alertBanner").classList.remove("on")
+
+  if(reason==="machine_running"){
+    setSt("Machine running — libre pour autre commande",`${step} sur ${ord} — machine en cours. Appuyez sur Terminer quand prêt.`,"ok")
+    renderPipeline(ord)
+  }else{
+    setSt("Tâche suspendue — continuable par tout employé",`${step} sur ${ord} reste ouvert. Entrez à nouveau la commande pour reprendre.`,"ok")
+    document.getElementById("ord").value=""
+    renderPipeline("")
+  }
+  loadToday()
+}
+
+window.pauseJob=()=>window.showPauseDialog()
+
+// Mark a step as complete (any employee can do this)
+window.markStepComplete=async(step,ord)=>{
+  if(!confirm(`Mark "${step}" as complete for order ${ord}? This will advance the pipeline.`))return
+  const now=new Date()
+  // If there's an active session on this step, close it
+  if(activeSession?.id&&activeSession.step===step&&activeSession.order===ord){
+    await sb.from("time_sessions").update({ended_at:now.toISOString()}).eq("id",activeSession.id)
+    clearInterval(timerInt);activeSession=null
+    document.getElementById("jobBox").style.display="none"
+  }
+  // Update step tracking to complete
+  await sb.from("order_step_tracking").update({status:"complete",completed_at:now.toISOString(),completed_by:emp,machine_ended_at:now.toISOString()}).eq("order_no",ord).eq("step",step)
+  setSt(`${step} marked complete!`,`Order ${ord} — pipeline advanced.`,"ok")
+  clearInterval(window.mrTimerInt)
+  document.getElementById("mrBox").style.display="none"
+  renderPipeline(ord);loadToday()
+}
+
+/* ===================== END SESSION ===================== */
+
+async function endSession(){
+  if(!activeSession?.id)return
+  // Only show "All done?" popup on Packaging step
+  if((activeSession.step||'').toLowerCase()==='packaging'){
+    _packagingSessionPending=activeSession
+    // Load Bloom data for this order
+    try{
+      const{data:bd}=await sb.from('bloom_aligner_details')
+        .select('case_number,number_of_aligners,aligner_upper,aligner_lower')
+        .eq('case_number',activeSession.order).single()
+      // Load previously produced aligners for this case
+      const{data:prev}=await sb.from('production_entries')
+        .select('aligners_done').eq('order_no',activeSession.order)
+      const prevDone=(prev||[]).reduce((s,r)=>s+(r.aligners_done||0),0)
+      const planned=parseInt(bd?.number_of_aligners||0)
+      const remaining=Math.max(0,planned-prevDone)
+      _packagingBloomData={planned,upper:parseInt(bd?.aligner_upper||0),lower:parseInt(bd?.aligner_lower||0),prevDone,remaining}
+    }catch(e){
+      _packagingBloomData={planned:0,upper:0,lower:0,prevDone:0,remaining:0}
+    }
+    showPackagingPopup()
+    return
+  }
+  // All other steps: just clock out silently
+  await _finalizeSession(0,0,0,false)
+}
+
+let _packagingSessionPending=null
+let _packagingBloomData=null
+
+function showPackagingPopup(){
+  const o=_packagingSessionPending?.order||'—'
+  const d=_packagingBloomData||{}
+  document.getElementById('pkgOrder').textContent=o
+  document.getElementById('pkgPlanned').textContent=d.planned||'—'
+  document.getElementById('pkgUpper').textContent=d.upper||0
+  document.getElementById('pkgLower').textContent=d.lower||0
+  document.getElementById('pkgPrevDone').textContent=d.prevDone||0
+  document.getElementById('pkgRemaining').textContent=d.remaining||0
+  // Hide partial input by default
+  document.getElementById('pkgPartialBox').style.display='none'
+  document.getElementById('pkgInTotal').value=''
+  document.getElementById('pkgInUpper').value=''
+  document.getElementById('pkgInLower').value=''
+  document.getElementById('pkgModal').style.display='flex'
+}
+
+window.pkgAnswerYes=async()=>{
+  document.getElementById('pkgModal').style.display='none'
+  const d=_packagingBloomData||{}
+  // Use remaining count as what was done this session
+  const done=d.remaining>0?d.remaining:(d.planned||0)
+  const upper=d.upper||0
+  const lower=d.lower||0
+  await _finalizeSession(done,upper,lower,false)
+}
+
+window.pkgAnswerNo=()=>{
+  document.getElementById('pkgPartialBox').style.display='block'
+  document.getElementById('pkgYesBtn').style.display='none'
+  document.getElementById('pkgNoBtn').style.display='none'
+  document.getElementById('pkgInTotal').focus()
+}
+
+window.pkgSavePartial=async()=>{
+  const total=parseInt(document.getElementById('pkgInTotal').value)||0
+  const upper=parseInt(document.getElementById('pkgInUpper').value)||0
+  const lower=parseInt(document.getElementById('pkgInLower').value)||0
+  if(total<=0){document.getElementById('pkgErr').textContent='Enter the number of aligners produced';return}
+  document.getElementById('pkgModal').style.display='none'
+  await _finalizeSession(total,upper,lower,true)
+}
+
+window.pkgSkip=async()=>{
+  document.getElementById('pkgModal').style.display='none'
+  await _finalizeSession(0,0,0,false)
+}
+
+async function _finalizeSession(alignersDone,upperDone,lowerDone,isPartial){
+  const sess=_packagingSessionPending||activeSession
+  if(!sess?.id){activeSession=null;return}
+  _packagingSessionPending=null
+  const now=new Date()
+  const sessionStart=sess.startTime?new Date(sess.startTime):now
+
+  // 1. End the time_session
+  await sb.from('time_sessions').update({
+    ended_at:now.toISOString(),
+    aligners_count:alignersDone||null,
+    upper_count:upperDone||null,
+    lower_count:lowerDone||null
+  }).eq('id',sess.id)
+
+  // 2. If aligners produced → create production_entry + deduct materials
+  if(alignersDone>0){
+    const d=_packagingBloomData||{}
+    const totalAfterThis=(d.prevDone||0)+alignersDone
+    const remaining=Math.max(0,(d.planned||0)-totalAfterThis)
+    try{
+      await sb.from('production_entries').insert([{
+        order_no:sess.order,
+        case_type:null,
+        aligners_done:alignersDone,
+        upper_count:upperDone||0,
+        lower_count:lowerDone||0,
+        is_partial:isPartial,
+        aligners_remaining:remaining,
+        session_id:sess.id,
+        source:'clocking',
+        notes:isPartial?'Partial production — Packaging step':'Complete production — Packaging step',
+        entered_by:emp||null,
+        entered_at:sessionStart.toISOString(),
+        session_date:sessionStart.toISOString().slice(0,10)
+      }])
+    }catch(e){console.warn('production_entries:',e)}
+
+    // 3. Auto-deduct materials from active lots
+    try{
+      const[{data:lots},{data:rules}]=await Promise.all([
+        sb.from('machine_lot_assignments').select('*').eq('is_active',true),
+        sb.from('yield_rules').select('*')
+      ])
+      for(const lot of(lots||[])){
+        const rule=(rules||[]).find(r=>
+          r.item_name&&lot.item_name&&
+          r.item_name.toLowerCase()===lot.item_name.toLowerCase())
+        if(!rule)continue
+        const deduct=parseFloat((rule.qty_per_aligner*alignersDone).toFixed(6))
+        const newQty=Math.max(0,parseFloat(((lot.remaining_qty||0)-deduct).toFixed(6)))
+        await sb.from('machine_lot_assignments').update({remaining_qty:newQty}).eq('id',lot.id)
+        await sb.from('material_consumption_log').insert([{
+          order_no:sess.order,
+          step:'Packaging',
+          machine_id:lot.machine_id||null,
+          machine_name:lot.machine_name||null,
+          assignment_id:lot.id,
+          item_name:lot.item_name,
+          lot_number:lot.lot_number,
+          qty_used:deduct,
+          unit:lot.unit||'g',
+          aligners_count:alignersDone,
+          recorded_by:emp||null,
+          recorded_at:sessionStart.toISOString()
+        }])
+      }
+    }catch(e){console.warn('material deduction:',e)}
+  }
+
+  // 4. Clear UI
+  clearInterval(timerInt)
+  const ord=sess.order
+  activeSession=null
+  _packagingBloomData=null
+  document.getElementById('jobBox').style.display='none'
+  document.getElementById('alertBanner').classList.remove('on')
+  renderPipeline(ord)
+  loadToday()
+  setSt('Session ended','Clocked out successfully.','ok')
+}
+
+window.endFromBanner=endSession
+window.newTaskFromBanner=async()=>{
+  await endSession()
+  setTimeout(()=>document.getElementById("stepGrid").scrollIntoView({behavior:"smooth",block:"center"}),300)
+}
+
+/* ===================== JOB BOX ===================== */
+function showJobBox(step,ord,type,startTime,mach){
+  const box=document.getElementById("jobBox")
+  box.className="job-box "+(type==="waste"?"waste":"prod")
+  box.style.display="block"
+  document.getElementById("jbBadge").textContent=type==="waste"?"NON-PRODUCTIVE":"ON JOB"
+  document.getElementById("jbBadge").className="jb-badge "+(type==="waste"?"waste":"prod")
+  document.getElementById("jbTitle").textContent=step
+  document.getElementById("jbMeta").textContent=`Order: ${ord} · ${mach||"No machine"} · Started: ${fT(startTime.toISOString())}`
+  document.getElementById("jbTimer").className="jb-timer "+(type==="waste"?"waste":"prod")
+  // Show Next Step button if this is a productive step and there's a next step
+  console.log('[Clock] showJobBox type=',type,'step=',step)
+  const btnNext=document.getElementById("btnNextStep")
+  const lblNext=document.getElementById("nextStepLabel")
+  if(type==="productive"||type==="Productive"){
+    const stepIdx=STEPS.indexOf(step)
+    const nextStep=stepIdx>=0&&stepIdx<STEPS.length-1?STEPS[stepIdx+1]:null
+    console.log('[Clock] stepIdx=',stepIdx,'nextStep=',nextStep)
+    if(nextStep&&btnNext){
+      lblNext.textContent=nextStep
+      btnNext.style.display="inline-flex"
+      btnNext.dataset.next=nextStep
+      btnNext.dataset.ord=String(ord)
+      console.log('[Clock] Next step button shown:',nextStep)
+    } else if(btnNext){
+      btnNext.style.display="none"
+    }
+  } else {
+    if(btnNext) btnNext.style.display="none"
+  }
+}
+
+function startTimer(){
+  clearInterval(timerInt)
+  timerInt=setInterval(()=>{
+    if(!activeSession)return
+    const ms=Date.now()-activeSession.startTime.getTime()
+    document.getElementById("jbTimer").textContent=hms(ms)
+    const m=Math.floor(ms/60000)
+    const banner=document.getElementById("alertBanner")
+    if(m>=60){
+      banner.classList.add("on")
+      document.getElementById("abMsg").textContent=`Session running ${Math.floor(m/60)}h ${m%60}m — ${activeSession.order} · ${activeSession.step}`
+      document.getElementById("abSub").textContent=`Started ${fT(activeSession.startTime.toISOString())}. End it or pause to keep records accurate.`
+    }else{banner.classList.remove("on")}
+  },1000)
+  startInactivityWatch()
+}
+
+/* ===================== LOAD TODAY ===================== */
+async function loadToday(){
+  if(!emp)return
+  const{data}=await sb.from("time_sessions").select("*").eq("employee_name",emp).gte("started_at",ts().toISOString()).lte("started_at",te().toISOString()).order("started_at",{ascending:true})
+  todaySessions=data||[]
+  let pM=0,wM=0
+  const allWithActive=[...todaySessions,...(activeSession?[{session_type:activeSession.type,work_type:activeSession.step,waste_category:activeSession.step,order_no:activeSession.order,started_at:activeSession.startTime.toISOString(),ended_at:null,pause_reason:null}]:[]) ]
+  allWithActive.forEach(r=>{const m=r.ended_at?mins(new Date(r.started_at),new Date(r.ended_at)):0;if(r.session_type==="productive")pM+=m;if(r.session_type==="waste")wM+=m})
+  const tot=pM+wM,eff=tot>0?Math.round(pM/tot*100):0,bc=eff>=70?"#16a34a":eff>=40?"#d97706":"#dc2626"
+  document.getElementById("sP").textContent=hm(pM)
+  document.getElementById("sW").textContent=hm(wM)
+  document.getElementById("sE").textContent=eff+"%";document.getElementById("sE").style.color=bc
+  document.getElementById("sSess").textContent=allWithActive.length+" sessions today"
+  document.getElementById("tlBadge").textContent=allWithActive.length+" session"+(allWithActive.length!==1?"s":"")
+  if(allWithActive.length)document.getElementById("anF").textContent=fT(allWithActive[0].started_at)
+  // Today pipeline per order
+  const byOrd={}
+  allWithActive.forEach(r=>{
+    if(!r.order_no||r.session_type!=="productive")return
+    if(!byOrd[r.order_no])byOrd[r.order_no]={done:new Set(),paused:new Set(),active:null}
+    if(STEPS.includes(r.work_type)){
+      if(!r.ended_at)byOrd[r.order_no].active=r.work_type
+      else if(r.pause_reason)byOrd[r.order_no].paused.add(r.work_type)
+      else byOrd[r.order_no].done.add(r.work_type)
+    }
+  })
+  document.getElementById("todayPipe").innerHTML=Object.keys(byOrd).map(ord=>{
+    const{done,paused,active}=byOrd[ord]
+    const dots=STEPS.map((s,i)=>{
+      const cls=done.has(s)?"d":active===s?"a":paused.has(s)?"p":""
+      const label=done.has(s)?"✓":active===s?"▶":paused.has(s)?"⏸":s[0]
+      const con=i>0?`<div class="op-con ${i<=STEPS.filter(x=>done.has(x)).length?"d":""}"></div>`:""
+      return con+`<div class="op-dot ${cls}" title="${s}">${label}</div>`
+    }).join("")
+    return`<div class="ord-pipe"><div class="op-ord">&#128221; ${ord}${active?" &middot; <span style='color:var(--blue);font-weight:700'>"+active+" &#9654;</span>":""}</div><div class="op-dots">${dots}</div></div>`
+  }).join("")||""
+  // Timeline
+  document.getElementById("tldiv").innerHTML=allWithActive.length?allWithActive.slice().reverse().map(r=>{
+    const live=!r.ended_at,m=r.ended_at?mins(new Date(r.started_at),new Date(r.ended_at)):0
+    const isW9=r.waste_category==="W9 - Transition Time"
+    const cls=isW9?"w9":r.pause_reason?"paused":r.session_type||""
+    const label=isW9?"&#8596; W9 - Transition Time":r.session_type==="waste"?"&#9888; "+(r.waste_category||"Waste"):(ICO[r.work_type]||"&#9881;")+" "+(r.work_type||"—")
+    return`<div class="tl ${cls}">
+      <div class="tlm">${label}${r.order_no?" &middot; "+r.order_no:""}${live?" <span style='background:#16a34a;color:#fff;padding:1px 7px;border-radius:999px;font-size:9px;font-weight:800;margin-left:4px'>LIVE</span>":r.pause_reason?" <span style='background:#d97706;color:#fff;padding:1px 7px;border-radius:999px;font-size:9px;font-weight:800;margin-left:4px'>PAUSED</span>":""}
+      </div>
+      <div class="tls">${fT(r.started_at)} &rarr; ${fT(r.ended_at)} &middot; ${live?"ongoing":r.pause_reason?"paused at "+fT(r.ended_at):m+"min"}${isW9?" <span style='color:var(--dim);font-size:9px'>(auto)</span>":""}</div>
+    </div>`
+  }).join(""):`<div style="color:var(--dim);font-size:13px;text-align:center;padding:20px">No sessions yet.</div>`
+}
+
+/* ===================== ORDER INPUT ===================== */
+let pT=null
+// ── ORDER DROPDOWN ──────────────────────────────────────────────────────────
+let allOrders=[],ordDropTimeout=null
+
+async function loadAvailableOrders(){
+  // PRIMARY: Load from bloom_cases (from Bloom API - most complete data)
+  const[bloomRes,trackRes,sessRes]=await Promise.allSettled([
+    sb.from("bloom_cases")
+      .select("case_id,patient_name,doctor,current_status,overdue_for")
+      .not("current_status","in","(ARCHIVE,DELIVERED)")
+      .order("case_id",{ascending:false})
+      .limit(500),
+    sb.from("order_step_tracking")
+      .select("order_no").order("order_no",{ascending:false}).limit(300),
+    sb.from("time_sessions")
+      .select("order_no").not("order_no","is",null)
+      .order("started_at",{ascending:false}).limit(500)
+  ])
+
+  const bloomOrders=bloomRes.status==="fulfilled"?bloomRes.value.data||[]:[]
+  const trackOrders=trackRes.status==="fulfilled"?trackRes.value.data||[]:[]
+  const sessOrders=sessRes.status==="fulfilled"?sessRes.value.data||[]:[]
+
+  // Start with bloom cases (richest data)
+  allOrders=[...bloomOrders]
+  const seen=new Set(allOrders.map(o=>String(o.case_id)))
+
+  // Add from order_step_tracking
+  trackOrders.filter(t=>t.order_no&&!seen.has(String(t.order_no))).forEach(t=>{
+    seen.add(String(t.order_no))
+    allOrders.push({case_id:t.order_no,patient_name:"",doctor:"",current_status:"In Production",overdue_for:0})
+  })
+
+  // Add from time_sessions (catches ALL orders that were ever clocked)
+  sessOrders.filter(s=>s.order_no&&!seen.has(String(s.order_no))).forEach(s=>{
+    seen.add(String(s.order_no))
+    allOrders.push({case_id:s.order_no,patient_name:"",doctor:"",current_status:"In Production",overdue_for:0})
+  })
+
+  // Sort: bloom cases first (have patient data), then by case_id descending
+  allOrders.sort((a,b)=>{
+    if(a.patient_name&&!b.patient_name)return -1
+    if(!a.patient_name&&b.patient_name)return 1
+    return String(b.case_id).localeCompare(String(a.case_id),undefined,{numeric:true})
+  })
+}
+
+window.showOrderList=window._showOrderList=()=>{
+  const dropdown=document.getElementById("ordDropdown")
+  dropdown.style.display="block"
+  filterOrders(document.getElementById("ord").value)
+  // Close on outside click
+  setTimeout(()=>{
+    document.addEventListener("click",function closeDD(e){
+      if(!e.target.closest(".fg")){
+        document.getElementById("ordDropdown").style.display="none"
+        document.removeEventListener("click",closeDD)
+      }
+    })
+  },100)
+}
+
+window.filterOrders=window._filterOrders=(term)=>{
+  clearTimeout(ordDropTimeout)
+  ordDropTimeout=setTimeout(()=>{
+    const t=(term||"").toLowerCase().trim()
+    const filtered=t?allOrders.filter(o=>
+      String(o.case_id).includes(t)||
+      (o.patient_name||"").toLowerCase().includes(t)||
+      (o.doctor||"").toLowerCase().includes(t)
+    ).slice(0,50):allOrders.slice(0,50)
+    
+    const list=document.getElementById("ordList")
+    if(!filtered.length){
+      list.innerHTML=`<div style="padding:12px 14px;font-size:12px;color:var(--mu);text-align:center">No orders found</div>`
+    }else{
+      list.innerHTML=filtered.map(o=>{
+        const statusColor=o.overdue_for>0?"color:var(--red)":"color:var(--mu)"
+        const overdueTag=o.overdue_for>0?` ⚠ ${o.overdue_for}d overdue`:"" 
+        return`<div class="ord-opt" onclick="window.selectOrder&&window.selectOrder('${o.case_id}')">
+          <div class="ord-id">#${o.case_id}</div>
+          <div class="ord-patient">${o.patient_name||"—"}</div>
+          <div class="ord-status" style="${statusColor}">${(o.current_status||"").replace(/_/g," ")}${overdueTag}</div>
+        </div>`
+      }).join("")
+    }
+    document.getElementById("ordDropdown").style.display="block"
+  },200)
+  
+  // Always trigger pipeline render
+  clearTimeout(pT);pT=setTimeout(async()=>{
+    const ord=document.getElementById("ord").value.trim()
+    await renderPipeline(ord)
+    // AUTO-RESUME: if this is the same order as active session, highlight job box
+    if(ord && activeSession && String(activeSession.order)===String(ord)){
+      const jobBox=document.getElementById("jobBox")
+      if(jobBox&&jobBox.style.display!=="none"){
+        jobBox.scrollIntoView({behavior:"smooth",block:"center"})
+        jobBox.style.outline="3px solid var(--blue)"
+        setTimeout(()=>{jobBox.style.outline=""},2000)
+        setSt(`Resuming order ${ord}`,`Currently on: ${activeSession.step} · ${activeSession.machine||""}`,"ok")
+      }
+    }
+  },400)
+}
+
+window.selectOrder=window._selectOrder=async(caseId)=>{
+  const ord=String(caseId)
+  document.getElementById("ord").value=ord
+  document.getElementById("ordDropdown").style.display="none"
+  
+  const o=allOrders.find(x=>String(x.case_id)===ord)
+  if(o){
+    const msg=document.getElementById("ordMsg")
+    msg.innerHTML=o.overdue_for>0
+      ?`<span style="color:var(--red)">${o.patient_name} - ${o.overdue_for}d overdue</span>`
+      :`<span style="color:var(--green)">OK ${o.patient_name||""} - ${(o.current_status||"").replace(/_/g," ")}</span>`
+  }
+  
+  // BUSINESS RULE: selecting a DIFFERENT order while a step is active
+  // = current step is DONE. Auto-complete it, then load new order pipeline.
+  if(activeSession && activeSession.order && String(activeSession.order)!==ord){
+    const now=new Date()
+    const prevOrd=activeSession.order
+    const prevStep=activeSession.step
+    // 1. End the open session
+    if(activeSession.id){
+      await sb.from("time_sessions")
+        .update({ended_at:now.toISOString()})
+        .eq("id",activeSession.id)
+    }
+    // 2. Mark step COMPLETE on previous order
+    try{
+      const{data:tr}=await sb.from("order_step_tracking")
+        .select("id,status").eq("order_no",prevOrd).eq("step",prevStep).limit(1)
+      if(tr&&tr.length){
+        await sb.from("order_step_tracking").update({
+          status:"complete",
+          completed_at:now.toISOString(),
+          completed_by:emp
+        }).eq("id",tr[0].id)
+      }
+    }catch(e){}
+    // 3. Clear UI state
+    clearInterval(timerInt)
+    activeSession={}
+    document.getElementById("jobBox").style.display="none"
+    document.getElementById("mrBox").style.display="none"
+    document.getElementById("ordMsg").innerHTML=
+      `<span style="color:var(--green);font-weight:700">Step ${prevStep} on order ${prevOrd} marked COMPLETE - now select a step for ${ord}</span>`
+    // 4. Fill W9 transition gap
+    await fillW9Gap(emp,now)
+    loadToday()
+  }
+  
+  renderPipeline(ord)
+}
+
+// Load orders on init
+loadAvailableOrders()
+
+document.getElementById("ord").addEventListener("input",()=>{
+  clearTimeout(pT);pT=setTimeout(()=>{const ord=document.getElementById("ord").value.trim();renderPipeline(ord)},400)
+})
+
+/* ===================== TICK ===================== */
+function tick(){
+  const n=new Date()
+  document.getElementById("clk").textContent=n.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})
+  document.getElementById("clkd").textContent=n.toLocaleDateString([],{weekday:"long",year:"numeric",month:"long",day:"numeric"})
+}
+
+/* ===================== STATUS ===================== */
+function setSt(t,d,type){
+  const b=document.getElementById("sbox");b.className="sbox"+(type?" "+type:"")
+  document.getElementById("stT").textContent=t;document.getElementById("stD").textContent=d
+}
+
+/* ===================== END OF DAY ===================== */
+window.endOfDay=async()=>{
+  // Load today summary for the confirmation screen
+  const td=new Date();td.setHours(0,0,0,0)
+  const{data}=await sb.from("time_sessions").select("*").eq("employee_name",emp).gte("started_at",td.toISOString()).order("started_at",{ascending:true})
+  const recs=data||[]
+  let pM=0,wM=0,orders=new Set()
+  recs.forEach(r=>{
+    const m=r.ended_at?mins(new Date(r.started_at),new Date(r.ended_at)):0
+    if(r.session_type==="productive")pM+=m
+    if(r.session_type==="waste"&&r.waste_category!=="W9 - Transition Time")wM+=m
+    if(r.order_no)orders.add(r.order_no)
+  })
+  const tot=pM+wM,eff=tot>0?Math.round(pM/tot*100):0
+  const hrs=Math.floor(pM/60),mns=pM%60
+  document.getElementById("eodMessage").innerHTML=
+    `<strong style="color:#0f172a;font-size:16px">${emp}</strong>, here is your day:<br><br>`+
+    `You worked <strong style="color:#16a34a">${hrs}h ${mns}m productively</strong> across <strong>${orders.size} order${orders.size!==1?"s":""}</strong>.<br>`+
+    (activeSession?`<span style="color:#dc2626">⚠ You have an active session that will be closed.</span>`:"All sessions are closed.")
+  document.getElementById("eodStats").innerHTML=
+    `<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#16a34a;font-family:var(--f)">${hrs}h${mns}m</div><div style="font-size:10px;color:#64748b;margin-top:4px">PRODUCTIVE</div></div>`+
+    `<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#3b5fe2;font-family:var(--f)">${eff}%</div><div style="font-size:10px;color:#64748b;margin-top:4px">EFFICIENCY</div></div>`+
+    `<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#7c3aed;font-family:var(--f)">${orders.size}</div><div style="font-size:10px;color:#64748b;margin-top:4px">ORDERS</div></div>`
+  document.getElementById("eodModal").style.display="flex"
+}
+
+window.confirmEndOfDay=async()=>{
+  const now=new Date()
+  // Close active session if any
+  if(activeSession?.id){
+    await sb.from("time_sessions").update({ended_at:now.toISOString()}).eq("id",activeSession.id)
+    clearInterval(timerInt);activeSession=null
+    document.getElementById("jobBox").style.display="none"
+  }
+  document.getElementById("eodModal").style.display="none"
+
+  // Load final stats for goodbye screen
+  const td=new Date();td.setHours(0,0,0,0)
+  const{data}=await sb.from("time_sessions").select("*").eq("employee_name",emp).gte("started_at",td.toISOString())
+  const recs=data||[]
+  let pM=0,wM=0,orders=new Set(),steps=[]
+  recs.forEach(r=>{
+    const m=r.ended_at?mins(new Date(r.started_at),new Date(r.ended_at)):0
+    if(r.session_type==="productive"){pM+=m;if(r.work_type&&r.work_type!=="Waste Time")steps.push(r.work_type)}
+    if(r.session_type==="waste"&&r.waste_category!=="W9 - Transition Time")wM+=m
+    if(r.order_no)orders.add(r.order_no)
+  })
+  const tot=pM+wM,eff=tot>0?Math.round(pM/tot*100):0
+  const hrs=Math.floor(pM/60),mns=pM%60
+  const uniqueSteps=[...new Set(steps)].length
+
+  // Choose goodbye message based on performance
+  let emoji,title,msg
+  if(eff>=80){emoji="&#127775;";title="Outstanding work today!";msg=`${emp}, you achieved <strong>${eff}% efficiency</strong> today — that's exceptional! ${hrs}h ${mns}m of pure productive output. The aligners you produced today will change someone's smile. Rest well — you earned it.`}
+  else if(eff>=60){emoji="&#128079;";title="Great day, ${emp}!";msg=`Solid work today with <strong>${eff}% efficiency</strong>. You completed <strong>${orders.size} order${orders.size!==1?"s":""}</strong> and worked through <strong>${uniqueSteps} production step${uniqueSteps!==1?"s":""}</strong>. See you tomorrow — keep it up!`}
+  else if(pM>0){emoji="&#127774;";title="Good work, ${emp}!";msg=`You put in <strong>${hrs}h ${mns}m</strong> of productive work today across <strong>${orders.size} order${orders.size!==1?"s":""}</strong>. Every shift counts. Rest up and come back strong tomorrow!`}
+  else{emoji="&#128075;";title="See you next time, ${emp}!";msg="No sessions recorded today. If this is unexpected, contact your manager to review the clocking log."}
+
+  // Replace placeholder
+  emoji=emoji;title=title.replace(/\${emp}/g,emp);msg=msg.replace(/\${emp}/g,emp)
+
+  document.getElementById("goodbyeEmoji").innerHTML=emoji
+  document.getElementById("goodbyeTitle").textContent=title
+  document.getElementById("goodbyeMsg").innerHTML=msg
+  document.getElementById("goodbyeStats").innerHTML=
+    `<div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#fff;font-family:var(--f)">${hrs}h${mns}m</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">PRODUCTIVE</div></div>`+
+    `<div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#a5b4fc;font-family:var(--f)">${eff}%</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">EFFICIENCY</div></div>`+
+    `<div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#86efac;font-family:var(--f)">${orders.size}</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">ORDERS</div></div>`
+  document.getElementById("goodbyeModal").style.display="flex"
+  // Clear session data
+  clearInterval(timerInt);clearInterval(window.mrTimerInt)
+  document.getElementById("alertBanner").classList.remove("on")
+}
+
+window.finalLogout=()=>{
+  sessionStorage.removeItem("cw_current_emp")
+  window.location.href="index.html"
+}
+
+/* ===================== INIT ===================== */
+// Set initial day anchor
+const anc=new Date();anc.setHours(8,0,0,0)
+document.getElementById("anS").textContent=fT(anc.toISOString())
+renderPipeline("")
+tick();setInterval(tick,1000)
+setInterval(loadToday,15000)
+initEmp()
+
+// On load: close orphaned sessions from PREVIOUS days
+// (Sessions left open when employee closed browser without End of Day)
+async function cleanOrphans(){
+  const todayStart=new Date();todayStart.setHours(0,0,0,0)
+  // Close any open sessions that started BEFORE today
+  const{data}=await sb.from("time_sessions")
+    .select("id,started_at,employee_name")
+    .is("ended_at",null)
+    .lt("started_at",todayStart.toISOString())
+  if(data&&data.length){
+    for(const s of data){
+      // Close at end of that day (23:59) so the day record is complete
+      const sessionDay=new Date(s.started_at)
+      sessionDay.setHours(23,59,0,0)
+      await sb.from("time_sessions").update({ended_at:sessionDay.toISOString()}).eq("id",s.id)
+    }
+    console.log(`Closed ${data.length} previous-day orphaned sessions`)
+  }
+  
+  // Also: for current employee, close any duplicate open sessions
+  // (Should only have MAX 1 open session at a time)
+  if(emp){
+    const{data:myOpen}=await sb.from("time_sessions")
+      .select("id,started_at")
+      .eq("employee_name",emp)
+      .is("ended_at",null)
+      .order("started_at",{ascending:false})
+    if(myOpen&&myOpen.length>1){
+      // Keep only the most recent, close all others
+      const toClose=myOpen.slice(1)
+      for(const s of toClose){
+        await sb.from("time_sessions").update({ended_at:new Date(s.started_at).toISOString()}).eq("id",s.id)
+      }
+      console.log(`Closed ${toClose.length} duplicate sessions for ${emp}`)
+    }
+  }
+}
+cleanOrphans()
+</script>
+<!-- END OF DAY MODAL -->
+<div id="eodModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:700;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;padding:36px;max-width:420px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.3)">
+    <div style="font-size:52px;margin-bottom:16px">&#127774;</div>
+    <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:8px">Great work today!</div>
+    <div style="font-size:14px;color:#64748b;line-height:1.7;margin-bottom:20px" id="eodMessage">Loading your day summary...</div>
+    <div style="background:#f0f4f8;border-radius:14px;padding:16px;margin-bottom:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px" id="eodStats"></div>
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:20px;font-style:italic">"Quality is not an act, it is a habit." — Every aligner you made today matters.</div>
+    <button onclick="confirmEndOfDay()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--f);margin-bottom:10px">
+      &#10003; Confirm — End My Day
+    </button>
+    <button onclick="document.getElementById('eodModal').style.display='none'" style="width:100%;padding:11px;background:transparent;border:1.5px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--f);color:#64748b">
+      Cancel — Keep working
+    </button>
+  </div>
+</div>
+
+<!-- GOODBYE MODAL -->
+<div id="goodbyeModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.9);z-index:800;align-items:center;justify-content:center;padding:20px">
+  <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:20px;padding:40px;max-width:420px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5)">
+    <div style="font-size:60px;margin-bottom:16px" id="goodbyeEmoji">&#127774;</div>
+    <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:10px" id="goodbyeTitle">See you tomorrow!</div>
+    <div style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:28px" id="goodbyeMsg"></div>
+    <div style="background:rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-bottom:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px" id="goodbyeStats"></div>
+    <button onclick="finalLogout()" style="width:100%;padding:14px;background:linear-gradient(135deg,#3b5fe2,#6366f1);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--f)">
+      &#8594; Go to Login
+    </button>
+  </div>
+</div>
+
+<!-- MACHINE SELECTION MODAL -->
+<div id="machModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:600;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:18px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="font-size:18px;font-weight:800;margin-bottom:4px" id="machModalTitle">Select Machine</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:20px" id="machModalSub">Choose the machine you will work on</div>
+    <div id="machList" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <button onclick="document.getElementById('machModal').style.display='none'" style="width:100%;padding:10px;background:#f1f5f9;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:#64748b;font-family:var(--f)">Cancel</button>
+  </div>
+</div>
+
+<!-- INACTIVITY WARNING MODAL -->
+<div id="inactivityModal" style="display:none;position:fixed;inset:0;background:rgba(180,0,0,.88);z-index:900;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;padding:32px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:52px;margin-bottom:12px">⚠️</div>
+    <div style="font-size:20px;font-weight:800;color:#dc2626;margin-bottom:8px">Session running for over 1 hour!</div>
+    <div style="font-size:13px;color:#64748b;line-height:1.6;margin-bottom:8px">Vous avez une session active non fermée.</div>
+    <div style="font-size:13px;font-weight:700;background:#fef2f2;border:1px solid #fee2e2;border-radius:8px;padding:10px;margin-bottom:20px;color:#dc2626" id="inactivityInfo">—</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="window.inactivityStillWorking()" style="padding:13px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✅ Je travaille encore — continuer</button>
+      <button onclick="window.inactivityStop()" style="padding:13px;background:#dc2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">⏹ Clôturer cette session maintenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAUSE DIALOG MODAL -->
+<div id="pauseModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:600;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:18px;padding:28px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="font-size:18px;font-weight:800;margin-bottom:6px">Stop this task?</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:22px;line-height:1.6" id="pauseModalSub">Choose how to stop the session.</div>
+    <!-- Option 1: Machine still running -->
+    <div onclick="confirmPause('machine_running')" style="background:#eef2ff;border:2px solid #3b5fe2;border-radius:13px;padding:16px;cursor:pointer;margin-bottom:10px;transition:all .12s" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">&#9881;</span>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#1d4ed8">Machine still running</div>
+          <div style="font-size:12px;color:#3b5fe2;margin-top:2px">Machine continues working. My technician time stops.<br>Step stays open — I or someone else can resume later.<br><strong>Machine running time will be tracked.</strong></div>
+        </div>
+      </div>
+    </div>
+    <!-- Option 2: Fully paused -->
+    <div onclick="confirmPause('paused')" style="background:#fffbeb;border:2px solid #d97706;border-radius:13px;padding:16px;cursor:pointer;margin-bottom:20px;transition:all .12s" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fffbeb'">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">&#9208;</span>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#92400e">Task fully paused</div>
+          <div style="font-size:12px;color:#d97706;margin-top:2px">Everything stops. Step is on hold.<br>No machine running time tracked.<br><strong>Resume whenever ready.</strong></div>
+        </div>
+      </div>
+    </div>
+    <button onclick="document.getElementById('pauseModal').style.display='none'" style="width:100%;padding:10px;background:#f1f5f9;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:#64748b;font-family:var(--f)">Cancel — keep working</button>
+  </div>
+</div>
+
+<!-- COPYRIGHT FOOTER -->
+<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card,#fff);border-top:1px solid var(--bdr,#e2e8f0);padding:6px 20px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--dim,#94a3b8);z-index:999;font-family:'DM Sans',sans-serif">
+  <span>© 2026 <strong style="color:var(--mu,#64748b)">Cedarwings SAS</strong> — Dental Aligner Manufacturing Platform</span>
+  <span>v2.0 · ISO 13485 Compliant · All rights reserved</span>
+</div>
+
+
+
+    </div>
+    <div style="background:var(--b50);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--blue);font-weight:500">Employee time tracking terminal. Employees clock in/out of production steps, breaks, and waste time. Designed for touchscreen use on the production floor.</div>
+    <div style="font-size:13px;line-height:1.8"><div style="margin-bottom:10px"><strong style="color:var(--txt)">Login</strong><br><span style="color:var(--mu);font-size:12px">Employee enters their name or PIN to start a session.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">Order Entry</strong><br><span style="color:var(--mu);font-size:12px">Enter the Bloom order number to link the session to a specific case.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">Step Selection</strong><br><span style="color:var(--mu);font-size:12px">Choose the production step: Printing, Cleaning, Thermoforming, Line Cut, Laser Marking, Packaging.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">▶ Move to Next Step</strong><br><span style="color:var(--mu);font-size:12px">Appears during productive steps — advances to the next step without logging out and re-entering.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">W9 Auto-Gap</strong><br><span style="color:var(--mu);font-size:12px">If a session exceeds 9 hours without clocking out, the system automatically closes it.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">Auto-Resume</strong><br><span style="color:var(--mu);font-size:12px">Re-entering the same order number highlights the current active step and allows resuming.</span></div></div>
+  </div>
+</div>
+<button onclick="document.getElementById('helpModal').classList.add('on')" style="position:fixed;bottom:50px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(59,95,226,.4);z-index:800;font-family:var(--f)">?</button>
+
+
+
+<!-- HELP PANEL PLACEHOLDER - filled by lang.js CW_HELP -->
+<div id="helpPanelMount"></div>
+<script>
+(function() {
+  // Wait for lang.js to load then build the panel
+  function mountHelp() {
+    if (typeof CW_HELP === 'undefined' || typeof CW_HELP.buildPanel !== 'function') {
+      setTimeout(mountHelp, 50); return;
+    }
+    const html = CW_HELP.buildPanel('clocking', '⏲', 'Clocking Terminal', 'Clocking Terminal');
+    document.getElementById('helpPanelMount').innerHTML = html;
+    CW_HELP.init('clocking', '⏲', 'Clocking Terminal', 'Clocking Terminal');
+  }
+  document.addEventListener('DOMContentLoaded', mountHelp);
+})();
+</script>
+
+
+
+
+<!-- PACKAGING "ALL DONE?" MODAL -->
+<div id="pkgModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.9);z-index:900;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;padding:32px;max-width:420px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.35)">
+    
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:44px;margin-bottom:8px">📦</div>
+      <div style="font-size:19px;font-weight:800;margin-bottom:4px">Packaging Step Complete</div>
+      <div style="font-size:13px;color:#64748b">Order <strong id="pkgOrder" style="color:#3b5fe2"></strong></div>
+    </div>
+
+    <!-- Bloom plan info -->
+    <div style="background:#f0f4f8;border-radius:12px;padding:14px;margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Bloom Plan</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div>
+          <div style="font-size:22px;font-weight:800;font-family:monospace;color:#0f172a" id="pkgPlanned">—</div>
+          <div style="font-size:10px;color:#64748b;font-weight:600">TOTAL</div>
+        </div>
+        <div>
+          <div style="font-size:22px;font-weight:800;font-family:monospace;color:#3b5fe2" id="pkgUpper">—</div>
+          <div style="font-size:10px;color:#64748b;font-weight:600">UPPER</div>
+        </div>
+        <div>
+          <div style="font-size:22px;font-weight:800;font-family:monospace;color:#d97706" id="pkgLower">—</div>
+          <div style="font-size:10px;color:#64748b;font-weight:600">LOWER</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:12px">
+        <span style="color:#64748b">Already produced: <strong id="pkgPrevDone" style="color:#16a34a">0</strong></span>
+        <span style="color:#64748b">Remaining: <strong id="pkgRemaining" style="color:#dc2626">0</strong></span>
+      </div>
+    </div>
+
+    <!-- YES/NO question -->
+    <div style="font-size:15px;font-weight:700;text-align:center;margin-bottom:16px">
+      Are all aligners produced?
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button id="pkgYesBtn" onclick="pkgAnswerYes()"
+        style="flex:1;padding:14px;background:#16a34a;border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--f)">
+        ✅ YES — Case complete
+      </button>
+      <button id="pkgNoBtn" onclick="pkgAnswerNo()"
+        style="flex:1;padding:14px;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:12px;font-size:15px;font-weight:700;color:#0f172a;cursor:pointer;font-family:var(--f)">
+        ⚠️ NO — Partial
+      </button>
+    </div>
+
+    <!-- Partial input (hidden until NO is clicked) -->
+    <div id="pkgPartialBox" style="display:none;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:12px">
+ Enter the number of aligners produced cette session ?
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:4px">Total *</label>
+          <input id="pkgInTotal" type="number" min="1" placeholder="ex: 14"
+            style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:9px;font-size:16px;font-weight:700;text-align:center;font-family:monospace;outline:none"
+            onfocus="this.style.borderColor='#3b5fe2'" onblur="this.style.borderColor='#e2e8f0'"/>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:4px">Upper</label>
+          <input id="pkgInUpper" type="number" min="0" placeholder="0"
+            style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:16px;font-weight:700;text-align:center;font-family:monospace;outline:none"
+            onfocus="this.style.borderColor='#3b5fe2'" onblur="this.style.borderColor='#e2e8f0'"/>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:4px">Lower</label>
+          <input id="pkgInLower" type="number" min="0" placeholder="0"
+            style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:16px;font-weight:700;text-align:center;font-family:monospace;outline:none"
+            onfocus="this.style.borderColor='#3b5fe2'" onblur="this.style.borderColor='#e2e8f0'"/>
+        </div>
+      </div>
+      <div id="pkgErr" style="color:#dc2626;font-size:12px;margin-top:8px"></div>
+      <button onclick="pkgSavePartial()"
+        style="width:100%;margin-top:12px;padding:12px;background:#d97706;border:none;border-radius:10px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--f)">
+        💾 Save partial production
+      </button>
+    </div>
+
+    <!-- Skip -->
+    <button onclick="pkgSkip()"
+      style="width:100%;padding:10px;background:none;border:none;font-size:12px;color:#94a3b8;cursor:pointer;font-family:var(--f)">
+      Skip — close without saving
+    </button>
+  </div>
+</div>
+
+</body>
+</html>

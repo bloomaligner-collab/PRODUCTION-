@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings — Contrôle Qualité</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
+  --blue:#3b5fe2;--b50:#eff3ff;--b100:#c7d2fe;
+  --green:#16a34a;--g50:#f0fdf4;--g100:#bbf7d0;
+  --red:#dc2626;--r50:#fff1f2;--r100:#fecdd3;
+  --amber:#d97706;--a50:#fffbeb;--a100:#fde68a;
+  --f:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh:0 1px 4px rgba(0,0,0,.07);}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);font-size:14px}
+.sidebar{position:fixed;left:0;top:0;width:240px;height:100vh;background:var(--card);
+  border-right:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-brand{padding:20px 18px 16px;border-bottom:1px solid var(--bdr)}
+.sb-logo{font-size:18px;font-weight:800;letter-spacing:-.4px}
+.sb-role{font-size:10px;background:var(--b50);color:var(--blue);padding:2px 8px;border-radius:99px;font-weight:700;display:inline-block;margin-top:4px}
+.sb-user{font-size:11px;color:var(--mu);padding:8px 18px;background:var(--bg);border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:6px}
+.sb-nav{flex:1;padding:10px 0}
+.sb-s{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:14px 18px 4px}
+.nl{display:flex;align-items:center;gap:10px;padding:8px 18px;font-size:12px;font-weight:500;color:var(--mu);text-decoration:none;transition:all .12s;border-radius:0}
+.nl:hover,.nl.on{background:var(--b50);color:var(--blue)}
+.ic{font-size:14px;width:18px;text-align:center}
+.sb-foot{padding:12px 18px;border-top:1px solid var(--bdr)}
+.content{margin-left:240px;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.tb-t{font-size:20px;font-weight:800;letter-spacing:-.4px}
+.tb-s{font-size:12px;color:var(--mu);margin-top:2px}
+.body{padding:24px 28px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9px;font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:all .15s;text-decoration:none}
+.btn.bb{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn.bb:hover{background:#2d4dd4}
+.btn.bgh{background:var(--card);border-color:var(--bdr);color:var(--txt)}
+.btn.bgh:hover{border-color:var(--blue);color:var(--blue)}
+.btn.b-g{background:var(--g50);border-color:var(--g100);color:var(--green)}
+.btn.b-r{background:var(--r50);border-color:var(--r100);color:var(--red)}
+.btn.b-a{background:var(--a50);border-color:var(--a100);color:var(--amber)}
+.card{background:var(--card);border-radius:14px;box-shadow:var(--sh);padding:22px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:800;margin-bottom:4px}
+.fi{width:100%;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:9px;font-family:var(--f);font-size:13px;color:var(--txt);outline:none;background:var(--card);transition:border-color .12s}
+.fi:focus{border-color:var(--blue)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700}
+.b-g{background:var(--g50);color:var(--green);border:1px solid var(--g100)}
+.b-r{background:var(--r50);color:var(--red);border:1px solid var(--r100)}
+.b-a{background:var(--a50);color:var(--amber);border:1px solid var(--a100)}
+.b-gray{background:#f1f5f9;color:var(--mu);border:1px solid var(--bdr)}
+.tw{overflow-x:auto;border-radius:10px;border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f8fafc;padding:10px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--bdr)}
+td{padding:12px 14px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+.mono{font-family:var(--mono);font-size:12px}
+.ec{text-align:center;padding:30px;color:var(--dim)}
+/* ── CHECK ITEMS ── */
+.check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:16px}
+.check-item{background:#fff;border-radius:12px;padding:14px 16px;border:2px solid var(--bdr);transition:all .15s;position:relative}
+.check-item.ok{border-color:var(--green);background:var(--g50)}
+.check-item.fail{border-color:var(--red);background:var(--r50)}
+.check-item.na{border-color:var(--bdr);background:#f8fafc;opacity:.7}
+.ci-label{font-size:13px;font-weight:700;margin-bottom:4px}
+.ci-norm{font-size:10px;color:var(--mu);margin-bottom:10px;line-height:1.5}
+.ci-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.ci-btn{padding:9px 4px;border-radius:8px;border:1.5px solid var(--bdr);background:var(--card);
+  font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f);transition:all .15s;color:var(--mu)}
+.ci-btn:hover{border-color:var(--blue);color:var(--blue)}
+.ci-btn.ok{background:var(--green);border-color:var(--green);color:#fff}
+.ci-btn.fail{background:var(--red);border-color:var(--red);color:#fff}
+.ci-btn.na{background:#e2e8f0;border-color:#e2e8f0;color:var(--mu)}
+.ci-status{position:absolute;top:10px;right:12px;font-size:16px}
+.section-title{font-size:12px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;padding:14px 0 8px;border-bottom:1px solid var(--bdr);margin-bottom:12px}
+/* ── RESULT BOX ── */
+.result-box{border-radius:12px;padding:16px;margin:16px 0;border:2px solid var(--bdr)}
+.result-box.pending{background:#f8fafc;border-color:var(--bdr)}
+.result-box.approved{background:var(--g50);border-color:var(--green)}
+.result-box.rejected{background:var(--r50);border-color:var(--red)}
+/* ── PROGRESS BAR ── */
+.progress-bar{height:6px;background:var(--bdr);border-radius:99px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;border-radius:99px;transition:width .3s}
+/* ── PRINT STYLES ── */
+@media print{
+  body{background:#fff!important}
+  .sidebar,.topbar,.no-print,#newQCForm,.content>.body>div:not(#printArea){display:none!important}
+  .content{margin-left:0!important}
+  #printArea{display:block!important;padding:0!important}
+  * {-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+#printArea{display:none}
+</style>
+</head>
+<body>
+<!-- SIDEBAR injected by access.js -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">🦷 Cedarwings</div>
+    <span class="sb-role" id="sbRole">Manager</span>
+  </div>
+  <div class="sb-user" id="sbUser">👤 —</div>
+  <nav class="sb-nav" id="sbNav"></nav>
+  <div class="sb-foot">
+    <button id="sbLangBtn" title="Changer la langue / Switch Language"
+      onclick="(function(){const l=localStorage.getItem('cw_lang')||'fr';const n=l==='fr'?'en':'fr';localStorage.setItem('cw_lang',n);document.getElementById('sbLangBtn').innerHTML=n==='fr'?'🇬🇧 EN':'🇫🇷 FR';if(typeof CW_LANG!=='undefined')CW_LANG.apply();})()"
+      style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:600;color:var(--mu);background:none;border:none;cursor:pointer;width:100%;font-family:var(--f)">
+      🇫🇷 FR
+    </button>
+    <a href="index.html" onclick="sessionStorage.clear()" class="nl" style="color:var(--red);font-size:12px">
+      <span class="ic">🚪</span>Déconnexion
+    </a>
+  </div>
+</aside>
+
+<div class="content">
+  <div class="topbar">
+    <div>
+      <div class="tb-t">✅ Contrôle Qualité</div>
+      <div class="tb-s">Fiche de contrôle ISO 13485 · EN ISO 20795-1</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center" class="no-print">
+      <button class="btn bgh" id="btnPrint" style="display:none" onclick="doPrint()">🖨 Imprimer Rapport</button>
+      <button class="btn bb" id="btnNewQC">✅ + Nouveau Contrôle</button>
+    </div>
+  </div>
+
+<div class="body">
+  <!-- ── KPI ROW ── -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" class="no-print">
+    <div style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:16px;border-top:3px solid var(--green)">
+      <div style="font-size:26px;font-weight:800;font-family:var(--mono);color:var(--green)" id="kqcApproved">—</div>
+      <div style="font-size:11px;color:var(--mu);font-weight:600;margin-top:2px">✅ Approuvés</div>
+    </div>
+    <div style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:16px;border-top:3px solid var(--red)">
+      <div style="font-size:26px;font-weight:800;font-family:var(--mono);color:var(--red)" id="kqcRejected">—</div>
+      <div style="font-size:11px;color:var(--mu);font-weight:600;margin-top:2px">❌ Rejetés</div>
+    </div>
+    <div style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:16px;border-top:3px solid var(--amber)">
+      <div style="font-size:26px;font-weight:800;font-family:var(--mono);color:var(--amber)" id="kqcPending">—</div>
+      <div style="font-size:11px;color:var(--mu);font-weight:600;margin-top:2px">⏳ En attente QC</div>
+    </div>
+    <div style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:16px;border-top:3px solid var(--blue)">
+      <div style="font-size:26px;font-weight:800;font-family:var(--mono);color:var(--blue)" id="kqcTotal">—</div>
+      <div style="font-size:11px;color:var(--mu);font-weight:600;margin-top:2px">📋 Total contrôles</div>
+    </div>
+  </div>
+
+  <!-- ── PENDING ORDERS BANNER ── -->
+  <div id="pendingQCBanner" style="display:none;background:linear-gradient(135deg,var(--b50),#fff);border:1.5px solid var(--b100);border-radius:14px;padding:18px 22px;margin-bottom:16px" class="no-print">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="font-size:28px">⏳</div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:14px;font-weight:800;color:var(--blue)">Commandes en attente de contrôle qualité</div>
+        <div id="pendingQCList" style="font-size:12px;color:var(--mu);margin-top:6px"></div>
+      </div>
+      <button class="btn bb" onclick="document.getElementById('newQCForm').style.display='block';document.getElementById('newQCForm').scrollIntoView({behavior:'smooth'})">✅ Démarrer le contrôle →</button>
+    </div>
+  </div>
+
+  <!-- ── NEW QC FORM ── -->
+  <div id="newQCForm" style="display:none">
+    <div class="card" style="border-top:3px solid var(--blue)">
+      <!-- Form header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:16px;font-weight:800">📋 Nouvelle Fiche de Contrôle Qualité</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:2px">CEDARWINGS SAS · ISO 13485:2016 · EN ISO 20795-1</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="qcProgress" style="font-size:12px;color:var(--mu);font-weight:600">0 / 16 points</div>
+          <div style="width:120px">
+            <div class="progress-bar"><div class="progress-fill" id="qcProgressFill" style="width:0%;background:var(--amber)"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOT + CONTROLLER SELECTION -->
+      <div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Identification</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Commande / Lot *</label>
+            <select class="fi" id="qcLot"><option value="">— Sélectionner —</option></select>
+            <div id="manualLotBox" style="display:none;margin-top:6px;gap:6px;align-items:center;flex-wrap:wrap">
+              <input type="text" class="fi" id="manualLotInput" placeholder="Saisir n° lot..." style="margin-bottom:4px"/>
+              <button class="btn bgh" style="padding:6px 12px;font-size:11px;width:100%" onclick="applyManualLot()">✓ Appliquer</button>
+            </div>
+            <div id="manualLotNote" style="display:none;margin-top:4px;font-size:10px;color:var(--amber);font-weight:600">⚠️ Mode test</div>
+          </div>
+          <div>
+            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Contrôleur *</label>
+            <select class="fi" id="qcController"><option value="">— Sélectionner —</option></select>
+          </div>
+          <div>
+            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Type de contrôle</label>
+            <select class="fi" id="qcType">
+              <option value="final">Contrôle final</option>
+              <option value="in_process">Contrôle en cours</option>
+              <option value="incoming">Contrôle à réception</option>
+            </select>
+          </div>
+        </div>
+        <!-- Lot info + Materials -->
+        <div id="qcLotInfo" style="display:none;margin-top:12px;padding:12px;background:var(--card);border-radius:10px;border:1px solid var(--bdr)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Lot / Commande</div>
+              <div id="qcLotDetail" style="font-family:var(--mono);font-size:13px;font-weight:700"></div>
+            </div>
+            <div id="qcMaterialsBox" style="display:none">
+              <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">📦 Matières Premières Utilisées</div>
+              <div id="qcMaterialsList" style="font-size:12px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 1: VISUEL -->
+      <div class="section-title">1. Contrôle Visuel · EN ISO 20795-1 §6.2</div>
+      <div class="check-grid">
+        <div class="check-item" id="ci_visual">
+          <div class="ci-status" id="cs_visual"></div>
+          <div class="ci-label">👁 Aspect général</div>
+          <div class="ci-norm">Absence de défauts visibles, bulles, fissures · ISO 20795-1</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('visual',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('visual',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('visual',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_surface">
+          <div class="ci-status" id="cs_surface"></div>
+          <div class="ci-label">✨ Finition de surface</div>
+          <div class="ci-norm">Surface lisse, Ra ≤ 0.2 µm · ISO 20795-1 §6.3</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('surface',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('surface',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('surface',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_color">
+          <div class="ci-status" id="cs_color"></div>
+          <div class="ci-label">🎨 Teinte et transparence</div>
+          <div class="ci-norm">Conformité à l'échantillon de référence</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('color',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('color',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('color',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_marking">
+          <div class="ci-status" id="cs_marking"></div>
+          <div class="ci-label">🏷 Marquage et identification</div>
+          <div class="ci-norm">Marquage CE, lot, date — lisible · UE 2017/745 Art.27</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('marking',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('marking',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('marking',null,this)">— N/A</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: DIMENSIONNEL -->
+      <div class="section-title">2. Contrôle Dimensionnel · ISO 13485 §7.5.1</div>
+      <div class="check-grid">
+        <div class="check-item" id="ci_fit">
+          <div class="ci-status" id="cs_fit"></div>
+          <div class="ci-label">🦷 Adaptation et ajustement</div>
+          <div class="ci-norm">Aligneur conforme au modèle 3D · Tolérance ±0.1mm</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('fit',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('fit',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('fit',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_trimline">
+          <div class="ci-status" id="cs_trimline"></div>
+          <div class="ci-label">✂ Trimline (ligne de découpe)</div>
+          <div class="ci-norm">Découpe nette, bords sans bavures · Plan de contrôle</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('trimline',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('trimline',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('trimline',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_thickness">
+          <div class="ci-status" id="cs_thickness"></div>
+          <div class="ci-label">📏 Épaisseur du matériau</div>
+          <div class="ci-norm">Épaisseur ±5% de la valeur nominale</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('thickness',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('thickness',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('thickness',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_dimensional">
+          <div class="ci-status" id="cs_dimensional"></div>
+          <div class="ci-label">📐 Conformité dimensionnelle</div>
+          <div class="ci-norm">Toutes côtes dans les tolérances · Plan PC-AL-001</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('dimensional',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('dimensional',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('dimensional',null,this)">— N/A</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: MATIÈRE -->
+      <div class="section-title">3. Contrôle Matière · ISO 10993-1 · EN ISO 20795-1</div>
+      <div class="check-grid">
+        <div class="check-item" id="ci_material">
+          <div class="ci-status" id="cs_material"></div>
+          <div class="ci-label">🧪 Conformité matière première</div>
+          <div class="ci-norm">Résine certifiée biocompatible · ISO 10993-1</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('material',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('material',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('material',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_lot_material">
+          <div class="ci-status" id="cs_lot_material"></div>
+          <div class="ci-label">🔖 Traçabilité matière (n° lot)</div>
+          <div class="ci-norm">N° lot matière enregistré · ISO 13485 §7.5.9</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('lot_material',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('lot_material',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('lot_material',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_expiry">
+          <div class="ci-status" id="cs_expiry"></div>
+          <div class="ci-label">📅 Date de péremption matière</div>
+          <div class="ci-norm">Matière non périmée · FEFO vérifié</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('expiry',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('expiry',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('expiry',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_cleanliness">
+          <div class="ci-status" id="cs_cleanliness"></div>
+          <div class="ci-label">🧼 Propreté, absence de contamination</div>
+          <div class="ci-norm">Absence de résidu, poussières · Inspection visuelle</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('cleanliness',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('cleanliness',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('cleanliness',null,this)">— N/A</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 4: CONDITIONNEMENT -->
+      <div class="section-title">4. Conditionnement & Documentation · ISO 13485 §7.5.5</div>
+      <div class="check-grid">
+        <div class="check-item" id="ci_packaging">
+          <div class="ci-status" id="cs_packaging"></div>
+          <div class="ci-label">📦 Intégrité de l'emballage</div>
+          <div class="ci-norm">Emballage intact, scellement correct · EN 868</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('packaging',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('packaging',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('packaging',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_label">
+          <div class="ci-status" id="cs_label"></div>
+          <div class="ci-label">🏷 Étiquetage de l'emballage</div>
+          <div class="ci-norm">Nom, lot, DLU, fabricant — UE 2017/745</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('label',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('label',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('label',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_documentation">
+          <div class="ci-status" id="cs_documentation"></div>
+          <div class="ci-label">📄 Documentation (DHR)</div>
+          <div class="ci-norm">Dossier de lot complet · ISO 13485 §7.5.9.2</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('documentation',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('documentation',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('documentation',null,this)">— N/A</button>
+          </div>
+        </div>
+        <div class="check-item" id="ci_qty">
+          <div class="ci-status" id="cs_qty"></div>
+          <div class="ci-label">🔢 Vérification de la quantité</div>
+          <div class="ci-norm">Quantité conforme à l'ordre de fabrication</div>
+          <div class="ci-btns">
+            <button class="ci-btn" onclick="setCheck('qty',true,this)">✓ Conforme</button>
+            <button class="ci-btn" onclick="setCheck('qty',false,this)">✗ Non-conforme</button>
+            <button class="ci-btn" onclick="setCheck('qty',null,this)">— N/A</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- NC + RESULT -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Non-Conformités détectées</label>
+          <textarea class="fi" id="qcNC" rows="3" placeholder="Décrire les non-conformités observées..."></textarea>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Action corrective proposée</label>
+          <textarea class="fi" id="qcCA" rows="3" placeholder="Action corrective ou préventive..."></textarea>
+        </div>
+      </div>
+
+      <!-- RETURN TO STEP (shown only when rejected) -->
+      <div id="returnStepBox" style="display:none;background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:14px;margin-bottom:16px">
+        <label style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:8px">
+          🔄 Retourner à l'étape — Quelle étape doit être refaite ?
+        </label>
+        <select class="fi" id="qcReturnStep" style="border-color:#fecaca">
+          <option value="">— Sélectionner l'étape de retour —</option>
+          <option value="Printing">🖨 Impression (Printing)</option>
+          <option value="Cleaning">🧼 Nettoyage (Cleaning)</option>
+          <option value="Thermoforming">🔄 Thermoformage (Thermoforming)</option>
+          <option value="Line Cut">✂ Découpe (Line Cut)</option>
+          <option value="Laser Marking">🔆 Marquage Laser (Laser Marking)</option>
+          <option value="Packaging">📦 Emballage (Packaging)</option>
+        </select>
+        <div style="font-size:11px;color:#64748b;margin-top:6px">
+          ⚠️ Seule cette étape sera remise en attente. Les étapes précédentes restent validées.
+        </div>
+      </div>
+
+      <!-- RESULT BOX -->
+      <div id="qcResultBox" class="result-box pending">
+        <div style="font-size:13px;font-weight:700;color:var(--mu)">Résultat en attente — compléter les points de contrôle</div>
+      </div>
+
+      <!-- ACTION BUTTONS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:14px">
+        <button class="btn b-g" onclick="submitQC('approved')" style="font-size:13px;padding:12px">✅ Approuver</button>
+        <button class="btn b-r" onclick="submitQC('rejected')" style="font-size:13px;padding:12px">❌ Rejeter</button>
+        <button class="btn b-a" onclick="submitQC('on_hold')" style="font-size:13px;padding:12px">⏸ En attente</button>
+        <button class="btn bgh" onclick="document.getElementById('newQCForm').style.display='none'" style="font-size:13px;padding:12px">✕ Annuler</button>
+      </div>
+
+      <!-- SIGNATURES (print only) -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr)">
+        <div style="border:1.5px dashed var(--bdr);border-radius:10px;padding:16px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;margin-bottom:8px">Contrôleur qualité</div>
+          <div id="sigController" style="font-size:13px;font-weight:700;margin-bottom:24px">—</div>
+          <div id="sigDate" style="font-size:11px;color:var(--mu)">—</div>
+          <div style="border-top:1px solid var(--bdr);margin-top:8px;padding-top:6px;font-size:10px;color:var(--dim)">Signature</div>
+        </div>
+        <div style="border:1.5px dashed var(--bdr);border-radius:10px;padding:16px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;margin-bottom:8px">Responsable qualité</div>
+          <div style="height:24px"></div>
+          <div style="border-top:1px solid var(--bdr);margin-top:32px;padding-top:6px;font-size:10px;color:var(--dim)">Signature</div>
+        </div>
+        <div style="border:1.5px dashed var(--bdr);border-radius:10px;padding:16px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;margin-bottom:8px">Directeur général</div>
+          <div style="height:24px"></div>
+          <div style="border-top:1px solid var(--bdr);margin-top:32px;padding-top:6px;font-size:10px;color:var(--dim)">Signature</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY ── -->
+  <div class="no-print" id="qcHistorySection">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:800">📋 Historique des Contrôles</div>
+      <div style="font-size:11px;color:var(--mu)" id="historyCount"></div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Lot / Commande</th>
+          <th>Type</th>
+          <th>Contrôleur</th>
+          <th>Date</th>
+          <th>Points ✓/✗</th>
+          <th>Résultat</th>
+          <th>Non-Conformités</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody id="qcHistory"><tr><td colspan="8" class="ec">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PRINT AREA (hidden on screen) ── -->
+  <div id="printArea">
+    <div id="printContent"></div>
+  </div>
+</div>
+
+<!-- HELP PANEL PLACEHOLDER - filled by lang.js -->
+<div id="helpPanelMount"></div>
+
+<script>const PAGE_KEY='qualite'</script>
+<script>
+window.applyManualLot=()=>{
+  const v=document.getElementById('manualLotInput').value.trim()
+  if(!v)return
+  const sel=document.getElementById('qcLot')
+  if(![...sel.options].find(o=>o.value===v)){
+    const opt=document.createElement('option')
+    opt.value=v; opt.textContent='✏️ '+v+' (manuel)'
+    opt.dataset.order=v; opt.dataset.num=v
+    sel.appendChild(opt)
+  }
+  sel.value=v
+  document.getElementById('manualLotBox').style.display='none'
+  onLotChange()
+}
+</script>
+<script src="access.js"></script>
+<script src="lang.js"></script>
+<script src="orders.js"></script>
+<script type="module">
+import{createClient}from"https://esm.sh/@supabase/supabase-js@2"
+import{SUPABASE_CONFIG}from"./config.js"
+const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
+const fdt=v=>v?new Date(v).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—"
+const fd=v=>v?new Date(v).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}):"—"
+
+const CHECKS_KEYS=["visual","surface","color","marking","fit","trimline","thickness","dimensional","material","lot_material","expiry","cleanliness","packaging","label","documentation","qty"]
+const checks={}
+let currentLotId=null
+let currentOrderNo=null
+
+// ── HELPERS ───────────────────────────────────────────────
+function isUUID(v){return v&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)}
+function ntf(msg,type){
+  let el=document.getElementById('qcNotif')
+  if(!el){el=document.createElement('div');el.id='qcNotif';el.style.cssText='position:fixed;bottom:70px;right:20px;padding:13px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.15);font-family:var(--f);max-width:380px;display:none';document.body.appendChild(el)}
+  el.textContent=msg
+  el.style.background=type==='err'?'#dc2626':'#15803d'
+  el.style.color='#fff'
+  el.style.display='block'
+  clearTimeout(el._t)
+  el._t=setTimeout(()=>el.style.display='none',4000)
+}
+
+// ── LOAD ──────────────────────────────────────────────────
+async function load(){
+  const[lr,er,qr,stRes,ssRes,bcRes,baRes]=await Promise.all([
+    sb.from("production_lots").select("*").order("produced_at",{ascending:false}).limit(200),
+    sb.from("employees").select("name,username").eq("is_active",true).order("name"),
+    sb.from("quality_controls").select("*").order("performed_at",{ascending:false}).limit(200),
+    sb.from("order_step_tracking").select("order_no").not("order_no","is",null),
+    sb.from("system_settings").select("key,value"),
+    sb.from("bloom_cases").select("case_id,patient_name,doctor,current_status").limit(1000),
+    sb.from("bloom_aligner_details").select("case_number,aligner_upper,aligner_lower,number_of_aligners").limit(3000)
+  ])
+  const lots=lr.data||[]
+  const allQC=qr.data||[]
+  const packagingDone=[...new Set((stRes.data||[]).map(r=>r.order_no).filter(Boolean))]
+  // Build bloom lookup maps for enriching dropdown
+  const bloomCaseMap={};(bcRes.data||[]).forEach(b=>{bloomCaseMap[String(b.case_id)]=b})
+  const bloomAlMap={};(baRes.data||[]).forEach(a=>{
+    const k=String(a.case_number)
+    if(!bloomAlMap[k])bloomAlMap[k]={upper:0,lower:0,total:0}
+    bloomAlMap[k].upper+=Number(a.aligner_upper)||0
+    bloomAlMap[k].lower+=Number(a.aligner_lower)||0
+    bloomAlMap[k].total+=Number(a.number_of_aligners)||0
+  })
+  const smap={};(ssRes.data||[]).forEach(s=>smap[s.key]=s.value)
+  const allowManualLot=smap.allow_manual_lot==='true'
+
+  // Only mark as done if QC was APPROVED — rejected orders need re-QC
+  const qcDoneOrders=new Set(allQC.filter(q=>q.overall_result==='approved').map(q=>String(q.order_no||q.lot_number||'')))
+  const pendingQCOrders=packagingDone.filter(o=>!qcDoneOrders.has(String(o)))
+
+  // ── Lot Select ──
+  const lSel=document.getElementById("qcLot")
+  if(pendingQCOrders.length>0){
+    lSel.innerHTML='<option value="">— Sélectionner commande —</option>'+
+      pendingQCOrders.map(o=>{
+        const lot=lots.find(l=>l.order_no===o)
+        const val=lot?lot.id:o
+        const num=lot?lot.lot_number:o
+        const bc=bloomCaseMap[String(o)]
+        const al=bloomAlMap[String(o)]
+        const label='⏳ '+o+(bc&&bc.patient_name?' — '+bc.patient_name:'')+(al&&al.total?' ('+al.total+' al.)':'')+(lot?' · '+lot.lot_number:'')
+        return '<option value="'+val+'" data-order="'+o+'" data-num="'+num+'" data-pending="true">'+label+'</option>
+      }).join("")+
+      (lots.length?'<optgroup label="— Tous les lots —">'+lots.map(l=>'<option value="'+l.id+'" data-order="'+l.order_no+'" data-num="'+l.lot_number+'">'+l.lot_number+' — '+l.order_no+' ('+( l.quality_status||'pending')+')</option>').join("")+'</optgroup>':'')
+  } else if(lots.length>0){
+    lSel.innerHTML='<option value="">— Sélectionner le lot —</option>'+lots.map(l=>'<option value="'+l.id+'" data-order="'+l.order_no+'" data-num="'+l.lot_number+'">'+l.lot_number+' — '+l.order_no+' ('+(l.quality_status||'pending')+')</option>').join("")
+  } else {
+    lSel.innerHTML='<option value="">— Aucun lot trouvé —</option>'
+  }
+  if(allowManualLot){
+    document.getElementById('manualLotBox').style.display='flex'
+    document.getElementById('manualLotNote').style.display='block'
+  }
+
+  // ── Controller ──
+  const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
+  const isManager=(sessionStorage.getItem('cw_role')||'').toLowerCase()==='manager'
+  const eSel=document.getElementById("qcController")
+  const empList=er.data||[]
+  if(isManager){
+    eSel.innerHTML='<option value="">— Sélectionner —</option>'+empList.map(e=>'<option value="'+e.name+'"'+(e.name===currentUser?' selected':'')+'>'+e.name+'</option>').join("")
+    eSel.disabled=false
+  } else {
+    if(currentUser){
+      eSel.innerHTML='<option value="'+currentUser+'" selected>'+currentUser+'</option>'
+    } else {
+      eSel.innerHTML='<option value="">— Non identifié —</option>'+empList.map(e=>'<option value="'+e.name+'">'+e.name+'</option>').join("")
+    }
+    eSel.disabled=!isManager
+    eSel.style.background='var(--bg)'
+    eSel.title='Contrôleur défini par votre profil'
+  }
+  if(currentUser && document.getElementById('sigController'))
+    document.getElementById('sigController').textContent=currentUser
+
+  // ── KPIs ──
+  const kEl=id=>document.getElementById(id)
+  if(kEl('kqcApproved'))kEl('kqcApproved').textContent=allQC.filter(q=>q.overall_result==="approved").length
+  if(kEl('kqcRejected'))kEl('kqcRejected').textContent=allQC.filter(q=>q.overall_result==="rejected").length
+  if(kEl('kqcPending'))kEl('kqcPending').textContent=pendingQCOrders.length
+  if(kEl('kqcTotal'))kEl('kqcTotal').textContent=allQC.length
+
+  // ── Pending Banner ──
+  const banner=document.getElementById("pendingQCBanner")
+  const pendList=document.getElementById("pendingQCList")
+  if(banner){
+    if(pendingQCOrders.length>0){
+      banner.style.display="block"
+      if(pendList)pendList.innerHTML=pendingQCOrders.slice(0,10).map(o=>'<span style="display:inline-block;background:var(--b50);border:1px solid var(--b100);border-radius:6px;padding:2px 10px;margin:2px;font-family:var(--mono);font-weight:700;font-size:12px">'+o+'</span>').join("")+(pendingQCOrders.length>10?'<span style="font-size:11px;color:var(--mu)"> +'+( pendingQCOrders.length-10)+' autres</span>':'')
+    } else {
+      banner.style.display="none"
+    }
+  }
+
+  // ── History ──
+  const qcs=allQC
+  const histCount=document.getElementById('historyCount')
+  if(histCount)histCount.textContent=qcs.length+' enregistrement'+(qcs.length!==1?'s':'')
+  document.getElementById("qcHistory").innerHTML=qcs.length?qcs.map(q=>{
+    const rl=q.overall_result==="approved"?"b-g":q.overall_result==="rejected"?"b-r":"b-a"
+    const rlabel=q.overall_result==="approved"?"✅ Approuvé":q.overall_result==="rejected"?"❌ Rejeté":"⏸ En attente"
+    const passCount=CHECKS_KEYS.filter(k=>q[k+'_ok']===true||q[k]==='true'||q[k]===true).length
+    const failCount=CHECKS_KEYS.filter(k=>q[k+'_ok']===false||q[k]==='false'||q[k]===false).length
+    return'<tr>'+
+      '<td style="font-weight:700"><div class="mono" style="font-size:12px">'+(q.lot_number||"—")+'</div><div style="font-size:10px;color:var(--mu)">Cmd: '+(q.order_no||"—")+'</div></td>'+
+      '<td><span class="badge b-gray">'+(q.check_type==="final"?"Final":q.check_type==="in_process"?"En cours":"Réception")+'</span></td>'+
+      '<td style="font-size:12px">'+(q.performed_by||"—")+'</td>'+
+      '<td class="mono" style="font-size:11px">'+fdt(q.performed_at)+'</td>'+
+      '<td><span style="color:var(--green);font-weight:700;font-size:11px">✓'+passCount+'</span> <span style="color:var(--red);font-weight:700;font-size:11px">✗'+failCount+'</span></td>'+
+      '<td><span class="badge '+rl+'">'+rlabel+'</span></td>'+
+      '<td style="font-size:11px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(q.non_conformities||"—")+'</td>'+
+      '<td><button class="btn bgh" style="padding:5px 10px;font-size:11px" onclick="doPrintRecord(\''+q.id+'\')">🖨 Rapport</button></td>'+
+      '</tr>'
+  }).join(""):'<tr><td colspan="8" style="text-align:center;padding:44px 20px;color:var(--mu)"><div style="font-size:36px;margin-bottom:10px">📋</div><div style="font-size:14px;font-weight:700;margin-bottom:6px">Aucun contrôle qualité enregistré</div><div style="font-size:12px">Cliquez sur <strong>+ Nouveau Contrôle</strong></div></td></tr>'
+
+  // ── URL params ──
+  const params=new URLSearchParams(location.search)
+  const pLot=params.get("lot")
+  const pOrder=params.get("order")
+  if(pOrder||pLot){
+    let matched=false
+    for(const opt of lSel.options){
+      if(pOrder&&opt.dataset.order===pOrder){lSel.value=opt.value;matched=true;break}
+      if(pLot&&(opt.dataset.num===pLot||opt.value===pLot)){lSel.value=opt.value;matched=true;break}
+    }
+    if(!matched&&(pLot||pOrder)&&allowManualLot){
+      const v=pLot||pOrder
+      const mo=document.createElement('option')
+      mo.value=v;mo.textContent='✏️ '+v+' (traçabilité)'
+      mo.dataset.order=pOrder||v;mo.dataset.num=pLot||v
+      lSel.appendChild(mo);lSel.value=v;matched=true
+    }
+    if(matched){
+      document.getElementById("newQCForm").style.display="block"
+      onLotChange()
+      setTimeout(()=>document.getElementById("newQCForm").scrollIntoView({behavior:"smooth"}),300)
+    }
+  }
+}
+
+// ── LOT CHANGE → load materials ──────────────────────────
+document.getElementById("qcLot").addEventListener("change",onLotChange)
+async function onLotChange(){
+  const sel=document.getElementById("qcLot")
+  const opt=sel.options[sel.selectedIndex]
+  currentLotId=sel.value||null
+  currentOrderNo=opt?.dataset?.order||null
+  const infoEl=document.getElementById("qcLotInfo")
+  const detailEl=document.getElementById("qcLotDetail")
+  const matsBox=document.getElementById("qcMaterialsBox")
+  const matsList=document.getElementById("qcMaterialsList")
+  if(!sel.value){infoEl.style.display="none";document.getElementById('btnPrint').style.display='none';return}
+  infoEl.style.display="block"
+  document.getElementById('btnPrint').style.display='inline-flex'
+  if(detailEl){
+    const lotNum=opt?.dataset?.num||sel.value
+    const orderNo=opt?.dataset?.order||"—"
+    detailEl.innerHTML='<span style="font-family:var(--mono);font-weight:700">'+lotNum+'</span> &nbsp;·&nbsp; <span style="color:var(--mu)">Commande '+orderNo+'</span>'
+  }
+  if(currentUser)document.getElementById('sigController').textContent=currentUser
+  document.getElementById('sigDate').textContent=fd(new Date().toISOString())
+
+  // Load materials from machine_lot_assignments + time_sessions
+  if(matsBox&&matsList&&currentOrderNo){
+    matsBox.style.display="block"
+    matsList.innerHTML='<span style="color:var(--dim);font-size:11px">Chargement…</span>'
+    try{
+      // Get machines used for this order
+      const{data:sessData}=await sb.from('time_sessions').select('machine,work_type').eq('order_no',currentOrderNo).not('machine','is',null).limit(50)
+      const machines=[...new Set((sessData||[]).map(s=>s.machine).filter(Boolean))]
+
+      if(machines.length===0){
+        matsList.innerHTML='<span style="font-size:11px;color:var(--dim)">Aucune machine enregistrée pour cette commande</span>'
+        return
+      }
+
+      // Get lots assigned to those machines
+      const{data:mlData}=await sb.from('machine_lot_assignments').select('*').in('machine_name',machines)
+      const mls=mlData||[]
+
+      if(mls.length===0){
+        matsList.innerHTML='<span style="font-size:11px;color:var(--amber)">⚠ Machines: '+machines.join(', ')+'<br>Aucun lot assigné — assigner un lot dans la page Machines</span>'
+        return
+      }
+
+      // Build cards per machine
+      matsList.innerHTML=mls.map(ml=>{
+        const itemName=ml.item_name||ml.material_name||ml.item||'Matière'
+        const lotNum=ml.lot_number||'—'
+        return '<div style="background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:6px;border:1px solid var(--bdr)">'+
+          '<span style="font-size:10px;font-weight:700;color:var(--blue)">⚙ '+(ml.machine_name||'—')+'</span>'+
+          '<span style="font-size:10px;color:var(--mu);margin-left:6px">'+itemName+'</span>'+
+          '<div style="font-family:var(--mono);font-size:12px;font-weight:700;margin-top:2px">'+lotNum+'</div>'+
+          (ml.qty_remaining?'<div style="font-size:10px;color:var(--mu)">Restant: '+ml.qty_remaining+'</div>':'')+'</div>'
+      }).join("")
+    }catch(e){
+      matsList.innerHTML='<span style="font-size:11px;color:var(--dim)">Erreur chargement matières</span>'
+    }
+  }
+}
+
+const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
+
+// ── SET CHECK ────────────────────────────────────────────
+window.setCheck=(key,val,btn)=>{
+  checks[key]=val
+  const item=btn.closest(".check-item")
+  item.querySelectorAll(".ci-btn").forEach(b=>{b.classList.remove("ok","fail","na")})
+  item.classList.remove("ok","fail","na")
+  const statusEl=item.querySelector('.ci-status')
+  if(val===true){btn.classList.add("ok");item.classList.add("ok");if(statusEl)statusEl.textContent="✅"}
+  else if(val===false){btn.classList.add("fail");item.classList.add("fail");if(statusEl)statusEl.textContent="❌"}
+  else{btn.classList.add("na");item.classList.add("na");if(statusEl)statusEl.textContent="—"}
+  updateProgress()
+  updateResult()
+}
+
+function updateProgress(){
+  const done=Object.keys(checks).length
+  const total=CHECKS_KEYS.length
+  const pct=Math.round(done/total*100)
+  const pEl=document.getElementById('qcProgress')
+  const fEl=document.getElementById('qcProgressFill')
+  if(pEl)pEl.textContent=done+' / '+total+' points'
+  if(fEl){
+    fEl.style.width=pct+'%'
+    fEl.style.background=pct===100?'var(--green)':pct>50?'var(--blue)':'var(--amber)'
+  }
+}
+
+function updateResult(){
+  const fails=Object.values(checks).filter(v=>v===false).length
+  const passes=Object.values(checks).filter(v=>v===true).length
+  const done=Object.keys(checks).length
+  const box=document.getElementById('qcResultBox')
+  if(!box)return
+  if(done===0){
+    box.className='result-box pending'
+    box.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--mu)">Résultat en attente — compléter les points de contrôle</div>'
+  } else if(fails>0){
+    box.className='result-box rejected'
+    // Show return-to-step selector when rejected
+    const rsb=document.getElementById('returnStepBox')
+    if(rsb)rsb.style.display='block'
+    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--red)">❌ Non-conformités détectées ('+fails+' point'+(fails>1?'s':'')+' échoué'+(fails>1?'s':'')+')</div><div style="font-size:12px;color:var(--red);margin-top:4px">'+passes+' conforme'+(passes>1?'s':'')+' · '+fails+' échoué'+(fails>1?'s':'')+' · '+(done-passes-fails)+' N/A</div>'
+  } else {
+    // Hide return-to-step selector when approved
+    const rsbA=document.getElementById('returnStepBox')
+    if(rsbA)rsbA.style.display='none'
+    box.className='result-box approved'
+    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--green)">✅ Tous les points sont conformes ('+passes+'/'+done+')</div><div style="font-size:12px;color:var(--green);margin-top:4px">Prêt pour approbation</div>'
+  }
+}
+
+// ── SUBMIT ───────────────────────────────────────────────
+window.submitQC=async(result)=>{
+  if(!currentLotId){ntf("⚠️ Veuillez sélectionner un lot","err");return}
+  const controller=document.getElementById("qcController").value
+  if(!controller){ntf("⚠️ Veuillez sélectionner le contrôleur","err");return}
+
+  const sel=document.getElementById("qcLot")
+  const opt=sel.options[sel.selectedIndex]
+  const lotNum=opt?.dataset?.num||currentLotId
+  const orderNo=opt?.dataset?.order||""
+
+  const{error}=await sb.from("quality_controls").insert([{
+    lot_id:isUUID(currentLotId)?currentLotId:null,
+    lot_number:lotNum,
+    order_no:orderNo,
+    check_type:document.getElementById("qcType").value,
+    performed_by:controller,
+    performed_at:new Date().toISOString(),
+    visual_ok:checks["visual"]??null,
+    surface_finish_ok:checks["surface"]??null,
+    color_ok:checks["color"]??null,
+    marking_ok:checks["marking"]??null,
+    fit_check:checks["fit"]??null,
+    trimline_ok:checks["trimline"]??null,
+    thickness_ok:checks["thickness"]??null,
+    dimensional_ok:checks["dimensional"]??null,
+    material_ok:checks["material"]??null,
+    lot_material_ok:checks["lot_material"]??null,
+    expiry_ok:checks["expiry"]??null,
+    cleanliness_ok:checks["cleanliness"]??null,
+    packaging_ok:checks["packaging"]??null,
+    label_ok:checks["label"]??null,
+    documentation_ok:checks["documentation"]??null,
+    qty_ok:checks["qty"]??null,
+    overall_result:result,
+    non_conformities:document.getElementById("qcNC").value.trim()||null,
+    corrective_action:document.getElementById("qcCA").value.trim()||null,
+    return_to_step:document.getElementById("qcReturnStep")?document.getElementById("qcReturnStep").value||null:null
+  }])
+  if(error){ntf("Erreur: "+error.message,"err");return}
+
+  // If REJECTED: reset the specific step in order_step_tracking
+  if(result==='rejected'){
+    const returnStep=document.getElementById("qcReturnStep")?.value
+    if(returnStep&&currentOrderNo){
+      await sb.from("order_step_tracking")
+        .update({status:"pending",completed_at:null})
+        .eq("order_no",currentOrderNo)
+        .eq("step",returnStep)
+    }
+  }
+
+  if(isUUID(currentLotId)){
+    await sb.from("production_lots").update({quality_status:result,quality_checked_by:controller,quality_checked_at:new Date().toISOString()}).eq("id",currentLotId)
+  }
+
+  const msgs={"approved":"✅ Lot APPROUVÉ et enregistré avec succès","rejected":"❌ Lot REJETÉ — Rapport NC recommandé","on_hold":"⏸ Lot mis EN ATTENTE de vérification"}
+  ntf(msgs[result]||"QC enregistré","ok")
+  document.getElementById("newQCForm").style.display="none"
+  CHECKS_KEYS.forEach(k=>delete checks[k])
+  document.querySelectorAll('.check-item').forEach(el=>{
+    el.classList.remove('ok','fail','na')
+    el.querySelectorAll('.ci-btn').forEach(b=>b.classList.remove('ok','fail','na'))
+    const s=el.querySelector('.ci-status'); if(s)s.textContent=''
+  })
+  document.getElementById('qcNC').value=''
+  document.getElementById('qcCA').value=''
+  updateProgress(); updateResult()
+  await load()
+  const hs=document.getElementById("qcHistorySection")
+  if(hs)setTimeout(()=>hs.scrollIntoView({behavior:"smooth",block:"start"}),300)
+}
+
+// ── PRINT RECORD ─────────────────────────────────────────
+window.doPrint=()=>{
+  // Print current form
+  const sel=document.getElementById("qcLot")
+  const opt=sel.options[sel.selectedIndex]
+  generatePrintReport({
+    lot_number:opt?.dataset?.num||currentLotId||'—',
+    order_no:opt?.dataset?.order||'—',
+    check_type:document.getElementById("qcType").value,
+    performed_by:document.getElementById("qcController").value||currentUser,
+    performed_at:new Date().toISOString(),
+    overall_result:Object.values(checks).includes(false)?'rejected':'approved',
+    non_conformities:document.getElementById("qcNC").value,
+    corrective_action:document.getElementById("qcCA").value,
+    ...Object.fromEntries(Object.entries(checks).map(([k,v])=>[k+'_ok',v]))
+  })
+}
+window.doPrintRecord=async(id)=>{
+  const{data}=await sb.from('quality_controls').select('*').eq('id',id).single()
+  if(data)generatePrintReport(data)
+}
+
+function generatePrintReport(q){
+  const checkLabels={visual:'Aspect général',surface:'Finition surface',color:'Teinte',marking:'Marquage',fit:'Adaptation',trimline:'Trimline',thickness:'Épaisseur',dimensional:'Conformité dimensionnelle',material:'Conformité matière',lot_material:'Traçabilité matière',expiry:'Date péremption',cleanliness:'Propreté',packaging:'Emballage',label:'Étiquetage',documentation:'Documentation',qty:'Quantité'}
+  const checkRows=CHECKS_KEYS.map(k=>{
+    const val=q[k+'_ok']??q[k]
+    const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>'
+    return '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:8px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:8px 12px;text-align:right">'+s+'</td></tr>'
+  }).join('')
+  const resultColor=q.overall_result==='approved'?'#16a34a':q.overall_result==='rejected'?'#dc2626':'#d97706'
+  const resultLabel=q.overall_result==='approved'?'APPROUVÉ':q.overall_result==='rejected'?'REJETÉ':'EN ATTENTE'
+  const html=`<html><head><meta charset="UTF-8"><title>Fiche QC — ${q.lot_number||'—'}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;font-size:13px;color:#0f172a;background:#fff;padding:24px 32px}
+    .page{max-width:800px;margin:0 auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #3b5fe2;margin-bottom:20px}
+    .logo{font-size:22px;font-weight:800;color:#3b5fe2;letter-spacing:-.5px}
+    .doc-ref{text-align:right;font-size:10px;color:#64748b}
+    .title{font-size:18px;font-weight:800;margin-bottom:4px}
+    .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+    .meta-item{background:#f8fafc;border-radius:10px;padding:12px;border:1px solid #e2e8f0}
+    .meta-label{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .meta-value{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
+    .section{margin-bottom:16px}
+    .section-title{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;padding:10px 0 6px;border-bottom:1.5px solid #e2e8f0;margin-bottom:8px}
+    table{width:100%;border-collapse:collapse}
+    .result-banner{border-radius:12px;padding:14px 18px;text-align:center;margin:20px 0}
+    .sig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+    .sig-box{border:1.5px dashed #cbd5e1;border-radius:10px;padding:16px;text-align:center}
+    .sig-label{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px}
+    .sig-name{font-size:13px;font-weight:700;margin-bottom:20px}
+    .sig-line{border-top:1px solid #e2e8f0;padding-top:6px;font-size:9px;color:#94a3b8}
+    .footer{margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+    @media print{body{padding:0 10mm} @page{margin:15mm}}
+  </style></head><body><div class="page">
+  <div class="header">
+    <div><div class="logo">🦷 CEDARWINGS SAS</div><div style="font-size:11px;color:#64748b;margin-top:3px">Fabricant d'aligneurs dentaires sur mesure</div></div>
+    <div class="doc-ref"><div style="font-size:12px;font-weight:700">${q.check_type==='final'?'FICHE DE CONTRÔLE QUALITÉ FINAL':q.check_type==='in_process'?'FICHE DE CONTRÔLE EN COURS':'FICHE DE CONTRÔLE À RÉCEPTION'}</div><div>Réf: ISO 13485:2016 · EN ISO 20795-1</div><div>Formulaire: QC-FR-001 · Rev.2</div></div>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-item"><div class="meta-label">N° Lot</div><div class="meta-value">${q.lot_number||'—'}</div></div>
+    <div class="meta-item"><div class="meta-label">N° Commande</div><div class="meta-value">${q.order_no||'—'}</div></div>
+    <div class="meta-item"><div class="meta-label">Date de contrôle</div><div class="meta-value" style="font-size:12px">${new Date(q.performed_at||Date.now()).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
+    <div class="meta-item"><div class="meta-label">Contrôleur</div><div class="meta-value" style="font-size:12px">${q.performed_by||'—'}</div></div>
+    <div class="meta-item"><div class="meta-label">Type de contrôle</div><div class="meta-value" style="font-size:12px">${q.check_type==='final'?'Contrôle Final':q.check_type==='in_process'?'En cours':'À réception'}</div></div>
+    <div class="meta-item"><div class="meta-label">Résultat</div><div class="meta-value" style="color:${resultColor};font-size:14px">${resultLabel}</div></div>
+  </div>
+  <div class="section"><div class="section-title">1. Contrôle Visuel & Dimensionnel</div><table>${CHECKS_KEYS.slice(0,8).map(k=>{const val=q[k+'_ok']??q[k];const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>';return'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:7px 12px;text-align:right">'+s+'</td></tr>'}).join('')}</table></div>
+  <div class="section"><div class="section-title">2. Contrôle Matière & Conditionnement</div><table>${CHECKS_KEYS.slice(8).map(k=>{const val=q[k+'_ok']??q[k];const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>';return'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:7px 12px;text-align:right">'+s+'</td></tr>'}).join('')}</table></div>
+  ${q.non_conformities?'<div class="section"><div class="section-title">Non-Conformités</div><div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:12px;font-size:12px">'+q.non_conformities+'</div></div>':''}
+  ${q.corrective_action?'<div class="section"><div class="section-title">Action Corrective</div><div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:12px">'+q.corrective_action+'</div></div>':''}
+  <div class="result-banner" style="background:${q.overall_result==='approved'?'#f0fdf4':q.overall_result==='rejected'?'#fff1f2':'#fffbeb'};border:2px solid ${resultColor}"><div style="font-size:18px;font-weight:800;color:${resultColor}">${q.overall_result==='approved'?'✅ LOT APPROUVÉ — LIBÉRÉ POUR EXPÉDITION':q.overall_result==='rejected'?'❌ LOT REJETÉ — MISE EN QUARANTAINE REQUISE':'⏸ LOT EN ATTENTE — NE PAS EXPÉDIER'}</div></div>
+  <div class="sig-grid">
+    <div class="sig-box"><div class="sig-label">Contrôleur qualité</div><div class="sig-name">${q.performed_by||'—'}</div><div class="sig-line">Signature</div></div>
+    <div class="sig-box"><div class="sig-label">Responsable qualité</div><div class="sig-name" style="visibility:hidden">x</div><div style="height:40px"></div><div class="sig-line">Signature</div></div>
+    <div class="sig-box"><div class="sig-label">Directeur général</div><div class="sig-name" style="visibility:hidden">x</div><div style="height:40px"></div><div class="sig-line">Signature</div></div>
+  </div>
+  <div class="footer"><div>© CEDARWINGS SAS — Document confidentiel · ISO 13485:2016</div><div>Généré le ${new Date().toLocaleDateString('fr-FR')} — QC-FR-001</div></div>
+  </div></body></html>`
+  const w=window.open('','_blank')
+  if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600)}
+}
+
+document.getElementById("btnNewQC").addEventListener("click",()=>{
+  document.getElementById("newQCForm").style.display="block"
+  document.getElementById("newQCForm").scrollIntoView({behavior:"smooth"})
+})
+document.getElementById("qcController").addEventListener("change",()=>{
+  document.getElementById('sigController').textContent=document.getElementById("qcController").value||currentUser
+})
+load()
+</script>
+
+<!-- COPYRIGHT FOOTER -->
+<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card,#fff);border-top:1px solid var(--bdr,#e2e8f0);padding:8px 16px;font-size:10px;color:var(--dim,#94a3b8);display:flex;justify-content:space-between;align-items:center;z-index:40" class="no-print">
+  <span>© 2026 <strong>Cedarwings SAS</strong> — Dental Aligner Manufacturing Platform</span>
+  <span>v2.0 · ISO 13485 Compliant</span>
+</div>
+</body>
+</html>
