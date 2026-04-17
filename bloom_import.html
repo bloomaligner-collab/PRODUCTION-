@@ -120,11 +120,37 @@ tr:hover td{background:#fafbfc}
 
 @media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.g2{grid-template-columns:1fr}.main{margin-left:0}}
+
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--card);border-right:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-top{padding:16px 14px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px}
+.sb-logo{width:40px;height:40px;background:linear-gradient(135deg,#3b5fe2,#6366f1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(59,95,226,.3)}
+.sb-name{font-size:13px;font-weight:800;color:var(--txt)}
+.sb-name{font-size:13px;font-weight:800;color:var(--txt)}
+.sb-badge{font-size:10px;font-weight:600;color:var(--mu);margin-top:1px}
+.sb-nav{flex:1;padding:10px}
+.sb-s{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:14px 8px 6px}
+.nl{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:500;color:var(--mu);text-decoration:none;transition:all .12s}
+.nl:hover{background:var(--bg);color:var(--txt)}
+.nl.on{background:var(--b50);color:var(--blue);font-weight:700}
+.nl .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:12px 10px;border-top:1px solid var(--bdr)}
+@media(max-width:768px){.sidebar{display:none}.main{margin-left:0}}
 </style>
 <script>const PAGE_KEY='bloom_import'</script>
 <script src="access.js"></script>
 </head>
 <body>
+
+<aside class="sidebar">
+  <div class="sb-top">
+    <div class="sb-logo">🔵</div>
+    <div><div class="sb-name">Cedarwings SAS</div><div class="sb-badge" id="sb-role-lbl">Loading...</div></div>
+  </div>
+  <nav class="sb-nav">
+    <!-- Injected by access.js -->
+  </nav>
+  <div class="sb-foot"></div>
+</aside>
 <div class="main">
   <div class="topbar">
     <div>
@@ -320,6 +346,7 @@ tr:hover td{background:#fafbfc}
         <div class="card"><div class="card-title">🌍 Distributors</div><div id="distBars"></div></div>
       </div>
       <div class="card"><div class="card-title">📅 Status Changes by Month</div><div id="monthBars"></div></div>
+      <div class="card"><div class="card-title">⚠️ Action Required by Status</div><div id="actionBars"></div></div>
     </div>
 
     <!-- ===== TAB: SYNC LOG ===== -->
@@ -454,6 +481,8 @@ async function loadAll(){
     $('aAvgAl').textContent=caseAlCount>0?Math.round(totalAlSum/caseAlCount).toString():'—'
     $('aAction').textContent=allCases.filter(c=>c.action_required_for).length.toLocaleString()
     $('aSnaps').textContent=(snapCount||0).toLocaleString()
+    // Note: analytics KPIs above use allCases for initial load
+    // They update via renderAnalytics() which uses filteredCases
 
     // Sync status
     const lastOk=(logs||[]).find(l=>l.status==='success')
@@ -467,7 +496,7 @@ async function loadAll(){
       $('sBLast').textContent=fdt(lastOk.completed_at)
     } else {$('syncDot').className='sync-dot err';$('syncTxt').textContent='⚠️ Check sync log';$('liveTxt').textContent='Error'}
 
-    renderAnalytics(smap,total||0)
+    renderAnalytics(allCases,total||0)
     renderLog(logs||[])
     applyFilters()
     renderAligners()
@@ -499,6 +528,7 @@ function applyFilters(){
 
   // Sort
   filteredCases.sort((a,b)=>sortCompare(a,b,cSort.col,cSort.dir,'cases'))
+  renderAnalytics(filteredCases,filteredCases.length)
 
   // Tags
   const tags=[]
@@ -743,15 +773,27 @@ function renderHistoryPage(){
 }
 
 // ── ANALYTICS ─────────────────────────────────────────────────────────
-function renderAnalytics(smap,total){
-  $('statusBars').innerHTML=bars(smap,total)
-  const clinicMap={};allCases.forEach(c=>{if(c.clinic)clinicMap[c.clinic]=(clinicMap[c.clinic]||0)+1})
-  $('clinicBars').innerHTML=bars(clinicMap,total,'var(--teal)')
-  const docMap={};allCases.forEach(c=>{if(c.doctor)docMap[c.doctor]=(docMap[c.doctor]||0)+1})
-  $('doctorBars').innerHTML=bars(docMap,total,'var(--purple)')
+function renderAnalytics(src,total){
+  // src = filteredCases when called from applyFilters, allCases on initial load
+  const cases = src || filteredCases
+  const n = total || cases.length
+
+  // Status breakdown from filtered cases
+  const smap={}
+  cases.forEach(c=>{smap[c.current_status]=(smap[c.current_status]||0)+1})
+  $('statusBars').innerHTML=bars(smap,n)
+
+  // Clinics
+  const clinicMap={};cases.forEach(c=>{if(c.clinic)clinicMap[c.clinic]=(clinicMap[c.clinic]||0)+1})
+  $('clinicBars').innerHTML=bars(clinicMap,n,'var(--teal)')
+
+  // Doctors by case count
+  const docMap={};cases.forEach(c=>{if(c.doctor)docMap[c.doctor]=(docMap[c.doctor]||0)+1})
+  $('doctorBars').innerHTML=bars(docMap,n,'var(--purple)')
+
   // Doctors by aligner count
   const docAlMap={}
-  allCases.forEach(c=>{
+  cases.forEach(c=>{
     if(!c.doctor)return
     const als=alignerMap[String(c.case_id)]||[]
     const tot=als.reduce((a,r)=>a+(Number(r.number_of_aligners)||0),0)||(als.reduce((a,r)=>a+(Number(r.aligner_upper)||0)+(Number(r.aligner_lower)||0),0))
@@ -759,21 +801,50 @@ function renderAnalytics(smap,total){
   })
   const totalDocAl=Object.values(docAlMap).reduce((a,v)=>a+v,0)
   $('doctorAlBars').innerHTML=bars(docAlMap,totalDocAl,'var(--teal)')
-  const pkgMap={};allAligners.forEach(a=>{if(a.package_type)pkgMap[a.package_type]=(pkgMap[a.package_type]||0)+1})
-  $('packageBars').innerHTML=bars(pkgMap,allAligners.length,'var(--blue)')
-  const distMap={};allCases.forEach(c=>{if(c.distributor)distMap[c.distributor]=(distMap[c.distributor]||0)+1})
-  $('distBars').innerHTML=bars(distMap,total,'var(--amber)')
+
+  // Package types from filtered aligner records
+  const filteredCaseIds=new Set(cases.map(c=>String(c.case_id)))
+  const filteredAls=allAligners.filter(a=>filteredCaseIds.has(String(a.case_number)))
+  const pkgMap={};filteredAls.forEach(a=>{if(a.package_type)pkgMap[a.package_type]=(pkgMap[a.package_type]||0)+1})
+  $('packageBars').innerHTML=bars(pkgMap,filteredAls.length,'var(--blue)')
+
+  // Distributors
+  const distMap={};cases.forEach(c=>{if(c.distributor)distMap[c.distributor]=(distMap[c.distributor]||0)+1})
+  $('distBars').innerHTML=bars(distMap,n,'var(--amber)')
+
   // Month from status_change_date
   const monthMap={}
-  allCases.forEach(c=>{if(!c.status_change_date)return;const iso=toISO(c.status_change_date);if(!iso)return;const ym=iso.substring(0,7);monthMap[ym]=(monthMap[ym]||0)+1})
+  cases.forEach(c=>{if(!c.status_change_date)return;const iso=toISO(c.status_change_date);if(!iso)return;const ym=iso.substring(0,7);monthMap[ym]=(monthMap[ym]||0)+1})
   const sortedM=Object.entries(monthMap).sort((a,b)=>a[0].localeCompare(b[0]))
   const maxM=sortedM.reduce((a,[,v])=>Math.max(a,v),1)
   $('monthBars').innerHTML=sortedM.map(([ym,cnt])=>`<div class="srow">
     <div class="slbl">${ym}</div>
     <div class="sbg"><div class="sfill" style="width:${Math.round(cnt/maxM*100)}%;background:var(--amber)"></div></div>
     <div class="scnt" style="color:var(--amber)">${cnt}</div>
-    <div class="spct">${Math.round(cnt/total*100)}%</div>
+    <div class="spct">${Math.round(cnt/n*100)}%</div>
   </div>`).join('')||'<div style="color:var(--dim);font-size:12px;padding:10px">No date data available</div>'
+
+  // ─── KPI UPDATE from filtered cases ─────────────────────
+  let filtTotalAl=0, filtAlCount=0
+  cases.forEach(c=>{
+    const als=alignerMap[String(c.case_id)]||[]
+    const tot=als.reduce((a,r)=>a+(Number(r.number_of_aligners)||0),0)||(als.reduce((a,r)=>a+(Number(r.aligner_upper)||0)+(Number(r.aligner_lower)||0),0))
+    if(tot>0){filtTotalAl+=tot;filtAlCount++}
+  })
+  $('aTotalAl').textContent=filtTotalAl.toLocaleString()
+  $('aAvgAl').textContent=filtAlCount>0?Math.round(filtTotalAl/filtAlCount).toString():'—'
+  $('aAction').textContent=cases.filter(c=>c.action_required_for).length.toLocaleString()
+
+  // ─── ACTION REQUIRED BY STATUS ───────────────────────────
+  const actionMap={}
+  cases.filter(c=>c.action_required_for).forEach(c=>{
+    const s=c.current_status||'Unknown'
+    actionMap[s]=(actionMap[s]||0)+1
+  })
+  const actionTotal=Object.values(actionMap).reduce((a,v)=>a+v,0)
+  $('actionBars').innerHTML=actionTotal>0
+    ? bars(actionMap,actionTotal,'var(--red)')
+    : '<div style="color:var(--dim);font-size:12px;padding:10px">No action required cases in current filter</div>'
 }
 
 // ── SYNC LOG ──────────────────────────────────────────────────────────
