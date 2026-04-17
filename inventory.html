@@ -425,7 +425,7 @@
       <div class="fg"><div><lbl>Unit of Measure</lbl><input class="fi" id="iU" placeholder="litres / pcs / kg"/></div><div><lbl>SKU</lbl><input class="fi" id="iSK" placeholder="Optional"/></div></div>
       <div class="fg"><div><lbl>Min Qty (reorder point)</lbl><input class="fi" id="iMn" type="number" step="0.01" placeholder="0"/></div><div><lbl>Max Qty (target)</lbl><input class="fi" id="iMx" type="number" step="0.01" placeholder="0"/></div></div>
       <div class="fg"><div><lbl>Monthly Consumption</lbl><input class="fi" id="iMC" type="number" step="0.01" placeholder="0"/></div><div><lbl>Lead Time (days)</lbl><input class="fi" id="iLT" type="number" placeholder="0"/></div></div>
-      <div class="fg"><div><lbl>Preferred Supplier</lbl><input class="fi" id="iSup" placeholder="Supplier name"/></div><div><lbl>Auto Requisition</lbl><select class="fi" id="iAR"><option value="true">Enabled</option><option value="false">Disabled</option></select></div></div>
+      <div class="fg"><div><lbl>Preferred Supplier</lbl><select class="fi" id="iSup"><option value="">— Select Supplier —</option></select></div><div><lbl>Auto Requisition</lbl><select class="fi" id="iAR"><option value="true">Enabled</option><option value="false">Disabled</option></select></div></div>
       <div><lbl>Notes</lbl><textarea class="fi" id="iNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
     </div>
     <div class="moa"><button class="btn b-gho" id="cItem">Cancel</button><button class="btn b-pri" id="svItem">Save Item</button></div>
@@ -443,7 +443,7 @@
       <div class="fg"><div><lbl>Lot Number</lbl><input class="fi" id="lLN" placeholder="e.g. LOT-R042"/></div><div><lbl>Serial No.</lbl><input class="fi" id="lSN" placeholder="Optional"/></div></div>
       <div class="fg"><div><lbl>Quantity Received *</lbl><input class="fi" id="lQT" type="number" step="0.01" min="0.01" placeholder="0"/></div><div><lbl>Unit Cost ($) *</lbl><input class="fi" id="lUC" type="number" step="0.01" min="0" placeholder="0.00"/></div></div>
       <div class="fg"><div><lbl>Purchase Date</lbl><input class="fi" id="lPD" type="date"/></div><div><lbl>Expiry Date</lbl><input class="fi" id="lED" type="date"/></div></div>
-      <div class="fg"><div><lbl>Supplier</lbl><input class="fi" id="lSup" placeholder="Supplier name"/></div><div><lbl>Location / Shelf</lbl><input class="fi" id="lLoc" placeholder="e.g. Shelf A3"/></div></div>
+      <div class="fg"><div><lbl>Supplier</lbl><select class="fi" id="lSup"><option value="">— Select Supplier —</option></select></div><div><lbl>Location / Shelf</lbl><select class="fi" id="lLoc"><option value="">— Select Location —</option></select></div></div>
       <div class="fg"><div><lbl>Min Stock (this lot)</lbl><input class="fi" id="lMS" type="number" step="0.01" placeholder="0"/></div><div><lbl>Reorder Point</lbl><input class="fi" id="lRP" type="number" step="0.01" placeholder="0"/></div></div>
       <div><lbl>Notes</lbl><textarea class="fi" id="lNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
     </div>
@@ -531,13 +531,21 @@ function stBdg(s){const mp={available:'<span class="bdg bg">✓ Available</span>
 function stkBar(q,mx){const p=mx>0?Math.min(100,Math.round(Number(q)/Number(mx)*100)):0;const c=Number(q)<=0?'#dc2626':p<30?'#d97706':'#16a34a';return`<div class="sw"><div class="sv" style="color:${c}">${q}</div><div class="sbg"><div class="sf" style="width:${p}%;background:${c}"></div></div><div class="sp">${p}% of max</div></div>`}
 let allLots=[],allItems=[],allReqs=[]
 async function loadAll(){
-  const[lr,ir,rr,hr]=await Promise.all([
+  const[lr,ir,rr,hr,supR,locR]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
     sb.from('inventory_items').select('*').order('name'),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
-    sb.from('inventory_stock_history').select('action_type,quantity,created_at,note').order('created_at',{ascending:false}).limit(8)
+    sb.from('inventory_stock_history').select('action_type,quantity,created_at,note').order('created_at',{ascending:false}).limit(8),
+    sb.from('suppliers').select('id,name').eq('active',true).order('name'),
+    sb.from('inventory_locations').select('id,location_name').eq('active',true).order('location_name'),
   ])
   allLots=lr.data||[];allItems=ir.data||[];allReqs=rr.data||[]
+  // Populate supplier dropdowns
+  const supOpts='<option value="">— Select Supplier —</option>'+(supR.data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+  ;['iSup','lSup'].forEach(id=>{const el=document.getElementById(id);if(el){const v=el.value;el.innerHTML=supOpts;if(v)el.value=v}})
+  // Populate location dropdowns
+  const locOpts='<option value="">— Select Location —</option>'+(locR.data||[]).map(l=>`<option value="${l.id}">${l.location_name}</option>`).join('')
+  const locEl=document.getElementById('lLoc');if(locEl){const v=locEl.value;locEl.innerHTML=locOpts;if(v)locEl.value=v}
   let tv=0,lc=0,ec=0
   allLots.forEach(r=>{tv+=Number(r.available_qty||0)*Number(r.unit_cost||0);const s=lotSt(r);if(s==='low'||s==='out')lc++;if(s==='near_expiry'||s==='expired')ec++})
   $('kLots').textContent=allLots.length;$('kItems').textContent=allItems.length;$('kVal').textContent='$'+money(tv);$('kLow').textContent=lc;$('kExp').textContent=ec;$('kReq').textContent=allReqs.filter(r=>['pending','approved'].includes(r.status)).length
@@ -657,14 +665,14 @@ window.doEditItem=(id)=>{
   $('mItem').classList.add('on')
 }
 window.doAddLot=(itemId)=>{$('lIt').value=itemId;$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')}
-$('btnAI').addEventListener('click',()=>{$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iSup','iNt'].forEach(id=>$(id).value='');$('iAR').value='true';$('mItem').classList.add('on')})
+$('btnAI').addEventListener('click',()=>{$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='');$('iSup').value='';$('iAR').value='true';$('mItem').classList.add('on')})
 $('cItem').addEventListener('click',()=>$('mItem').classList.remove('on'))
 $('mItem').addEventListener('click',e=>{if(e.target===$('mItem'))$('mItem').classList.remove('on')})
 $('svItem').addEventListener('click',async()=>{
   const nm=$('iN').value.trim();if(!nm){$('eItem').textContent='Item name required';return}
   const id=$('eiId').value
   const p={name:nm,category_name:$('iC').value.trim()||null,unit_of_measure:$('iU').value.trim()||'pcs',sku:$('iSK').value.trim()||null,min_qty:Number($('iMn').value||0),max_qty:Number($('iMx').value||0),monthly_consumption:Number($('iMC').value||0),lead_time_days:Number($('iLT').value||0),auto_requisition_enabled:$('iAR').value==='true',notes:$('iNt').value.trim()||null}
-  const supNm=$('iSup').value.trim();if(supNm){const{data:es}=await sb.from('suppliers').select('id').eq('name',supNm).limit(1);if(es?.length)p.preferred_supplier_id=es[0].id;else{const{data:ns}=await sb.from('suppliers').insert([{name:supNm}]).select().single();if(ns)p.preferred_supplier_id=ns.id}}
+  const supIdVal=$('iSup').value;if(supIdVal)p.preferred_supplier_id=supIdVal
   try{if(id){const{error}=await sb.from('inventory_items').update(p).eq('id',id);if(error)throw error}else{const{error}=await sb.from('inventory_items').insert([p]);if(error)throw error}
     $('mItem').classList.remove('on');notify(id?'Item updated':'Item created');loadAll()
   }catch(err){$('eItem').textContent=err.message}
@@ -677,8 +685,8 @@ $('svLot').addEventListener('click',async()=>{
   const iid=$('lIt').value,qty=Number($('lQT').value||0);if(!iid||qty<=0){$('eLot').textContent='Select item and enter quantity';return}
   try{
     let sid=null,lid=null
-    const sn=$('lSup').value.trim();if(sn){const{data:es}=await sb.from('suppliers').select('id').eq('name',sn).limit(1);if(es?.length)sid=es[0].id;else{const{data:ns}=await sb.from('suppliers').insert([{name:sn}]).select().single();sid=ns?.id}}
-    const ln=$('lLoc').value.trim();if(ln){const{data:el}=await sb.from('inventory_locations').select('id').eq('name',ln).limit(1);if(el?.length)lid=el[0].id;else{const{data:nl}=await sb.from('inventory_locations').insert([{name:ln}]).select().single();lid=nl?.id}}
+    const supVal=$('lSup').value;if(supVal)sid=supVal
+    const locVal=$('lLoc').value;if(locVal)lid=locVal
     const p={item_id:iid,lot_no:$('lLN').value.trim()||null,serial_no:$('lSN').value.trim()||null,initial_qty:qty,available_qty:qty,unit_cost:Number($('lUC').value||0),purchase_date:$('lPD').value||null,expiry_date:$('lED').value||null,min_stock:Number($('lMS').value||0),reorder_point:Number($('lRP').value||0),reorder_qty:0,notes:$('lNt').value.trim()||null,supplier_id:sid,location_id:lid}
     const{data:nl,error}=await sb.from('inventory_lots').insert([p]).select().single();if(error)throw error
     await sb.from('inventory_stock_history').insert([{lot_id:nl.id,action_type:'purchase',quantity:qty,unit_cost:Number($('lUC').value||0),note:`Lot received: ${p.lot_no||'—'}`}])
