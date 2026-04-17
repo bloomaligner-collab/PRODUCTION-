@@ -474,6 +474,9 @@ tr:hover td{background:#fafbfc}
     </div>
   </div>
 
+  <!-- ── NC BANNER (shown after rejected QC) ── -->
+  <div id="qcNCBanner" style="display:none;background:var(--r50);border:1.5px solid var(--r100);border-radius:12px;padding:16px 20px;margin-bottom:20px"></div>
+
   <!-- ── HISTORY ── -->
   <div class="no-print" id="qcHistorySection">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -554,7 +557,7 @@ function ntf(msg,type){
 // ── LOAD ──────────────────────────────────────────────────
 async function load(){
   const[lr,er,qr,stRes,ssRes,bcRes,baRes]=await Promise.all([
-    sb.from("production_lots").select("*").order("produced_at",{ascending:false}).limit(200),
+    Promise.resolve({data:[]}),  // production_lots skipped — production tracked externally
     sb.from("employees").select("name,username").eq("is_active",true).order("name"),
     sb.from("quality_controls").select("*").order("performed_at",{ascending:false}).limit(200),
     sb.from("order_step_tracking").select("order_no").not("order_no","is",null),
@@ -645,33 +648,32 @@ async function load(){
     }
   }
 
-  // ── Incomplete Production Flags (from production_records trigger) ──
+  // ── Incomplete Production Flags (from quality_controls pending status) ──
   try {
-    const {data:incFlags} = await sb.from('quality_checks')
-      .select('*').eq('check_type','production_incomplete')
+    const {data:incFlags} = await sb.from('quality_controls')
+      .select('*').eq('result','pending')
       .order('created_at',{ascending:false}).limit(20)
     const flagBanner = document.getElementById('incProductionBanner')
     if(flagBanner && incFlags && incFlags.length > 0) {
       flagBanner.style.display='block'
       flagBanner.innerHTML=`
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:14px;font-weight:700;color:var(--amber)">⚠️ ${incFlags.length} Production Incomplete Flag${incFlags.length>1?'s':''}</div>
-          <a href="production.html" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:600">View in Production →</a>
+          <div style="font-size:14px;font-weight:700;color:var(--amber)">⏳ ${incFlags.length} QC Check${incFlags.length>1?'s':''} Pending</div>
         </div>
         ${incFlags.slice(0,5).map(f=>`
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--a100);font-size:12px">
             <div>
-              <strong>Case #${f.order_no}</strong> — ${f.patient_name||'Unknown'}
+              <strong>Case #${f.case_id||f.order_no}</strong> — ${f.patient_name||'Unknown'}
               <span style="color:var(--mu);margin-left:8px">${f.notes||''}</span>
             </div>
             <span style="font-family:var(--mono);color:var(--amber);font-weight:700">${f.created_at?.slice(0,10)||'—'}</span>
           </div>`).join('')}
-        ${incFlags.length>5?`<div style="font-size:12px;color:var(--mu);padding-top:8px;text-align:center">+${incFlags.length-5} more — <a href="production.html" style="color:var(--blue)">view all</a></div>`:''}
+        ${incFlags.length>5?`<div style="font-size:12px;color:var(--mu);padding-top:8px;text-align:center">+${incFlags.length-5} more</div>`:''}
       `
     } else if(flagBanner) {
       flagBanner.style.display='none'
     }
-  } catch(e) { console.warn('quality_checks load:', e.message) }
+  } catch(e) { console.warn('QC pending load:', e.message) }
 
   // ── History ──
   const qcs=allQC
@@ -886,11 +888,32 @@ window.submitQC=async(result)=>{
   }
 
   if(isUUID(currentLotId)){
-    await sb.from("production_lots").update({quality_status:result,quality_checked_by:controller,quality_checked_at:new Date().toISOString()}).eq("id",currentLotId)
+    // production_lots update skipped — production tracked externally via API
   }
 
-  const msgs={"approved":"✅ Lot APPROUVÉ et enregistré avec succès","rejected":"❌ Lot REJETÉ — Rapport NC recommandé","on_hold":"⏸ Lot mis EN ATTENTE de vérification"}
-  ntf(msgs[result]||"QC enregistré","ok")
+  const msgs={"approved":"✅ QC Approved — record saved","rejected":"❌ QC Rejected — Non-Conformity report recommended","on_hold":"⏸ QC On Hold — awaiting verification"}
+  ntf(msgs[result]||"QC saved","ok")
+
+  // If rejected: show NC creation prompt
+  if(result==='rejected'){
+    const ncDesc=document.getElementById('qcNC').value.trim()
+    const ncBanner=document.getElementById('qcNCBanner')
+    if(ncBanner){
+      const caseRef=orderNo||currentLotId||'—'
+      ncBanner.style.display='block'
+      ncBanner.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--red)">⚠️ QC Rejected — Non-Conformity Required</div>
+          <div style="font-size:12px;color:var(--mu);margin-top:3px">Case: <strong>${caseRef}</strong>${ncDesc?' · '+ncDesc:''}</div>
+        </div>
+        <a href="non_conformity.html?source=qc&case=${encodeURIComponent(caseRef)}&desc=${encodeURIComponent(ncDesc||'QC Rejection')}" 
+           style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--red);color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
+          ⚠️ Create NC Report →
+        </a>
+      </div>`
+      setTimeout(()=>ncBanner.scrollIntoView({behavior:'smooth',block:'center'}),300)
+    }
+  }
   document.getElementById("newQCForm").style.display="none"
   CHECKS_KEYS.forEach(k=>delete checks[k])
   document.querySelectorAll('.check-item').forEach(el=>{

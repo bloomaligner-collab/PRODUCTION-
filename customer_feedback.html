@@ -439,7 +439,32 @@ window.save=async()=>{
   if(!editId)rec.ref_number=refNum();
   const{error}=editId?await sb.from('customer_feedback').update(rec).eq('id',editId):await sb.from('customer_feedback').insert([rec]);
   if(error){ntf('Error: '+error.message,'err');return;}
-  ntf(editId?'Updated!':'Record logged!','ok');window.closeModal();load();
+  ntf(editId?'Updated!':'Record logged!','ok');
+
+  // If complaint type or critical/high priority — show NC creation prompt
+  if(!editId){
+    const isComplaint=rec.feedback_type==='complaint'||rec.priority==='critical'||rec.priority==='high';
+    if(isComplaint){
+      const banner=document.getElementById('ncPromptBanner');
+      if(banner){
+        banner.style.display='block';
+        const caseRef=rec.order_ref||rec.customer_name||'—';
+        banner.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;background:var(--r50);border:1.5px solid var(--r100);border-radius:12px">
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--red)">⚠️ Complaint Logged — Non-Conformity Recommended</div>
+            <div style="font-size:12px;color:var(--mu);margin-top:3px">Customer: <strong>${rec.customer_name}</strong> · Priority: <strong>${rec.priority}</strong></div>
+          </div>
+          <a href="non_conformity.html?source=feedback&case=${encodeURIComponent(caseRef)}&desc=${encodeURIComponent(rec.description||'Customer complaint')}&det=${encodeURIComponent(rec.customer_name||'')}"
+             style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--red);color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
+            ⚠️ Create NC Report →
+          </a>
+        </div>`;
+        banner.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    }
+  }
+
+  window.closeModal();load();
 };
 ['typeFilter','statusFilter'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilter));
 document.getElementById('searchInput').addEventListener('input',applyFilter);

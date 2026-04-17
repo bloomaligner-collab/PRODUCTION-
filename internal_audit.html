@@ -236,6 +236,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     </div>
   </div>
   <div class="body">
+    <div id="auditNCBanner" style="display:none;background:var(--a50);border:1.5px solid var(--a100);border-radius:12px;padding:16px 20px;margin-bottom:20px"></div>
     <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
       <div class="kpi" style="border-top-color:var(--blue)"><div class="kpi-val" id="kTotal">—</div><div class="kpi-lbl">Total Audits</div></div>
       <div class="kpi" style="border-top-color:var(--amber)"><div class="kpi-val" id="kPlanned" style="color:var(--amber)">—</div><div class="kpi-lbl">Planned</div></div>
@@ -441,6 +442,25 @@ window.save=async()=>{
   if(!editId)rec.audit_number=auditNum();
   const{error}=editId?await sb.from('internal_audits').update(rec).eq('id',editId):await sb.from('internal_audits').insert([rec]);
   if(error){ntf('Error: '+error.message,'err');return;}
+  // If findings were recorded — show NC creation prompt
+  const hasFindings = rec.findings && (rec.result==='minor_findings'||rec.result==='major_findings'||rec.result==='critical');
+  if(hasFindings){
+    const banner=document.getElementById('auditNCBanner');
+    if(banner){
+      banner.style.display='block';
+      banner.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--amber)">⚠️ Audit Findings Recorded — Non-Conformity Recommended</div>
+          <div style="font-size:12px;color:var(--mu);margin-top:3px">Scope: <strong>${rec.audit_scope||'—'}</strong> · ${rec.findings_count||0} finding${rec.findings_count!==1?'s':''}</div>
+        </div>
+        <a href="non_conformity.html?source=audit&scope=${encodeURIComponent(rec.audit_scope||'')}&desc=${encodeURIComponent((rec.findings||'').substring(0,100))}"
+          style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--amber);color:#fff;border-radius:9px;font-weight:700;font-size:12px;text-decoration:none;flex-shrink:0">
+          ⚠️ Create NC Report
+        </a>
+      </div>`;
+      setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),300);
+    }
+  }
   ntf(editId?'Audit updated!':'Audit scheduled!','ok');window.closeModal();load();
 };
 document.getElementById('statusFilter').addEventListener('change',applyFilter);

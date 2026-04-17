@@ -480,6 +480,15 @@ window.save=async()=>{
     :await sb.from('machine_maintenance_log').insert([rec]);
   btn.disabled=false;btn.textContent='💾 Save Record';
   if(error){ntf('❌ '+error.message);return;}
+  // Auto-update machine next_service_date if next_due_date was set
+  if(rec.next_due_date&&rec.machine_name){
+    await sb.from('machines').update({
+      next_service_date:rec.next_due_date,
+      next_service:rec.next_due_date,
+      last_service_date:date,
+      last_service:date
+    }).eq('machine_name',rec.machine_name);
+  }
   ntf('✅ Maintenance record saved!',true);window.closeAdd();load();
 };
 
@@ -488,7 +497,21 @@ $('fType').addEventListener('change',applyFilter);
 $('srch').addEventListener('input',applyFilter);
 $('pgPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 $('pgNext').addEventListener('click',()=>{pg++;render();});
-load();
+load().then(()=>{
+  // Pre-filter if arriving from machines.html with ?machine=ID&name=MachineName
+  const params=new URLSearchParams(window.location.search);
+  const machineName=params.get('name');
+  const machSel=$('fMach');
+  if(machineName&&machSel){
+    // Find matching option
+    const opt=[...machSel.options].find(o=>o.value===machineName||o.textContent===machineName);
+    if(opt){machSel.value=opt.value;applyFilter();}
+    else{
+      // If not in dropdown yet (by name), set search box instead
+      $('srch').value=machineName;applyFilter();
+    }
+  }
+});
 </script>
 
 

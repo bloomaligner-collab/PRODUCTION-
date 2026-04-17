@@ -261,6 +261,34 @@ tbody tr:hover{background:#f8fafc}
         <div class="kpi-lbl">Pending Reminders</div>
         <div class="kpi-sub" id="kRemindersSub">Production follow-ups</div>
       </a>
+      <a href="non_conformity.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,#dc2626,#f87171)"></div>
+        <div class="kpi-ico" style="background:var(--r50)">⚠️</div>
+        <div class="kpi-val" id="kOpenNC">—</div>
+        <div class="kpi-lbl">Open Non-Conformities</div>
+        <div class="kpi-sub" id="kOpenNCSub">Awaiting resolution</div>
+      </a>
+      <a href="customer_feedback.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div>
+        <div class="kpi-ico" style="background:var(--a50)">⭐</div>
+        <div class="kpi-val" id="kSatisfaction">—</div>
+        <div class="kpi-lbl">Customer Satisfaction</div>
+        <div class="kpi-sub" id="kSatisfactionSub">Last 30 days avg</div>
+      </a>
+      <a href="bloom_import.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,#16a34a,#22c55e)"></div>
+        <div class="kpi-ico" style="background:var(--g50)">🌸</div>
+        <div class="kpi-val" id="kLastSync">—</div>
+        <div class="kpi-lbl">Last Bloom Sync</div>
+        <div class="kpi-sub" id="kLastSyncSub">Auto-sync status</div>
+      </a>
+      <a href="machines.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)"></div>
+        <div class="kpi-ico" style="background:var(--p50)">🔧</div>
+        <div class="kpi-val" id="kMaintDue">—</div>
+        <div class="kpi-lbl">Maintenance Due</div>
+        <div class="kpi-sub" id="kMaintDueSub">Machines needing service</div>
+      </a>
     </div>
 
     <!-- CHARTS ROW 1: trend + doughnut -->
@@ -456,6 +484,8 @@ tbody tr:hover{background:#f8fafc}
   </div>
 </div>
 
+<script>const PAGE_KEY='dashboard'</script>
+<script src="access.js"></script>
 <script type="module">
 import{createClient}from'https://esm.sh/@supabase/supabase-js@2'
 import{SUPABASE_CONFIG}from'./config.js'
@@ -628,6 +658,46 @@ async function load(){
   document.getElementById('kReminders').textContent=pendingReminders.length
   document.getElementById('kRemindersSub').textContent=overdueReminders.length>0?`🔴 ${overdueReminders.length} overdue!`:'All on schedule'
   document.getElementById('kRemindersSub').style.color=overdueReminders.length>0?'var(--red)':'var(--mu)'
+
+  // ── NEW KPIs: NC, Satisfaction, Last Sync, Machines Due ─────────
+  Promise.all([
+    sb.from('non_conformity_reports').select('id').eq('status','open'),
+    sb.from('customer_feedback').select('id').gte('created_at',new Date(Date.now()-30*86400000).toISOString()),
+    sb.from('bloom_sync_log').select('completed_at,status').eq('status','success').order('completed_at',{ascending:false}).limit(1),
+    sb.from('machines').select('name,machine_name,next_service_date,next_service').eq('is_active',true)
+  ]).then(([ncR,cfR,syncR,machR])=>{
+    // Open NCs
+    const openNCs=(ncR.data||[]).length
+    const ncEl=document.getElementById('kOpenNC'),ncSub=document.getElementById('kOpenNCSub')
+    if(ncEl){ncEl.textContent=openNCs;ncEl.style.color=openNCs>0?'var(--red)':'var(--green)'}
+    if(ncSub){ncSub.textContent=openNCs>0?`Requires CAPA action`:'No open NCs ✓';ncSub.style.color=openNCs>0?'var(--red)':'var(--green)'}
+    // Satisfaction
+    const feedback=cfR.data||[]
+    const sfEl=document.getElementById('kSatisfaction'),sfSub=document.getElementById('kSatisfactionSub')
+    if(sfEl){
+      if(feedback.length===0){sfEl.textContent='—';if(sfSub)sfSub.textContent='No feedback yet'}
+      else{sfEl.textContent=feedback.length+' received';sfEl.style.color='var(--blue)';if(sfSub)sfSub.textContent='Last 30 days'}
+    }
+    // Last Sync
+    const syncData=(syncR.data||[])[0]
+    const lsEl=document.getElementById('kLastSync'),lsSub=document.getElementById('kLastSyncSub')
+    if(lsEl){
+      if(syncData?.completed_at){
+        const mins=Math.round((Date.now()-new Date(syncData.completed_at).getTime())/60000)
+        const txt=mins<60?`${mins}m ago`:mins<1440?`${Math.round(mins/60)}h ago`:Math.round(mins/1440)+'d ago'
+        lsEl.textContent=txt;lsEl.style.color=mins<360?'var(--green)':mins<1440?'var(--amber)':'var(--red)'
+        if(lsSub){lsSub.textContent=mins<360?'Sync up to date':mins<1440?'Sync overdue':'Sync very overdue';lsSub.style.color=lsEl.style.color}
+      } else {lsEl.textContent='—';if(lsSub)lsSub.textContent='No sync yet'}
+    }
+    // Machines due
+    const today=new Date().toISOString().slice(0,10)
+    const machs=machR.data||[]
+    const due=machs.filter(m=>{const d=m.next_service_date||m.next_service;return d&&d<=today}).length
+    const mdEl=document.getElementById('kMaintDue'),mdSub=document.getElementById('kMaintDueSub')
+    if(mdEl){mdEl.textContent=due;mdEl.style.color=due>0?'var(--purple)':'var(--green)'}
+    if(mdSub){mdSub.textContent=due>0?`${due} machine${due!==1?'s':''} overdue for service`:'All machines serviced ✓';mdSub.style.color=due>0?'var(--purple)':'var(--green)'}
+  }).catch(()=>{})
+  // ──────────────────────────────────────────────────────────────
 
   // ── RENDER INCOMPLETE CASES
   document.getElementById('incompleteProdList').innerHTML=incCases.length?incCases.slice(0,6).map(c=>{

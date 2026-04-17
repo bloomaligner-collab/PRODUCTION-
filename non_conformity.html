@@ -352,12 +352,25 @@ tbody tr:hover{background:#f8fafc}
         <label class="lbl">Corrective Action Taken / Planned</label>
         <textarea class="fi" id="nAction" rows="2" placeholder="What corrective action was or will be taken?" style="resize:vertical"></textarea>
       </div>
+      <!-- CAPA fields -->
+      <div>
+        <label class="lbl">Assigned To (CAPA Owner)</label>
+        <input type="text" class="fi" id="nAssigned" placeholder="Employee responsible for corrective action"/>
+      </div>
+      <div>
+        <label class="lbl">CAPA Due Date</label>
+        <input type="date" class="fi" id="nDue"/>
+      </div>
+      <div>
+        <label class="lbl">Verified By (Closure)</label>
+        <input type="text" class="fi" id="nVerified" placeholder="Who verified the corrective action?"/>
+      </div>
       <div>
         <label class="lbl">Status</label>
         <select class="fi" id="nSt">
           <option value="open">🔴 Open</option>
-          <option value="in_progress">🟡 In Progress</option>
-          <option value="closed">✅ Closed</option>
+          <option value="in_progress">🟡 In Progress — CAPA ongoing</option>
+          <option value="closed">✅ Closed — Verified</option>
         </select>
       </div>
       <div><label class="lbl">Closed Date</label><input type="date" class="fi" id="nClosed"/></div>
@@ -459,11 +472,13 @@ function render(){
   $('pgPrev').disabled=pg===0;$('pgNext').disabled=pg>=tp-1;
 }
 
-window.openNew=()=>{
+window.openNew=(prefill={})=>{
   editId=null;$('ncTitle').textContent='⚠️ New Non-Conformity Report';
   $('nDate').value=new Date().toISOString().slice(0,10);
-  $('nOrder').value='';
-  ['nDet','nDesc','nRoot','nAction','nClosed'].forEach(id=>$(id).value='');
+  $('nOrder').value=prefill.case||'';
+  ['nDet','nDesc','nRoot','nAction','nClosed','nAssigned','nDue','nVerified'].forEach(id=>$(id).value='');
+  if(prefill.desc) $('nDesc').value=prefill.desc;
+  if(prefill.det)  $('nDet').value=prefill.det;
   $('nCat').value='material';$('nSev').value='medium';$('nSt').value='open';$('nStep').value='';
   loadOrderOptions();
   $('ncModal').classList.add('on');
@@ -489,6 +504,7 @@ window.editNC=(id)=>{
   $('nDet').value=r.detected_by||'';$('nStep').value=r.production_step||'';
   $('nDesc').value=r.description||'';$('nRoot').value=r.root_cause||'';
   $('nAction').value=r.corrective_action||'';$('nSt').value=r.status||'open';$('nClosed').value=r.closed_date||'';
+  $('nAssigned').value=r.assigned_to||'';$('nDue').value=r.due_date||'';$('nVerified').value=r.verified_by||'';
   $('ncModal').classList.add('on');
 };
 window.closeNC=()=>{$('ncModal').classList.remove('on');editId=null;};
@@ -501,6 +517,9 @@ window.saveNC=async()=>{
     severity:$('nSev').value,detected_by:det,production_step:$('nStep').value||null,
     description:desc,root_cause:$('nRoot').value.trim()||null,
     corrective_action:$('nAction').value.trim()||null,
+    assigned_to:$('nAssigned').value.trim()||null,
+    due_date:$('nDue').value||null,
+    verified_by:$('nVerified').value.trim()||null,
     status:$('nSt').value,closed_date:$('nClosed').value||null};
   if(!editId)rec.nc_number=genNC();
   const{error}=editId?await sb.from('non_conformity_reports').update(rec).eq('id',editId)
@@ -546,7 +565,21 @@ $('fSt').addEventListener('change',applyFilter);$('fSv').addEventListener('chang
 $('srch').addEventListener('input',applyFilter);
 $('pgPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 $('pgNext').addEventListener('click',()=>{pg++;render();});
-load();
+load().then(()=>{
+  // Auto-open NC form if arriving from QC/audit/feedback with ?source=&case=&desc=&det=
+  const p=new URLSearchParams(window.location.search);
+  const src=p.get('source'), caseRef=p.get('case'), desc=p.get('desc'), det=p.get('det');
+  if(src&&(caseRef||desc)){
+    const sourceLabel={qc:'Quality Control Rejection',audit:'Internal Audit Finding',feedback:'Customer Complaint'}[src]||src;
+    openNew({case:caseRef||'',desc:desc||'',det:det||''});
+    // Pre-fill category based on source
+    if(src==='qc') $('nCat').value='quality';
+    if(src==='feedback') $('nCat').value='customer';
+    if(src==='audit') $('nCat').value='process';
+    // Set severity high for customer complaints
+    if(src==='feedback') $('nSev').value='major';
+  }
+});
 </script>
 
 

@@ -345,7 +345,7 @@ ${a?`<div class="sec"><div class="sec-t">&#128994; Active Session</div><div styl
 <button class="cb cm" onclick="setSt('${x.id}','maintenance')">&#128295; Maint.</button>
 <button class="cb co" onclick="setSt('${x.id}','offline')">&#9940; Offline</button>
 </div>
-<div class="sec"><div class="sec-t">&#128295; Maintenance<button class="btn bs" style="background:var(--g50);border:1px solid var(--g100);color:#15803d;padding:3px 8px" onclick="openMD('${x.id}','${mn}')">&#10003; Mark Done</button></div>
+<div class="sec"><div class="sec-t">&#128295; Maintenance<button class="btn bs" style="background:var(--g50);border:1px solid var(--g100);color:#15803d;padding:3px 8px" onclick="openMD('${x.id}','${mn}')">&#10003; Mark Done</button><a href='maintenance_history.html?machine=${x.id}&name=${encodeURIComponent(mn)}' style='display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--b50);border:1px solid var(--b100);border-radius:6px;color:var(--blue);font-size:11px;font-weight:700;text-decoration:none;margin-left:4px'>📋 History</a></div>
 <div class="md-row">
 <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
   <div style="flex:1;background:var(--b50);border:1px solid var(--b100);border-radius:8px;padding:6px 10px;text-align:center">
