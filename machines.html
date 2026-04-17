@@ -587,7 +587,7 @@ document.getElementById('svInst').addEventListener('click',async()=>{
   try{
     await sb.from('machine_consumable_loads').update({is_active:false,completed_at:new Date().toISOString()}).eq('machine_id',mid).eq('item_name',iopt.dataset.name).eq('is_active',true)
     await sb.from('inventory_lots').update({available_qty:Number(fefoLot.available_qty)-qty}).eq('id',fefoLot.lot_id)
-    await sb.from('inventory_stock_history').insert([{lot_id:fefoLot.lot_id,action_type:'usage',quantity:qty,unit_cost:fefoLot.unit_cost||0,note:'Installed on machine: '+mid}])
+    await sb.from('inventory_batch_consumption').insert([{lot_id:fefoLot.lot_id,item_name:iopt.dataset.name,quantity_consumed:qty,consumed_by:typeof CW_ACCESS!=='undefined'?CW_ACCESS.getName():'system',reason:'Installed on machine: '+mid}])
     await sb.from('machine_consumable_loads').insert([{machine_id:mid,lot_id:fefoLot.lot_id,item_name:iopt.dataset.name,lot_no:fefoLot.lot_no,qty_installed:qty,qty_remaining:qty,unit:document.getElementById('instUnit').value||null,installed_by:document.getElementById('instBy').value.trim()||null,notes:document.getElementById('instNotes').value.trim()||null,is_active:true}])
     // Sync to machine_lot_assignments so clocking auto-deduction works
     try{

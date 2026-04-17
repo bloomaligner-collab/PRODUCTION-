@@ -211,7 +211,7 @@ tbody tr:hover{background:#f8fafc}
     <div class="top-right">
       
       <span style="font-size:12px;color:var(--mu);font-weight:600">Current</span>
-      <span class="ver-tag v-major" style="margin-left:6px">v2.0 · April 2026</span>
+      <span class="ver-tag v-major" style="margin-left:6px">v3.0 · April 2026</span>
     </div>
   </div>
 </div>
@@ -225,6 +225,50 @@ tbody tr:hover{background:#f8fafc}
       </div>
     </div>
 
+    <!-- v3.0 -->
+    <div class="card" style="border-left:4px solid var(--blue)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--bdr);flex-wrap:wrap">
+        <span class="ver-tag v-major">v3.0</span>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:800">Full Platform Audit — Stability, Compliance &amp; Connectivity</div>
+          <div style="font-size:12px;color:var(--mu);margin-top:2px">April 2026</div>
+        </div>
+        <span style="background:var(--g50);color:var(--green);padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--g100)">● Current Version</span>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Critical Bug Fixes</div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+        <div class="chg"><span class="cb cfix">FIX</span>Added <code>PAGE_KEY='dashboard'</code> to manager.html — auth guard and sidebar now work correctly on the dashboard</div>
+        <div class="chg"><span class="cb cfix">FIX</span>qualite.html now uses <code>quality_controls</code> table only — removed duplicate <code>quality_checks</code> table that was causing QC records to vanish</div>
+        <div class="chg"><span class="cb cfix">FIX</span>inventory.html — replaced dropped <code>inventory_stock_history</code> with <code>inventory_batch_consumption</code></div>
+        <div class="chg"><span class="cb cfix">FIX</span>production_materials.html — removed <code>yield_rules</code> fallback; now reads/writes <code>material_yield_rules</code> exclusively</div>
+        <div class="chg"><span class="cb cfix">FIX</span>clocking.html — fixed auto-deduction to use <code>material_yield_rules</code> instead of dropped <code>yield_rules</code></div>
+        <div class="chg"><span class="cb cfix">FIX</span>machines.html — replaced dropped <code>inventory_stock_history</code> with <code>inventory_batch_consumption</code> in consumable load flow</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Database Cleanup</div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+        <div class="chg"><span class="cb cdep">REMOVED</span>6 orphan/duplicate tables dropped: <code>quality_checks</code>, <code>non_conformities</code>, <code>yield_rules</code>, <code>clocking</code>, <code>inventory</code>, <code>inventory_stock_history</code></div>
+        <div class="chg"><span class="cb cdep">REMOVED</span>8 test/junk inventory items deleted — 4 clean active items remain</div>
+        <div class="chg"><span class="cb cdep">REMOVED</span>Duplicate "Cleaning Solution (IPA)" item deactivated</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">New Pages &amp; Improvements</div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+        <div class="chg"><span class="cb cnew">NEW</span>suppliers.html — fully rebuilt with sidebar, KPIs, ISO qualification badge, rating, linked items, and full commercial terms</div>
+        <div class="chg"><span class="cb cnew">NEW</span>Floating <strong>?</strong> help button on all 20 pages — per-page guide covering business role and button functions</div>
+        <div class="chg"><span class="cb cnew">NEW</span>Dashboard: 4 new KPI cards — Open Non-Conformities, Customer Satisfaction, Last Bloom Sync time, Machines Due for service</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>access.js v3.2 — all 21 pages in sidebar with correct order, dynamic role badge, name/role footer, ISO Compliance added to System section</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>machines.html — "📋 History" link on every machine card → maintenance_history.html pre-filtered</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>maintenance_history.html — accepts <code>?machine=</code> URL param; auto-updates <code>machines.next_service_date</code> on save</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>qualite.html — "⚠️ Create NC" prompt shown on rejected QC; all French labels converted to English</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>customer_feedback.html — "Create NC" link shown on complaints; auto-opens NC form pre-filled</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>internal_audit.html — "⚠️ Create NC Report" banner shown when findings recorded</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>non_conformity.html — reads <code>?source=</code> URL param from QC, audit, and feedback; CAPA fields exposed</div>
+        <div class="chg"><span class="cb cimprove">IMPROVE</span>tracabilite.html — all French labels replaced with English; accepts <code>?case=</code> URL param for deep-linking from production</div>
+      </div>
+      <div style="background:var(--a50);border:1px solid var(--a100);border-radius:10px;padding:12px 16px;font-size:12px;color:#92400e">
+        <strong>ISO 13485 Note:</strong> This release completes the cross-page quality workflow loop: QC Fail → NC Report → CAPA, and Audit Finding → NC Report → CAPA. All non-conformity pathways now conform to ISO 13485 §8.3 (Control of Nonconforming Product) and §8.5 (Improvement). Machine maintenance records auto-update next service dates per §6.3 (Infrastructure).
+      </div>
+    </div>
+
     <!-- v2.0 -->
     <div class="card">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--bdr);flex-wrap:wrap">
@@ -233,7 +277,7 @@ tbody tr:hover{background:#f8fafc}
           <div style="font-size:15px;font-weight:800">Major Release — Bloom Integration + Quality Management</div>
           <div style="font-size:12px;color:var(--mu);margin-top:2px">April 2026</div>
         </div>
-        <span style="background:var(--g50);color:var(--green);padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--g100)">● Current Version</span>
+        <span style="background:var(--bg);color:var(--mu);padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;">● Previous Version</span>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">New Pages Added</div>
       <div style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:16px"><div class="chg">
@@ -390,7 +434,7 @@ tbody tr:hover{background:#f8fafc}
 
 <footer style="position:fixed;bottom:0;left:240px;right:0;background:var(--card);border-top:1px solid var(--bdr);padding:6px 28px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--dim);z-index:50">
   <span>© 2026 <strong style="color:var(--mu)">Cedarwings SAS</strong> — Dental Aligner Manufacturing Platform</span>
-  <span style="font-family:var(--mono)">v2.0 · ISO 13485</span>
+  <span style="font-family:var(--mono)">v3.0 · ISO 13485</span>
 </footer>
 
 

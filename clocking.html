@@ -999,7 +999,7 @@ async function _finalizeSession(alignersDone,upperDone,lowerDone,isPartial){
     try{
       const[{data:lots},{data:rules}]=await Promise.all([
         sb.from('machine_lot_assignments').select('*').eq('is_active',true),
-        sb.from('yield_rules').select('*')
+        sb.from('material_yield_rules').select('*')
       ])
       for(const lot of(lots||[])){
         const rule=(rules||[]).find(r=>
