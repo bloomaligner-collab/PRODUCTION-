@@ -540,34 +540,22 @@ function lotSt(r){const q=Number(r.available_qty||0),m=Number(r.min_qty||r.min_s
 function stBdg(s){const mp={available:'<span class="bdg bg">✓ Available</span>',low:'<span class="bdg ba">⚠ Low</span>',out:'<span class="bdg br">🚫 Out</span>',near_expiry:'<span class="bdg bp">⏰ Near Expiry</span>',expired:'<span class="bdg br">Expired</span>'};return mp[s]||`<span class="bdg bgy">${s}</span>`}
 function stkBar(q,mx){const p=mx>0?Math.min(100,Math.round(Number(q)/Number(mx)*100)):0;const c=Number(q)<=0?'#dc2626':p<30?'#d97706':'#16a34a';return`<div class="sw"><div class="sv" style="color:${c}">${q}</div><div class="sbg"><div class="sf" style="width:${p}%;background:${c}"></div></div><div class="sp">${p}% of max</div></div>`}
 let allLots=[],allItems=[],allReqs=[]
-// Separate supplier/location loader — never blocks main data
-async function loadSupplierDropdowns(){
-  try{
-    const[supR,locR]=await Promise.all([
-      sb.from('suppliers').select('id,name').order('name'),
-      sb.from('inventory_locations').select('id,location_name').order('location_name'),
-    ])
-    populateSupplierDropdowns(supR.data||[],locR.data||[])
-  }catch(e){console.warn('supplier dropdown:',e.message)}
-}
-function populateSupplierDropdowns(sups,locs){
-  const supOpts='<option value="">— Select Supplier —</option>'+sups.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
-  ;['iSup','lSup'].forEach(id=>{const el=document.getElementById(id);if(el){const v=el.value;el.innerHTML=supOpts;if(v)el.value=v}})
-  const locOpts='<option value="">— Select Location —</option>'+locs.map(l=>`<option value="${l.id}">${l.location_name}</option>`).join('')
-  ;['lLoc'].forEach(id=>{const el=document.getElementById(id);if(el){const v=el.value;el.innerHTML=locOpts;if(v)el.value=v}})
-}
-
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
-  const[lr,ir,rr,hr]=await Promise.all([
+  const[lr,ir,rr,hr,supR,locR]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
     sb.from('inventory_items').select('*').order('name'),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
     sb.from('inventory_stock_history').select('action_type,quantity,created_at,note').order('created_at',{ascending:false}).limit(8),
+    sb.from('suppliers').select('id,name').eq('active',true).order('name'),
+    sb.from('inventory_locations').select('id,location_name').eq('active',true).order('location_name'),
   ])
-  loadSupplierDropdowns() // load separately so errors don't block main data
   allLots=lr.data||[];allItems=ir.data||[];allReqs=rr.data||[]
-  // Populate supplier + location dropdowns
-  populateSupplierDropdowns(supR.data||[], locR.data||[])
+  // Populate supplier dropdowns
+  const supOpts='<option value="">— Select Supplier —</option>'+(supR.data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+  ;['iSup','lSup'].forEach(id=>{const el=document.getElementById(id);if(el){const v=el.value;el.innerHTML=supOpts;if(v)el.value=v}})
+  // Populate location dropdowns
+  const locOpts='<option value="">— Select Location —</option>'+(locR.data||[]).map(l=>`<option value="${l.id}">${l.location_name}</option>`).join('')
+  const locEl=document.getElementById('lLoc');if(locEl){const v=locEl.value;locEl.innerHTML=locOpts;if(v)locEl.value=v}
   let tv=0,lc=0,ec=0
   allLots.forEach(r=>{tv+=Number(r.available_qty||0)*Number(r.unit_cost||0);const s=lotSt(r);if(s==='low'||s==='out')lc++;if(s==='near_expiry'||s==='expired')ec++})
   $('kLots').textContent=allLots.length;$('kItems').textContent=allItems.length;$('kVal').textContent='$'+money(tv);$('kLow').textContent=lc;$('kExp').textContent=ec;$('kReq').textContent=allReqs.filter(r=>['pending','approved'].includes(r.status)).length
@@ -687,7 +675,7 @@ window.doEditItem=(id)=>{
   $('mItem').classList.add('on')
 }
 window.doAddLot=(itemId)=>{$('lIt').value=itemId;$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')}
-$('btnAI').addEventListener('click',()=>{loadSupplierDropdowns();$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='');$('iSup').value='';$('iAR').value='true';$('mItem').classList.add('on')})
+$('btnAI').addEventListener('click',()=>{$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='');$('iSup').value='';$('iAR').value='true';$('mItem').classList.add('on')})
 $('cItem').addEventListener('click',()=>$('mItem').classList.remove('on'))
 $('mItem').addEventListener('click',e=>{if(e.target===$('mItem'))$('mItem').classList.remove('on')})
 $('svItem').addEventListener('click',async()=>{
@@ -700,7 +688,7 @@ $('svItem').addEventListener('click',async()=>{
   }catch(err){$('eItem').textContent=err.message}
 })
 // Lot modal
-$('btnAL').addEventListener('click',()=>{loadSupplierDropdowns();['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id=>$(id).value='');$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')})
+$('btnAL').addEventListener('click',()=>{['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id=>$(id).value='');$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')})
 $('cLot').addEventListener('click',()=>$('mLot').classList.remove('on'))
 $('mLot').addEventListener('click',e=>{if(e.target===$('mLot'))$('mLot').classList.remove('on')})
 $('svLot').addEventListener('click',async()=>{
