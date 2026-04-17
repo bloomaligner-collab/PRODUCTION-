@@ -540,22 +540,39 @@ function lotSt(r){const q=Number(r.available_qty||0),m=Number(r.min_qty||r.min_s
 function stBdg(s){const mp={available:'<span class="bdg bg">✓ Available</span>',low:'<span class="bdg ba">⚠ Low</span>',out:'<span class="bdg br">🚫 Out</span>',near_expiry:'<span class="bdg bp">⏰ Near Expiry</span>',expired:'<span class="bdg br">Expired</span>'};return mp[s]||`<span class="bdg bgy">${s}</span>`}
 function stkBar(q,mx){const p=mx>0?Math.min(100,Math.round(Number(q)/Number(mx)*100)):0;const c=Number(q)<=0?'#dc2626':p<30?'#d97706':'#16a34a';return`<div class="sw"><div class="sv" style="color:${c}">${q}</div><div class="sbg"><div class="sf" style="width:${p}%;background:${c}"></div></div><div class="sp">${p}% of max</div></div>`}
 let allLots=[],allItems=[],allReqs=[]
+// Global supplier/location cache — loaded once, used synchronously
+let _suppliers=[], _locations=[]
+
+async function loadSupplierDropdowns(){
+  try{
+    const[supR,locR]=await Promise.all([
+      sb.from('suppliers').select('id,name').order('name'),
+      sb.from('inventory_locations').select('id,location_name').order('location_name'),
+    ])
+    _suppliers=supR.data||[]
+    _locations=locR.data||[]
+  }catch(e){console.warn('supplier load:',e.message)}
+  // Always populate after loading
+  fillSupplierDropdowns()
+}
+function fillSupplierDropdowns(){
+  const supOpts='<option value="">— Select Supplier —</option>'+_suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+  const locOpts='<option value="">— Select Location —</option>'+_locations.map(l=>`<option value="${l.id}">${l.location_name}</option>`).join('')
+  document.querySelectorAll('#iSup,#lSup').forEach(el=>{if(el)el.innerHTML=supOpts})
+  document.querySelectorAll('#lLoc').forEach(el=>{if(el)el.innerHTML=locOpts})
+}
+
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
-  const[lr,ir,rr,hr,supR,locR]=await Promise.all([
+  const[lr,ir,rr,hr]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
     sb.from('inventory_items').select('*').order('name'),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
     sb.from('inventory_stock_history').select('action_type,quantity,created_at,note').order('created_at',{ascending:false}).limit(8),
-    sb.from('suppliers').select('id,name').eq('active',true).order('name'),
-    sb.from('inventory_locations').select('id,location_name').eq('active',true).order('location_name'),
   ])
+  loadSupplierDropdowns() // async — fills _suppliers/_locations then calls fillSupplierDropdowns()
   allLots=lr.data||[];allItems=ir.data||[];allReqs=rr.data||[]
-  // Populate supplier dropdowns
-  const supOpts='<option value="">— Select Supplier —</option>'+(supR.data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
-  ;['iSup','lSup'].forEach(id=>{const el=document.getElementById(id);if(el){const v=el.value;el.innerHTML=supOpts;if(v)el.value=v}})
-  // Populate location dropdowns
-  const locOpts='<option value="">— Select Location —</option>'+(locR.data||[]).map(l=>`<option value="${l.id}">${l.location_name}</option>`).join('')
-  const locEl=document.getElementById('lLoc');if(locEl){const v=locEl.value;locEl.innerHTML=locOpts;if(v)locEl.value=v}
+  // Populate supplier + location dropdowns
+  // suppliers loaded separately via loadSupplierDropdowns()
   let tv=0,lc=0,ec=0
   allLots.forEach(r=>{tv+=Number(r.available_qty||0)*Number(r.unit_cost||0);const s=lotSt(r);if(s==='low'||s==='out')lc++;if(s==='near_expiry'||s==='expired')ec++})
   $('kLots').textContent=allLots.length;$('kItems').textContent=allItems.length;$('kVal').textContent='$'+money(tv);$('kLow').textContent=lc;$('kExp').textContent=ec;$('kReq').textContent=allReqs.filter(r=>['pending','approved'].includes(r.status)).length
@@ -563,7 +580,7 @@ async function loadAll(){_cachedExcluded=null // reset config cache on each load
   const cats=[...new Set(allLots.map(r=>r.category_name).filter(Boolean))],sel=$('sCat'),ex=[...$('sCat').options].map(o=>o.value)
   cats.forEach(c=>{if(!ex.includes(c)){const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o)}})
   // Item dropdowns
-  const pops=['lIt','fItem'];pops.forEach(id=>{const s=$(id),cv=s.value;s.innerHTML='<option value="">— Select item —</option>';allItems.forEach(it=>{const o=document.createElement('option');o.value=it.id;o.dataset.unit=it.unit_of_measure||'';o.textContent=it.name+(it.unit_of_measure?' ('+it.unit_of_measure+')':'');s.appendChild(o)});if(cv)s.value=cv})
+  const pops=['lIt','fItem'];pops.forEach(id=>{const s=$(id),cv=s.value;s.innerHTML='<option value="">— Select item —</option>';allItems.forEach(it=>{const iname=it.item_name||it.name||'?';const o=document.createElement('option');o.value=it.id;o.dataset.name=iname;o.dataset.unit=it.unit_of_measure||it.unit||'';o.textContent=iname+((it.unit_of_measure||it.unit)?' ('+(it.unit_of_measure||it.unit)+')':'');s.appendChild(o)});if(cv)s.value=cv})
   rStock();rItems();rReqs();rActivity(hr.data||[])
 }
 function rStock(){
@@ -584,9 +601,9 @@ function rStock(){
   $('dAlerts').innerHTML=al.length?al.map(r=>{const st=lotSt(r),d=daysUntil(r.expiry_date);const cls=st==='out'||st==='expired'?'ai-r':'ai-a';const det=st==='out'?'Out of stock':st==='expired'?`Expired ${Math.abs(d)}d ago`:st==='near_expiry'?`Expires in ${d}d`:`Low: ${r.available_qty}`;return`<div class="ai ${cls}"><strong>${r.item_name}</strong> — ${det}<div style="font-size:11px;color:var(--muted);margin-top:2px">Lot: ${r.lot_no||'—'}</div></div>`}).join(''):`<div style="color:var(--muted);font-size:13px;padding:6px">✅ All stock levels OK</div>`
 }
 function rItems(){
-  const stk={};allLots.forEach(r=>{stk[r.item_name]=(stk[r.item_name]||0)+Number(r.available_qty||0)})
-  $('tItems').innerHTML=allItems.length?allItems.map(it=>{const s=stk[it.name]||0,mn=Number(it.min_qty||0),c=s<=0?'#dc2626':mn>0&&s<=mn?'#d97706':'#16a34a';return`<tr>
-    <td><strong>${it.name}</strong></td><td style="font-size:12px">${it.category_name||'—'}</td><td class="mono">${it.unit_of_measure||'—'}</td>
+  const stk={};allLots.forEach(r=>{const k=r.item_name||r.name||'';if(k){stk[k]=(stk[k]||0)+Number(r.available_qty||0)}})
+  $('tItems').innerHTML=allItems.length?allItems.map(it=>{const iname=it.item_name||it.name||'—';const s=stk[iname]||stk[it.name]||0,mn=Number(it.min_qty||it.min_stock||0),c=s<=0?'#dc2626':mn>0&&s<=mn?'#d97706':'#16a34a';return`<tr>
+    <td><strong>${iname}</strong></td><td style="font-size:12px">${it.category_name||it.category||'—'}</td><td class="mono">${it.unit_of_measure||it.unit||'—'}</td>
     <td class="mono">${it.min_qty||0}</td><td class="mono">${it.max_qty||0}</td><td class="mono">${it.monthly_consumption||0}</td><td class="mono">${it.lead_time_days||0}d</td>
     <td>${it.auto_requisition_enabled?'<span class="bdg bg">On</span>':'<span class="bdg br">Off</span>'}</td>
     <td><span class="mono" style="font-weight:700;color:${c}">${s}</span></td>
@@ -634,7 +651,7 @@ $('btnFefo').addEventListener('click',async()=>{
     e.style.cssText='background:var(--green-50);border:1px solid var(--green-100);border-radius:10px;padding:11px;margin-bottom:8px;font-size:13px'
     e.innerHTML=`<strong>✅ ${it.name}</strong> — ${qty} consumed<div style="font-size:11px;color:var(--muted);margin-top:3px">Lot: ${lot.lot_no||'—'} · ${new Date().toLocaleTimeString()}</div>`
     lg.insertBefore(e,lg.firstChild)
-    notify(`Consumed ${qty} of ${it.name}`);$('fQty').value='';$('fNote').value='';loadAll()
+    notify(`Consumed ${qty} of ${it.item_name||it.name}`);$('fQty').value='';$('fNote').value='';loadAll()
   }catch(err){notify(err.message,'err')}
 })
 // Requisitions
@@ -668,27 +685,29 @@ window.doEditItem=(id)=>{
   const it=allItems.find(x=>x.id===id);if(!it)return
   $('eiId').value=id;$('mItemT').textContent='Edit Item'
   ;['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(f=>$(f).value='')
-  $('iN').value=it.name||'';$('iC').value=it.category_name||'';$('iU').value=it.unit_of_measure||''
+  $('iN').value=it.item_name||it.name||'';$('iC').value=it.category_name||it.category||'';$('iU').value=it.unit_of_measure||it.unit||''
   $('iSK').value=it.sku||'';$('iMn').value=it.min_qty||'';$('iMx').value=it.max_qty||''
   $('iMC').value=it.monthly_consumption||'';$('iLT').value=it.lead_time_days||''
   $('iAR').value=it.auto_requisition_enabled?'true':'false';$('iNt').value=it.notes||''
+  fillSupplierDropdowns();setTimeout(()=>{$('iSup').value=it.preferred_supplier_id||''},50)
   $('mItem').classList.add('on')
 }
 window.doAddLot=(itemId)=>{$('lIt').value=itemId;$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')}
-$('btnAI').addEventListener('click',()=>{$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='');$('iSup').value='';$('iAR').value='true';$('mItem').classList.add('on')})
+$('btnAI').addEventListener('click',()=>{fillSupplierDropdowns();$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='');$('iSup').value='';$('iAR').value='true';$('mItem').classList.add('on')})
 $('cItem').addEventListener('click',()=>$('mItem').classList.remove('on'))
 $('mItem').addEventListener('click',e=>{if(e.target===$('mItem'))$('mItem').classList.remove('on')})
 $('svItem').addEventListener('click',async()=>{
   const nm=$('iN').value.trim();if(!nm){$('eItem').textContent='Item name required';return}
   const id=$('eiId').value
-  const p={name:nm,category_name:$('iC').value.trim()||null,unit_of_measure:$('iU').value.trim()||'pcs',sku:$('iSK').value.trim()||null,min_qty:Number($('iMn').value||0),max_qty:Number($('iMx').value||0),monthly_consumption:Number($('iMC').value||0),lead_time_days:Number($('iLT').value||0),auto_requisition_enabled:$('iAR').value==='true',notes:$('iNt').value.trim()||null}
+  const _cat=$('iC').value.trim()||null,_unit=$('iU').value.trim()||'pcs'
+  const p={name:nm,item_name:nm,category_name:_cat,category:_cat,unit_of_measure:_unit,unit:_unit,sku:$('iSK').value.trim()||null,min_qty:Number($('iMn').value||0),min_stock:Number($('iMn').value||0),max_qty:Number($('iMx').value||0),monthly_consumption:Number($('iMC').value||0),lead_time_days:Number($('iLT').value||0),auto_requisition_enabled:$('iAR').value==='true',notes:$('iNt').value.trim()||null,active:true,updated_at:new Date().toISOString()}
   const supIdVal=$('iSup').value;if(supIdVal)p.preferred_supplier_id=supIdVal
   try{if(id){const{error}=await sb.from('inventory_items').update(p).eq('id',id);if(error)throw error}else{const{error}=await sb.from('inventory_items').insert([p]);if(error)throw error}
     $('mItem').classList.remove('on');notify(id?'Item updated':'Item created');loadAll()
   }catch(err){$('eItem').textContent=err.message}
 })
 // Lot modal
-$('btnAL').addEventListener('click',()=>{['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id=>$(id).value='');$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')})
+$('btnAL').addEventListener('click',()=>{fillSupplierDropdowns();['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id=>$(id).value='');$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')})
 $('cLot').addEventListener('click',()=>$('mLot').classList.remove('on'))
 $('mLot').addEventListener('click',e=>{if(e.target===$('mLot'))$('mLot').classList.remove('on')})
 $('svLot').addEventListener('click',async()=>{
