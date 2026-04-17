@@ -572,14 +572,13 @@ function whenSuppliersReady(fn){
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
   const[lr,ir,rr,hr]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
-    sb.from('inventory_items').select('*').order('name'),
+    sb.from('inventory_items').select('*').order('created_at',{ascending:false}),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
     sb.from('inventory_stock_history').select('action_type,quantity,created_at,note').order('created_at',{ascending:false}).limit(8),
   ])
-  loadSupplierDropdowns() // async — fills _suppliers/_locations then calls fillSupplierDropdowns()
+  loadSupplierDropdowns() // fire and forget — ok
   allLots=lr.data||[];allItems=ir.data||[];allReqs=rr.data||[]
-  // Populate supplier + location dropdowns
-  // suppliers loaded separately via loadSupplierDropdowns()
+  // supplier dropdowns populated by loadSupplierDropdowns() above
   let tv=0,lc=0,ec=0
   allLots.forEach(r=>{tv+=Number(r.available_qty||0)*Number(r.unit_cost||0);const s=lotSt(r);if(s==='low'||s==='out')lc++;if(s==='near_expiry'||s==='expired')ec++})
   $('kLots').textContent=allLots.length;$('kItems').textContent=allItems.length;$('kVal').textContent='$'+money(tv);$('kLow').textContent=lc;$('kExp').textContent=ec;$('kReq').textContent=allReqs.filter(r=>['pending','approved'].includes(r.status)).length
@@ -700,7 +699,18 @@ window.doEditItem=(id)=>{
   $('mItem').classList.add('on')
 }
 window.doAddLot=(itemId)=>{$('lIt').value=itemId;$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);$('mLot').classList.add('on')}
-$('btnAI').addEventListener('click',()=>{whenSuppliersReady(()=>{$('eiId').value='';$('mItemT').textContent='Add New Item';['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='');$('iSup').value='';$('iAR').value='true';fillSupplierDropdowns();$('mItem').classList.add('on')})})
+$('btnAI').addEventListener('click',()=>{
+  // Ensure suppliers are loaded then open modal
+  if(!_suppliersReady) loadSupplierDropdowns()
+  whenSuppliersReady(()=>{
+    $('eiId').value='';$('mItemT').textContent='Add New Item'
+    ;['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='')
+    $('iSup').value='';$('iAR').value='true'
+    fillSupplierDropdowns()
+    $('eItem').textContent=''
+    $('mItem').classList.add('on')
+  })
+})
 $('cItem').addEventListener('click',()=>$('mItem').classList.remove('on'))
 $('mItem').addEventListener('click',e=>{if(e.target===$('mItem'))$('mItem').classList.remove('on')})
 $('svItem').addEventListener('click',async()=>{
@@ -711,10 +721,19 @@ $('svItem').addEventListener('click',async()=>{
   const supIdVal=$('iSup').value;if(supIdVal)p.preferred_supplier_id=supIdVal
   try{if(id){const{error}=await sb.from('inventory_items').update(p).eq('id',id);if(error)throw error}else{const{error}=await sb.from('inventory_items').insert([p]);if(error)throw error}
     $('mItem').classList.remove('on');notify(id?'Item updated':'Item created');loadAll()
-  }catch(err){$('eItem').textContent=err.message}
+  }catch(err){$('eItem').textContent='❌ '+err.message;console.error('saveItem:',err)}
 })
 // Lot modal
-$('btnAL').addEventListener('click',()=>{whenSuppliersReady(()=>{['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id=>$(id).value='');$('lLN').value='LOT-'+Date.now().toString().slice(-6);$('lPD').value=new Date().toISOString().slice(0,10);fillSupplierDropdowns();$('mLot').classList.add('on')})})
+$('btnAL').addEventListener('click',()=>{
+  if(!_suppliersReady) loadSupplierDropdowns()
+  whenSuppliersReady(()=>{
+    ;['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id=>$(id).value='')
+    $('lLN').value='LOT-'+Date.now().toString().slice(-6)
+    $('lPD').value=new Date().toISOString().slice(0,10)
+    fillSupplierDropdowns()
+    $('mLot').classList.add('on')
+  })
+})
 $('cLot').addEventListener('click',()=>$('mLot').classList.remove('on'))
 $('mLot').addEventListener('click',e=>{if(e.target===$('mLot'))$('mLot').classList.remove('on')})
 $('svLot').addEventListener('click',async()=>{
