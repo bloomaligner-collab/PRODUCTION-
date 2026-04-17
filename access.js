@@ -151,81 +151,202 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ─── INVENTORY ITEMS PATCH ─────────────────────────────────────
-// Loads inventory items from edge function and populates the Items tab
+// ═══════════════════════════════════════════════════════════════
+// INVENTORY PAGE PATCH — items list + suppliers + locations + edit
+// Loaded by access.js which is included on every page
 // Works regardless of what version of inventory.html is live
+// ═══════════════════════════════════════════════════════════════
 (function() {
-  const EDGE = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/get-inventory-items';
-  
-  function renderItems(items) {
-    const tbl = document.getElementById('tItems');
-    if (!tbl) return;
-    if (!items || !items.length) {
-      tbl.innerHTML = '<tr class="empty"><td colspan="10">No items yet. Click + Add Item above.</td></tr>';
-      return;
-    }
-    tbl.innerHTML = items.map(it => {
-      const nm = it.item_name || it.name || '—';
-      const cat = it.category_name || it.category || '—';
-      const unit = it.unit_of_measure || it.unit || '—';
-      return `<tr>
-        <td><strong>${nm}</strong></td>
-        <td style="font-size:12px">${cat}</td>
-        <td style="font-family:monospace;font-size:12px">${unit}</td>
-        <td style="font-family:monospace;font-size:12px">${it.min_qty||0}</td>
-        <td style="font-family:monospace;font-size:12px">${it.max_qty||0}</td>
-        <td style="font-family:monospace;font-size:12px">${it.monthly_consumption||0}</td>
-        <td style="font-family:monospace;font-size:12px">${it.lead_time_days||0}d</td>
-        <td>${it.auto_requisition_enabled?'<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">On</span>':'<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">Off</span>'}</td>
-        <td style="font-family:monospace;font-size:12px">—</td>
-        <td><div style="display:flex;gap:5px">
-          <button class="btn b-gho b-sm" onclick="doEditItem && doEditItem('${it.id}')">✏ Edit</button>
-          <button class="btn b-grn b-sm" onclick="doAddLot && doAddLot('${it.id}')">+ Lot</button>
-        </div></td>
-      </tr>`;
-    }).join('');
-    // Update KPI
-    const kItems = document.getElementById('kItems');
-    if (kItems) kItems.textContent = items.length;
-    // Update item dropdowns
-    ['lIt','fItem'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      const cur = sel.value;
-      sel.innerHTML = '<option value="">— Select item —</option>' + 
-        items.map(it => {
-          const nm = it.item_name||it.name||'?';
-          const u = it.unit_of_measure||it.unit||'';
-          return `<option value="${it.id}" data-name="${nm}" data-unit="${u}">${nm}${u?' ('+u+')':''}</option>`;
-        }).join('');
-      if (cur) sel.value = cur;
-    });
-  }
-  
-  async function patchItemsTab() {
-    if (!document.getElementById('tItems')) return; // not inventory page
+  const API = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/get-inventory-data';
+  const SB_URL = 'https://cvrmadmzzualqukxxlro.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cm1hZG16enVhbHF1a3h4bHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MTc3MTksImV4cCI6MjA2MDQ5MzcxOX0.5tDCEMtzGMNFBfmXNMPkHGMgIw-l5XCMjIcCHXtHRF4';
+
+  let _items = [], _suppliers = [], _locations = [];
+
+  // ── Fetch all data from edge function ──────────────────────
+  async function loadData() {
     try {
-      const res = await fetch(EDGE);
-      const json = await res.json();
-      renderItems(json.data || []);
-      // Also expose to allItems global if it exists
-      if (typeof window !== 'undefined') window._patchedItems = json.data || [];
-      // Re-run every 30s to keep in sync
-      setTimeout(patchItemsTab, 30000);
+      const res = await fetch(API);
+      const d = await res.json();
+      _items = d.items || [];
+      _suppliers = d.suppliers || [];
+      _locations = d.locations || [];
     } catch(e) {
-      console.warn('items patch:', e.message);
-      setTimeout(patchItemsTab, 5000);
+      console.warn('inv patch load:', e.message);
     }
   }
 
-  // Run after page load + after tab click on Items
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(patchItemsTab, 800); // slight delay for page init
-    // Also patch when Items tab is clicked
+  // ── Render Items tab table ──────────────────────────────────
+  function renderItems() {
+    const tbl = document.getElementById('tItems');
+    if (!tbl) return;
+    if (!_items.length) {
+      tbl.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#888">No items yet. Click + Add Item above.</td></tr>';
+    } else {
+      tbl.innerHTML = _items.map(it => {
+        const nm  = it.item_name || it.name || '—';
+        const cat = it.category_name || it.category || '—';
+        const u   = it.unit_of_measure || it.unit || '—';
+        return `<tr>
+          <td><strong>${nm}</strong></td>
+          <td style="font-size:12px">${cat}</td>
+          <td style="font-family:monospace">${u}</td>
+          <td style="font-family:monospace">${it.min_qty||0}</td>
+          <td style="font-family:monospace">${it.max_qty||0}</td>
+          <td style="font-family:monospace">${it.monthly_consumption||0}</td>
+          <td style="font-family:monospace">${it.lead_time_days||0}d</td>
+          <td>${it.auto_requisition_enabled
+            ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">On</span>'
+            : '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">Off</span>'}</td>
+          <td style="font-family:monospace">—</td>
+          <td><div style="display:flex;gap:5px">
+            <button class="btn b-gho b-sm" onclick="__editItem('${it.id}')">✏ Edit</button>
+            <button class="btn b-grn b-sm" onclick="__openLot('${it.id}')">+ Lot</button>
+          </div></td>
+        </tr>`;
+      }).join('');
+    }
+    const k = document.getElementById('kItems');
+    if (k) k.textContent = _items.length;
+    // fill item dropdowns
+    ['lIt','fItem'].forEach(id => {
+      const s = document.getElementById(id);
+      if (!s) return;
+      const cv = s.value;
+      s.innerHTML = '<option value="">— Select item —</option>' +
+        _items.map(it => {
+          const nm = it.item_name||it.name||'?';
+          const u  = it.unit_of_measure||it.unit||'';
+          return `<option value="${it.id}" data-unit="${u}">${nm}${u?' ('+u+')':''}</option>`;
+        }).join('');
+      if (cv) s.value = cv;
+    });
+  }
+
+  // ── Fill supplier dropdowns ─────────────────────────────────
+  function fillSuppliers() {
+    const opts = '<option value="">— Select Supplier —</option>' +
+      _suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    ['iSup','lSup'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = opts;
+    });
+  }
+
+  // ── Fill location dropdown ──────────────────────────────────
+  function fillLocations() {
+    const opts = '<option value="">— Select Location —</option>' +
+      _locations.map(l => `<option value="${l.id}">${l.location_name}</option>`).join('');
+    const el = document.getElementById('lLoc');
+    if (el) el.innerHTML = opts;
+  }
+
+  // ── Edit Item modal ─────────────────────────────────────────
+  window.__editItem = function(id) {
+    const it = _items.find(x => x.id === id);
+    if (!it) return;
+    const $ = i => document.getElementById(i);
+    if (!$('mItem')) return;
+    fillSuppliers();
+    $('eiId') && ($('eiId').value = id);
+    $('mItemT') && ($('mItemT').textContent = 'Edit Item');
+    $('iN') && ($('iN').value = it.item_name||it.name||'');
+    $('iC') && ($('iC').value = it.category_name||it.category||'');
+    $('iU') && ($('iU').value = it.unit_of_measure||it.unit||'');
+    $('iSK') && ($('iSK').value = it.sku||'');
+    $('iMn') && ($('iMn').value = it.min_qty||0);
+    $('iMx') && ($('iMx').value = it.max_qty||0);
+    $('iMC') && ($('iMC').value = it.monthly_consumption||0);
+    $('iLT') && ($('iLT').value = it.lead_time_days||0);
+    $('iNt') && ($('iNt').value = it.notes||'');
+    $('iAR') && ($('iAR').value = it.auto_requisition_enabled ? 'true' : 'false');
+    $('eItem') && ($('eItem').textContent = '');
+    if (it.preferred_supplier_id) setTimeout(() => {
+      if ($('iSup')) $('iSup').value = it.preferred_supplier_id;
+    }, 50);
+    $('mItem').classList.add('on');
+  };
+
+  // ── Open Add Lot modal for specific item ────────────────────
+  window.__openLot = function(itemId) {
+    const $ = i => document.getElementById(i);
+    if (!$('mLot')) return;
+    fillSuppliers();
+    fillLocations();
+    // reset fields
+    ['lSN','lQT','lUC','lED','lMS','lRP','lNt'].forEach(id => { if ($(id)) $(id).value = ''; });
+    if ($('lLN')) $('lLN').value = 'LOT-' + Date.now().toString().slice(-6);
+    if ($('lPD')) $('lPD').value = new Date().toISOString().slice(0, 10);
+    if ($('lSup')) $('lSup').value = '';
+    if ($('lLoc')) $('lLoc').value = '';
+    if ($('lIt')) $('lIt').value = itemId;
+    $('mLot').classList.add('on');
+  };
+
+  // ── Patch Add Item button ───────────────────────────────────
+  function patchAddItemBtn() {
+    const btn = document.getElementById('btnAI');
+    if (!btn || btn._patched) return;
+    btn._patched = true;
+    btn.addEventListener('click', () => {
+      const $ = i => document.getElementById(i);
+      if (!$('mItem')) return;
+      fillSuppliers();
+      if ($('eiId')) $('eiId').value = '';
+      if ($('mItemT')) $('mItemT').textContent = 'Add New Item';
+      ['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id => { if ($(id)) $(id).value = ''; });
+      if ($('iSup')) $('iSup').value = '';
+      if ($('iAR')) $('iAR').value = 'true';
+      if ($('eItem')) $('eItem').textContent = '';
+      $('mItem').classList.add('on');
+    });
+  }
+
+  // ── Patch Add Stock Lot button ──────────────────────────────
+  function patchAddLotBtn() {
+    const btn = document.getElementById('btnAL');
+    if (!btn || btn._patched) return;
+    btn._patched = true;
+    btn.addEventListener('click', () => {
+      const $ = i => document.getElementById(i);
+      if (!$('mLot')) return;
+      fillSuppliers();
+      fillLocations();
+      ['lIt','lSN','lQT','lUC','lED','lSup','lLoc','lMS','lRP','lNt'].forEach(id => { if ($(id)) $(id).value = ''; });
+      if ($('lLN')) $('lLN').value = 'LOT-' + Date.now().toString().slice(-6);
+      if ($('lPD')) $('lPD').value = new Date().toISOString().slice(0, 10);
+      $('mLot').classList.add('on');
+    });
+  }
+
+  // ── Main init ───────────────────────────────────────────────
+  async function init() {
+    if (!document.getElementById('tItems') &&
+        !document.getElementById('btnAI') &&
+        !document.getElementById('btnAL')) return; // not inventory page
+
+    await loadData();
+    renderItems();
+    fillSuppliers();
+    fillLocations();
+    patchAddItemBtn();
+    patchAddLotBtn();
+
+    // Re-render when Items tab clicked
     document.addEventListener('click', e => {
       if (e.target && e.target.dataset && e.target.dataset.t === 'items') {
-        setTimeout(patchItemsTab, 100);
+        setTimeout(() => { renderItems(); fillSuppliers(); fillLocations(); }, 150);
+      }
+      // Also repatch buttons when any tab opens (modal buttons may not exist yet)
+      if (e.target && e.target.dataset && e.target.dataset.t) {
+        setTimeout(() => { patchAddItemBtn(); patchAddLotBtn(); }, 200);
       }
     });
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(init, 600));
+  } else {
+    setTimeout(init, 600);
+  }
 })();
