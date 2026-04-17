@@ -540,7 +540,7 @@ function lotSt(r){const q=Number(r.available_qty||0),m=Number(r.min_qty||r.min_s
 function stBdg(s){const mp={available:'<span class="bdg bg">✓ Available</span>',low:'<span class="bdg ba">⚠ Low</span>',out:'<span class="bdg br">🚫 Out</span>',near_expiry:'<span class="bdg bp">⏰ Near Expiry</span>',expired:'<span class="bdg br">Expired</span>'};return mp[s]||`<span class="bdg bgy">${s}</span>`}
 function stkBar(q,mx){const p=mx>0?Math.min(100,Math.round(Number(q)/Number(mx)*100)):0;const c=Number(q)<=0?'#dc2626':p<30?'#d97706':'#16a34a';return`<div class="sw"><div class="sv" style="color:${c}">${q}</div><div class="sbg"><div class="sf" style="width:${p}%;background:${c}"></div></div><div class="sp">${p}% of max</div></div>`}
 let allLots=[],allItems=[],allReqs=[]
-async function loadAll(){
+async function loadAll(){_cachedExcluded=null // reset config cache on each load
   const[lr,ir,rr,hr,supR,locR]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
     sb.from('inventory_items').select('*').order('name'),
@@ -731,7 +731,7 @@ async function loadBom() {
   alignerMapBom = {}
   ;(alsRes.data||[]).forEach(a=>{const k=String(a.case_number);if(!alignerMapBom[k])alignerMapBom[k]=[];alignerMapBom[k].push(a)})
   renderBom()
-  updateAutoReqStats()
+  await updateAutoReqStats()
 }
 
 function renderBom() {
@@ -841,7 +841,7 @@ window.deleteBom = async function(id) {
 // ════════════════════════════════════════════════════════
 let reqResults = []
 
-function updateAutoReqStats() {
+async function updateAutoReqStats() {
   const _excl=await getBloomExcluded()
   const activeCases = bomCaseData.filter(c => !_excl.has((c.current_status||'').toUpperCase()))
   $('reqActiveBloom').textContent = activeCases.length.toLocaleString()

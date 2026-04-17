@@ -598,7 +598,7 @@ async function load(){
 
   // Bloom KPIs - total cases and total aligners
   const totalBloomCases=bloomCases.length
-  const activeBloom=bloomCases.filter(r=>r.current_status&&!_bloomExclSet.has((r.current_status||'').toUpperCase())).length
+  const activeBloom=bloomCases.filter(r=>r.current_status&&!['ALIGNERS_RECEIVED','REFINEMENT_ALIGNERS_RECEIVED','RETAINER_ALIGNERS_RECEIVED','REPLACEMENT_ALIGNERS_RECEIVED','DELIVERED','ARCHIVE','CANCELLED'].includes((r.current_status||'').toUpperCase())).length
   const totalBloomAl=bloomAligners.reduce((a,r)=>a+(r.number_of_aligners||0),0)
   const upperAl=bloomAligners.filter(r=>r.order_type==='TreatmentPlan').reduce((a,r)=>a+(r.aligner_upper||0),0)
   const lowerAl=bloomAligners.filter(r=>r.order_type==='TreatmentPlan').reduce((a,r)=>a+(r.aligner_lower||0),0)

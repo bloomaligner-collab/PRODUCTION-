@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadAll()
 })
 
-async function loadAll(){
+async function loadAll(){_cachedExcluded=null
   try{
     const[r1,r2,r3,r4,r5,r6]=await Promise.all([
       sb.from('requisitions').select('*').order('created_at',{ascending:false}).limit(500),
