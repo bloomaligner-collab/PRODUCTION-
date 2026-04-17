@@ -632,13 +632,33 @@ function applyAlignerFilters(){
   const pkg=$('aPackage').value
 
   // Build flat list: one row per aligner record OR one row per case with no aligners
+  // When no order type filter → show ONE best record per case (prevents duplicates)
+  // When order type filter active → show all matching records
   const rows=[]
+  const ORDER_PRIORITY=['TreatmentPlan','RefinementPlan','AlignersOrder','RefinementOrder']
   allCases.forEach(c=>{
     const als=alignerMap[String(c.case_id)]||[]
     if(als.length===0){
-      // Case with no aligner records — show as empty row
       rows.push({_case:c,_noAligners:true,case_number:String(c.case_id),order_type:'',package_type:''})
+    } else if(!ot) {
+      // No filter — show ONE best record per case
+      // Prefer: TreatmentPlan/RefinementPlan WITH counts, then any with counts, then first
+      let best = null
+      for(const type of ORDER_PRIORITY){
+        const withCounts = als.find(a=>a.order_type===type&&(a.aligner_upper||a.aligner_lower||a.number_of_aligners))
+        if(withCounts){best=withCounts;break}
+      }
+      if(!best){
+        // No record with counts — pick highest priority order type
+        for(const type of ORDER_PRIORITY){
+          const match = als.find(a=>a.order_type===type)
+          if(match){best=match;break}
+        }
+      }
+      if(!best) best=als[0]
+      rows.push({...best,_case:c,case_number:String(c.case_id)})
     } else {
+      // Order type filter active — show all matching records for the case
       als.forEach(a=>rows.push({...a,_case:c,case_number:String(c.case_id)}))
     }
   })
