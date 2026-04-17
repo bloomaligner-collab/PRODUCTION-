@@ -326,27 +326,31 @@ tr:hover td{background:#fafbfc}
 
     <!-- ===== TAB: ANALYTICS ===== -->
     <div id="tab-analytics" style="display:none">
-      <!-- Extra analytics KPIs -->
+      <!-- ① PRIORITY CHARTS — first thing visible -->
+      <div class="g2">
+        <div class="card"><div class="card-title">📅 Status Changes by Month</div><div id="monthBars"></div></div>
+        <div class="card"><div class="card-title">⚠️ Action Required by Status</div><div id="actionBars"></div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="card-title">📊 Status Breakdown</div><div id="statusBars"></div></div>
+        <div class="card"><div class="card-title">📦 Package Types</div><div id="packageBars"></div></div>
+      </div>
+      <!-- ② KPIs -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
         <div class="kpi" style="border-top-color:var(--teal)"><div class="kpi-ico">🔢</div><div class="kpi-val" id="aTotalAl" style="color:var(--teal)">—</div><div class="kpi-lbl">Total Aligners Produced</div></div>
         <div class="kpi" style="border-top-color:var(--blue)"><div class="kpi-ico">📐</div><div class="kpi-val" id="aAvgAl" style="color:var(--blue)">—</div><div class="kpi-lbl">Avg Aligners / Case</div></div>
         <div class="kpi" style="border-top-color:var(--red)"><div class="kpi-ico">⚠️</div><div class="kpi-val" id="aAction" style="color:var(--red)">—</div><div class="kpi-lbl">Action Required</div></div>
         <div class="kpi" style="border-top-color:var(--amber)"><div class="kpi-ico">🔄</div><div class="kpi-val" id="aSnaps" style="color:var(--amber)">—</div><div class="kpi-lbl">Total Snapshots</div></div>
       </div>
+      <!-- ③ OTHER CHARTS -->
       <div class="g2">
-        <div class="card"><div class="card-title">📊 Status Breakdown</div><div id="statusBars"></div></div>
         <div class="card"><div class="card-title">🏥 Top Clinics</div><div id="clinicBars"></div></div>
+        <div class="card"><div class="card-title">🌍 Distributors</div><div id="distBars"></div></div>
       </div>
       <div class="g2">
         <div class="card"><div class="card-title">👨‍⚕️ Top Doctors by Cases</div><div id="doctorBars"></div></div>
         <div class="card"><div class="card-title">👨‍⚕️ Top Doctors by Aligners</div><div id="doctorAlBars"></div></div>
       </div>
-      <div class="g2">
-        <div class="card"><div class="card-title">📦 Package Types</div><div id="packageBars"></div></div>
-        <div class="card"><div class="card-title">🌍 Distributors</div><div id="distBars"></div></div>
-      </div>
-      <div class="card"><div class="card-title">📅 Status Changes by Month</div><div id="monthBars"></div></div>
-      <div class="card"><div class="card-title">⚠️ Action Required by Status</div><div id="actionBars"></div></div>
     </div>
 
     <!-- ===== TAB: SYNC LOG ===== -->
