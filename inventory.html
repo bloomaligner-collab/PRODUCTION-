@@ -570,14 +570,16 @@ function whenSuppliersReady(fn){
 }
 
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
-  const[lr,ir,rr,hr]=await Promise.all([
+  // Load items separately — guaranteed correct regardless of Promise.all order
+  const itemsResp = await sb.from('inventory_items').select('*').order('name')
+  allItems = itemsResp.data||[]
+  const[lr,rr,hr]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
-    sb.from('inventory_items').select('*').order('created_at',{ascending:false}),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
     sb.from('inventory_stock_history').select('action_type,quantity,created_at,note').order('created_at',{ascending:false}).limit(8),
   ])
   loadSupplierDropdowns() // fire and forget — ok
-  allLots=lr.data||[];allItems=ir.data||[];allReqs=rr.data||[]
+  allLots=lr.data||[];allReqs=rr.data||[]
   // supplier dropdowns populated by loadSupplierDropdowns() above
   let tv=0,lc=0,ec=0
   allLots.forEach(r=>{tv+=Number(r.available_qty||0)*Number(r.unit_cost||0);const s=lotSt(r);if(s==='low'||s==='out')lc++;if(s==='near_expiry'||s==='expired')ec++})
