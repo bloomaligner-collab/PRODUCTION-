@@ -570,9 +570,15 @@ function whenSuppliersReady(fn){
 }
 
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
-  // Load items separately — guaranteed correct regardless of Promise.all order
-  const itemsResp = await sb.from('inventory_items').select('*').order('name')
-  allItems = itemsResp.data||[]
+  // Load items via edge function — immune to any Promise.all ordering bugs
+  try{
+    const _ir = await fetch('https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/get-inventory-items')
+    const _id = await _ir.json()
+    allItems = _id.data||[]
+  }catch(e){
+    const _fb = await sb.from('inventory_items').select('*').order('name')
+    allItems = _fb.data||[]
+  }
   const[lr,rr,hr]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
