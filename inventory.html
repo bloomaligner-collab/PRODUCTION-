@@ -200,8 +200,8 @@
         <div class="ct">🗂 Items Catalogue</div>
         <div class="cs">All inventory items. Click Edit to update settings, or + Lot to add stock.</div>
         <div class="tw"><table>
-          <thead><tr><th>Item Name</th><th>Category</th><th>Unit</th><th>Min</th><th>Max</th><th>Monthly Use</th><th>Lead Time</th><th>Auto Req</th><th>Current Stock</th><th>Actions</th></tr></thead>
-          <tbody id="tItems"><tr class="empty"><td colspan="10">Loading…</td></tr></tbody>
+          <thead><tr><th>Item Name</th><th>Category</th><th>Unit</th><th>Min</th><th>Max</th><th>Monthly Use</th><th>Lead Time</th><th>Auto Req</th><th>Current Stock</th><th>Created By</th><th>Actions</th></tr></thead>
+          <tbody id="tItems"><tr class="empty"><td colspan="11">Loading…</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -621,8 +621,9 @@ function rItems(){
     <td class="mono">${it.min_qty||0}</td><td class="mono">${it.max_qty||0}</td><td class="mono">${it.monthly_consumption||0}</td><td class="mono">${it.lead_time_days||0}d</td>
     <td>${it.auto_requisition_enabled?'<span class="bdg bg">On</span>':'<span class="bdg br">Off</span>'}</td>
     <td><span class="mono" style="font-weight:700;color:${c}">${s}</span></td>
+    <td style="font-size:12px;color:var(--muted)">${it.created_by||'—'}</td>
     <td><div style="display:flex;gap:5px"><button class="btn b-gho b-sm" onclick="doEditItem('${it.id}')">✏ Edit</button><button class="btn b-grn b-sm" onclick="doAddLot('${it.id}')">+ Lot</button></div></td>
-  </tr>`}).join(''):`<tr class="empty"><td colspan="10">No items yet. Click + Add Item above.</td></tr>`
+  </tr>`}).join(''):`<tr class="empty"><td colspan="11">No items yet. Click + Add Item above.</td></tr>`
 }
 function rReqs(){
   const op=allReqs.filter(r=>['pending','approved'].includes(r.status)),cl=allReqs.filter(r=>['fulfilled','rejected'].includes(r.status)).slice(0,5)
@@ -727,6 +728,8 @@ $('svItem').addEventListener('click',async()=>{
   const _cat=$('iC').value.trim()||null,_unit=$('iU').value.trim()||'pcs'
   const p={name:nm,item_name:nm,category_name:_cat,category:_cat,unit_of_measure:_unit,unit:_unit,sku:$('iSK').value.trim()||null,min_qty:Number($('iMn').value||0),min_stock:Number($('iMn').value||0),max_qty:Number($('iMx').value||0),monthly_consumption:Number($('iMC').value||0),lead_time_days:Number($('iLT').value||0),auto_requisition_enabled:$('iAR').value==='true',notes:$('iNt').value.trim()||null,active:true,updated_at:new Date().toISOString()}
   const supIdVal=$('iSup').value;if(supIdVal)p.preferred_supplier_id=supIdVal
+  // Set created_by only on new items (not edits)
+  if(!id) p.created_by = (typeof CW_ACCESS!=='undefined'?CW_ACCESS.getName():null)||'Manager'
   try{if(id){const{error}=await sb.from('inventory_items').update(p).eq('id',id);if(error)throw error}else{const{error}=await sb.from('inventory_items').insert([p]);if(error)throw error}
     $('mItem').classList.remove('on');notify(id?'Item updated':'Item created');loadAll()
   }catch(err){$('eItem').textContent='❌ '+err.message;console.error('saveItem:',err)}
