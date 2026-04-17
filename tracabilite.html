@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Cedarwings — Fiches de Traçabilité</title>
+<title>Cedarwings SAS — Traceability</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;--blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;--green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;--amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;--red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;--f:"DM Sans",sans-serif;--mono:"JetBrains Mono",monospace;--sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);--sh2:0 8px 30px rgba(0,0,0,.1)}
@@ -145,7 +145,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
     <a href="employee_profile.html" class="nl"><span class="ic">👤</span>Profil employé</a>
     <a href="time_report.html" class="nl"><span class="ic">📈</span>Rapport temps</a>
     <div class="sb-s">Quality</div>
-    <a href="tracabilite.html" class="nl on"><span class="ic">🔖</span>Traçabilité</a>
+    <a href="tracabilite.html" class="nl on"><span class="ic">🔖</span>Traceability</a>
     <a href="qualite.html" class="nl"><span class="ic">✅</span>Contrôle qualité</a>
     <div class="sb-s">Resources</div>
     <a href="inventory.html" class="nl"><span class="ic">📦</span>Inventaire</a>
@@ -175,8 +175,8 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
   
   <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
     <div>
-      <div class="tb-t">🔖 Fiches de Traçabilité</div>
-      <div class="tb-s">Traçabilité complète par commande — conformité ISO 13485</div>
+      <div class="tb-t">🔖 Traceability</div>
+      <div class="tb-s">Complete case traceability — ISO 13485 compliance</div>
     </div>
     <div style="display:flex;gap:8px" class="no-print">
       <button class="btn bgh" onclick="window.print()">🖨 Imprimer</button>
@@ -189,15 +189,15 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
       <!-- LEFT: ORDER LIST -->
       <div class="panel list-panel">
         <div class="list-toolbar">
-          <input class="srch" id="srch" placeholder="🔍 Chercher commande…"/>
+          <input class="srch" id="srch" placeholder="🔍 Search by case number…"/>
           <select class="flt" id="fltStatus">
-            <option value="all">Tous statuts</option>
+            <option value="all">All statuses</option>
             <option value="complete">✅ Terminé</option>
             <option value="in_progress">🔄 En cours</option>
           </select>
           <select class="flt" id="fltQC">
             <option value="all">Tout (QC)</option>
-            <option value="qc_done">✅ QC Fait</option>
+            <option value="qc_done">✅ QC Done</option>
             <option value="qc_pending">⏳ QC En attente</option>
           </select>
         </div>
@@ -210,8 +210,8 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
       <div class="panel detail-panel" id="detailPanel">
         <div class="detail-empty">
           <div class="detail-empty-icon">🔖</div>
-          <div style="font-size:16px;font-weight:700;margin-bottom:8px">Sélectionnez une commande</div>
-          <div style="font-size:13px">Cliquez sur une commande à gauche pour voir sa fiche de traçabilité complète</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px">Select a case</div>
+          <div style="font-size:13px">Click a case on the left to view its complete traceability record</div>
         </div>
       </div>
     </div>
@@ -439,7 +439,7 @@ function renderList(){
     return mT&&mS&&mQ
   })
   if(!filtered.length){
-    document.getElementById('orderList').innerHTML='<div style="text-align:center;padding:30px;color:var(--dim)">Aucune commande trouvée</div>'
+    document.getElementById('orderList').innerHTML='<div style="text-align:center;padding:30px;color:var(--dim)">No cases found</div>'
     return
   }
   document.getElementById('orderList').innerHTML=filtered.map(o=>{
@@ -517,7 +517,7 @@ function renderDetail(o){
     <div class="detail-content">
       <div class="fiche-head">
         <div>
-          <div class="fh-company">Cedarwings SAS — Fiche de Traçabilité</div>
+          <div class="fh-company">Cedarwings SAS — Traceability Record</div>
           <div class="fh-title">Commande ${o.order_no}</div>
           <div class="fh-sub">Débuté le ${fdt(o.first_started)} · ${done?'✅ Terminé':'🔄 En cours'}</div>
         </div>
@@ -530,7 +530,7 @@ function renderDetail(o){
 
       <div class="fiche-body">
         <!-- SUMMARY -->
-        <div class="sec-title">📋 Informations de la commande</div>
+        <div class="sec-title">📋 Case Information</div>
         <div class="info-grid">
           <div class="ib"><div class="ib-l">N° Commande</div><div class="ib-v">${o.order_no}</div></div>
           <div class="ib"><div class="ib-l">Date début</div><div class="ib-v" style="font-size:11px">${fd(o.first_started)}</div></div>
@@ -607,7 +607,7 @@ function renderDetail(o){
       return '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--g50);border:1px solid var(--g100);color:#15803d;border-radius:8px;font-size:13px;font-weight:600">✅ QC Réalisé</span>'
     }else{
       const qcUrl='qualite.html?order='+encodeURIComponent(o.order_no)+'&lot='+encodeURIComponent(lotNum)
-      return '<a href="'+qcUrl+'" class="btn" style="background:var(--b50);border:1px solid var(--b100);color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600">✅ Lancer Contrôle Qualité</a>'
+      return '<a href="'+qcUrl+'" class="btn" style="background:var(--b50);border:1px solid var(--b100);color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600">✅ Launch Quality Control</a>'
     }
   })()}
         </div>
@@ -829,7 +829,18 @@ async function renderProductionRecords(o){
     document.getElementById('helpPanelMount').innerHTML = html;
     CW_HELP.init('tracabilite', '🔍', 'Traçabilité', 'Traceability');
   }
-  document.addEventListener('DOMContentLoaded', mountHelp);
+  document.addEventListener('DOMContentLoaded', () => {
+    mountHelp();
+    // Auto-search if ?case= param in URL
+    const urlCase = new URLSearchParams(window.location.search).get('case');
+    if (urlCase) {
+      const srch = document.getElementById('srch');
+      if (srch) {
+        srch.value = urlCase;
+        srch.dispatchEvent(new Event('input'));
+      }
+    }
+  });
 })();
 </script>
 

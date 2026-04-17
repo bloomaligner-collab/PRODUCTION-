@@ -31,6 +31,7 @@ const CW_ACCESS = {
     { key: 'settings',             label: 'Settings',            icon: '⚙',  file: 'settings.html' },
     { key: 'roles',                label: 'Roles',               icon: '🔑', file: 'roles.html' },
     { key: 'changelog',            label: 'Changelog',           icon: '📝', file: 'changelog.html' },
+    { key: 'iso_compliance',       label: 'ISO Compliance',      icon: '🏅', file: 'iso_compliance.html' },
     { section: 'Terminal' },
     { key: 'clocking',             label: 'Clocking Terminal',   icon: '⏱', file: 'clocking.html' },
   ],
@@ -233,6 +234,16 @@ const CW_ACCESS = {
       sections: [
         { heading: 'What this page does', text: 'Lists all updates, bug fixes, and new features added to the Cedarwings platform, with dates and descriptions.' },
         { heading: 'Version history', text: 'Each entry shows the version number, date, and a description of what changed. Useful for understanding new features after an update.' },
+      ]
+    },
+    iso_compliance: {
+      title: '🏅 ISO Compliance',
+      role: 'Manager and quality team — track ISO 13485 compliance status.',
+      sections: [
+        { heading: 'What this page does', text: 'Provides a real-time compliance dashboard showing the status of all ISO 13485 requirements across the quality management system.' },
+        { heading: 'Compliance indicators', text: 'Each clause shows its current status: compliant (green), partially compliant (amber), or non-compliant (red). Click any clause to see the evidence and open items.' },
+        { heading: 'Audit readiness', text: 'This page is the starting point for ISO 13485 certification audits. It links to NC reports, internal audits, maintenance logs, and traceability records.' },
+        { heading: 'Action items', text: 'Open action items required to achieve or maintain compliance are listed with responsible owners and due dates.' },
       ]
     },
     clocking: {

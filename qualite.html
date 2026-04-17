@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Cedarwings — Contrôle Qualité</title>
+<title>Cedarwings SAS — Quality Control</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
@@ -118,12 +118,12 @@ tr:hover td{background:#fafbfc}
 <div class="content">
   <div class="topbar">
     <div>
-      <div class="tb-t">✅ Contrôle Qualité</div>
-      <div class="tb-s">Fiche de contrôle ISO 13485 · EN ISO 20795-1</div>
+      <div class="tb-t">✅ Quality Control</div>
+      <div class="tb-s">Quality Check Record — ISO 13485</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center" class="no-print">
       <button class="btn bgh" id="btnPrint" style="display:none" onclick="doPrint()">🖨 Imprimer Rapport</button>
-      <button class="btn bb" id="btnNewQC">✅ + Nouveau Contrôle</button>
+      <button class="btn bb" id="btnNewQC">✅ + New QC Check</button>
     </div>
   </div>
 
@@ -163,7 +163,7 @@ tr:hover td{background:#fafbfc}
         <div style="font-size:14px;font-weight:800;color:var(--blue)">Commandes en attente de contrôle qualité</div>
         <div id="pendingQCList" style="font-size:12px;color:var(--mu);margin-top:6px"></div>
       </div>
-      <button class="btn bb" onclick="document.getElementById('newQCForm').style.display='block';document.getElementById('newQCForm').scrollIntoView({behavior:'smooth'})">✅ Démarrer le contrôle →</button>
+      <button class="btn bb" onclick="document.getElementById('newQCForm').style.display='block';document.getElementById('newQCForm').scrollIntoView({behavior:'smooth'})">✅ Start Quality Check →</button>
     </div>
   </div>
 
@@ -176,7 +176,7 @@ tr:hover td{background:#fafbfc}
       <!-- Form header -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div>
-          <div style="font-size:16px;font-weight:800">📋 Nouvelle Fiche de Contrôle Qualité</div>
+          <div style="font-size:16px;font-weight:800">📋 New Quality Control Record</div>
           <div style="font-size:11px;color:var(--mu);margin-top:2px">CEDARWINGS SAS · ISO 13485:2016 · EN ISO 20795-1</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -201,15 +201,15 @@ tr:hover td{background:#fafbfc}
             <div id="manualLotNote" style="display:none;margin-top:4px;font-size:10px;color:var(--amber);font-weight:600">⚠️ Mode test</div>
           </div>
           <div>
-            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Contrôleur *</label>
+            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Inspector *</label>
             <select class="fi" id="qcController"><option value="">— Sélectionner —</option></select>
           </div>
           <div>
-            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Type de contrôle</label>
+            <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Check Type</label>
             <select class="fi" id="qcType">
-              <option value="final">Contrôle final</option>
-              <option value="in_process">Contrôle en cours</option>
-              <option value="incoming">Contrôle à réception</option>
+              <option value="final">Final inspection</option>
+              <option value="in_process">In-process check</option>
+              <option value="incoming">Incoming inspection</option>
             </select>
           </div>
         </div>
@@ -229,7 +229,7 @@ tr:hover td{background:#fafbfc}
       </div>
 
       <!-- SECTION 1: VISUEL -->
-      <div class="section-title">1. Contrôle Visuel · EN ISO 20795-1 §6.2</div>
+      <div class="section-title">1. Visual Inspection · EN ISO 20795-1 §6.2</div>
       <div class="check-grid">
         <div class="check-item" id="ci_visual">
           <div class="ci-status" id="cs_visual"></div>
@@ -274,7 +274,7 @@ tr:hover td{background:#fafbfc}
       </div>
 
       <!-- SECTION 2: DIMENSIONNEL -->
-      <div class="section-title">2. Contrôle Dimensionnel · ISO 13485 §7.5.1</div>
+      <div class="section-title">2. Dimensional Check · ISO 13485 §7.5.1</div>
       <div class="check-grid">
         <div class="check-item" id="ci_fit">
           <div class="ci-status" id="cs_fit"></div>
@@ -289,7 +289,7 @@ tr:hover td{background:#fafbfc}
         <div class="check-item" id="ci_trimline">
           <div class="ci-status" id="cs_trimline"></div>
           <div class="ci-label">✂ Trimline (ligne de découpe)</div>
-          <div class="ci-norm">Découpe nette, bords sans bavures · Plan de contrôle</div>
+          <div class="ci-norm">Clean cut, no burrs · Control plan</div>
           <div class="ci-btns">
             <button class="ci-btn" onclick="setCheck('trimline',true,this)">✓ Conforme</button>
             <button class="ci-btn" onclick="setCheck('trimline',false,this)">✗ Non-conforme</button>
@@ -319,7 +319,7 @@ tr:hover td{background:#fafbfc}
       </div>
 
       <!-- SECTION 3: MATIÈRE -->
-      <div class="section-title">3. Contrôle Matière · ISO 10993-1 · EN ISO 20795-1</div>
+      <div class="section-title">3. Material Check · ISO 10993-1 · EN ISO 20795-1</div>
       <div class="check-grid">
         <div class="check-item" id="ci_material">
           <div class="ci-status" id="cs_material"></div>
@@ -334,7 +334,7 @@ tr:hover td{background:#fafbfc}
         <div class="check-item" id="ci_lot_material">
           <div class="ci-status" id="cs_lot_material"></div>
           <div class="ci-label">🔖 Traçabilité matière (n° lot)</div>
-          <div class="ci-norm">N° lot matière enregistré · ISO 13485 §7.5.9</div>
+          <div class="ci-norm">Material lot number recorded · ISO 13485 §7.5.9</div>
           <div class="ci-btns">
             <button class="ci-btn" onclick="setCheck('lot_material',true,this)">✓ Conforme</button>
             <button class="ci-btn" onclick="setCheck('lot_material',false,this)">✗ Non-conforme</button>
@@ -412,7 +412,7 @@ tr:hover td{background:#fafbfc}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
         <div>
           <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Non-Conformités détectées</label>
-          <textarea class="fi" id="qcNC" rows="3" placeholder="Décrire les non-conformités observées..."></textarea>
+          <textarea class="fi" id="qcNC" rows="3" placeholder="Describe observed non-conformities..."></textarea>
         </div>
         <div>
           <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Action corrective proposée</label>
@@ -446,8 +446,8 @@ tr:hover td{background:#fafbfc}
 
       <!-- ACTION BUTTONS -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:14px">
-        <button class="btn b-g" onclick="submitQC('approved')" style="font-size:13px;padding:12px">✅ Approuver</button>
-        <button class="btn b-r" onclick="submitQC('rejected')" style="font-size:13px;padding:12px">❌ Rejeter</button>
+        <button class="btn b-g" onclick="submitQC('approved')" style="font-size:13px;padding:12px">✅ Approve</button>
+        <button class="btn b-r" onclick="submitQC('rejected')" style="font-size:13px;padding:12px">❌ Reject</button>
         <button class="btn b-a" onclick="submitQC('on_hold')" style="font-size:13px;padding:12px">⏸ En attente</button>
         <button class="btn bgh" onclick="document.getElementById('newQCForm').style.display='none'" style="font-size:13px;padding:12px">✕ Annuler</button>
       </div>
@@ -455,7 +455,7 @@ tr:hover td{background:#fafbfc}
       <!-- SIGNATURES (print only) -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr)">
         <div style="border:1.5px dashed var(--bdr);border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;margin-bottom:8px">Contrôleur qualité</div>
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;margin-bottom:8px">Quality Inspector</div>
           <div id="sigController" style="font-size:13px;font-weight:700;margin-bottom:24px">—</div>
           <div id="sigDate" style="font-size:11px;color:var(--mu)">—</div>
           <div style="border-top:1px solid var(--bdr);margin-top:8px;padding-top:6px;font-size:10px;color:var(--dim)">Signature</div>
@@ -480,7 +480,7 @@ tr:hover td{background:#fafbfc}
   <!-- ── HISTORY ── -->
   <div class="no-print" id="qcHistorySection">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:15px;font-weight:800">📋 Historique des Contrôles</div>
+      <div style="font-size:15px;font-weight:800">📋 QC History</div>
       <div style="font-size:11px;color:var(--mu)" id="historyCount"></div>
     </div>
     <div class="tw">
@@ -488,7 +488,7 @@ tr:hover td{background:#fafbfc}
         <thead><tr>
           <th>Lot / Commande</th>
           <th>Type</th>
-          <th>Contrôleur</th>
+          <th>Inspector</th>
           <th>Date</th>
           <th>Points ✓/✗</th>
           <th>Résultat</th>
@@ -597,7 +597,7 @@ async function load(){
         const label='⏳ '+o+(bc&&bc.patient_name?' — '+bc.patient_name:'')+(al&&al.total?' ('+al.total+' al.)':'')+(lot?' · '+lot.lot_number:'')
         return '<option value="'+val+'" data-order="'+o+'" data-num="'+num+'" data-pending="true">'+label+'</option>
       }).join("")+
-      (lots.length?'<optgroup label="— Tous les lots —">'+lots.map(l=>'<option value="'+l.id+'" data-order="'+l.order_no+'" data-num="'+l.lot_number+'">'+l.lot_number+' — '+l.order_no+' ('+( l.quality_status||'pending')+')</option>').join("")+'</optgroup>':'')
+      (lots.length?'<optgroup label="— All lots —">'+lots.map(l=>'<option value="'+l.id+'" data-order="'+l.order_no+'" data-num="'+l.lot_number+'">'+l.lot_number+' — '+l.order_no+' ('+( l.quality_status||'pending')+')</option>').join("")+'</optgroup>':'')
   } else if(lots.length>0){
     lSel.innerHTML='<option value="">— Sélectionner le lot —</option>'+lots.map(l=>'<option value="'+l.id+'" data-order="'+l.order_no+'" data-num="'+l.lot_number+'">'+l.lot_number+' — '+l.order_no+' ('+(l.quality_status||'pending')+')</option>').join("")
   } else {
@@ -624,7 +624,7 @@ async function load(){
     }
     eSel.disabled=!isManager
     eSel.style.background='var(--bg)'
-    eSel.title='Contrôleur défini par votre profil'
+    eSel.title='Inspector defined by your profile'
   }
   if(currentUser && document.getElementById('sigController'))
     document.getElementById('sigController').textContent=currentUser
@@ -694,7 +694,7 @@ async function load(){
       '<td style="font-size:11px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(q.non_conformities||"—")+'</td>'+
       '<td><button class="btn bgh" style="padding:5px 10px;font-size:11px" onclick="doPrintRecord(\''+q.id+'\')">🖨 Rapport</button></td>'+
       '</tr>'
-  }).join(""):'<tr><td colspan="8" style="text-align:center;padding:44px 20px;color:var(--mu)"><div style="font-size:36px;margin-bottom:10px">📋</div><div style="font-size:14px;font-weight:700;margin-bottom:6px">Aucun contrôle qualité enregistré</div><div style="font-size:12px">Cliquez sur <strong>+ Nouveau Contrôle</strong></div></td></tr>'
+  }).join(""):'<tr><td colspan="8" style="text-align:center;padding:44px 20px;color:var(--mu)"><div style="font-size:36px;margin-bottom:10px">📋</div><div style="font-size:14px;font-weight:700;margin-bottom:6px">Aucun contrôle qualité enregistré</div><div style="font-size:12px">Cliquez sur <strong>+ New QC Check</strong></div></td></tr>'
 
   // ── URL params ──
   const params=new URLSearchParams(location.search)
@@ -831,7 +831,7 @@ function updateResult(){
     const rsbA=document.getElementById('returnStepBox')
     if(rsbA)rsbA.style.display='none'
     box.className='result-box approved'
-    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--green)">✅ Tous les points sont conformes ('+passes+'/'+done+')</div><div style="font-size:12px;color:var(--green);margin-top:4px">Prêt pour approbation</div>'
+    box.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--green)">✅ All points are compliant ('+passes+'/'+done+')</div><div style="font-size:12px;color:var(--green);margin-top:4px">Ready for approval</div>'
   }
 }
 
@@ -960,7 +960,7 @@ function generatePrintReport(q){
   }).join('')
   const resultColor=q.overall_result==='approved'?'#16a34a':q.overall_result==='rejected'?'#dc2626':'#d97706'
   const resultLabel=q.overall_result==='approved'?'APPROUVÉ':q.overall_result==='rejected'?'REJETÉ':'EN ATTENTE'
-  const html=`<html><head><meta charset="UTF-8"><title>Fiche QC — ${q.lot_number||'—'}</title>
+  const html=`<html><head><meta charset="UTF-8"><title>QC Record — ${q.lot_number||'—'}</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;font-size:13px;color:#0f172a;background:#fff;padding:24px 32px}
@@ -993,17 +993,17 @@ function generatePrintReport(q){
     <div class="meta-item"><div class="meta-label">N° Lot</div><div class="meta-value">${q.lot_number||'—'}</div></div>
     <div class="meta-item"><div class="meta-label">N° Commande</div><div class="meta-value">${q.order_no||'—'}</div></div>
     <div class="meta-item"><div class="meta-label">Date de contrôle</div><div class="meta-value" style="font-size:12px">${new Date(q.performed_at||Date.now()).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
-    <div class="meta-item"><div class="meta-label">Contrôleur</div><div class="meta-value" style="font-size:12px">${q.performed_by||'—'}</div></div>
-    <div class="meta-item"><div class="meta-label">Type de contrôle</div><div class="meta-value" style="font-size:12px">${q.check_type==='final'?'Contrôle Final':q.check_type==='in_process'?'En cours':'À réception'}</div></div>
+    <div class="meta-item"><div class="meta-label">Inspector</div><div class="meta-value" style="font-size:12px">${q.performed_by||'—'}</div></div>
+    <div class="meta-item"><div class="meta-label">Check Type</div><div class="meta-value" style="font-size:12px">${q.check_type==='final'?'Final Inspection':q.check_type==='in_process'?'In-Process':'Incoming'}</div></div>
     <div class="meta-item"><div class="meta-label">Résultat</div><div class="meta-value" style="color:${resultColor};font-size:14px">${resultLabel}</div></div>
   </div>
-  <div class="section"><div class="section-title">1. Contrôle Visuel & Dimensionnel</div><table>${CHECKS_KEYS.slice(0,8).map(k=>{const val=q[k+'_ok']??q[k];const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>';return'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:7px 12px;text-align:right">'+s+'</td></tr>'}).join('')}</table></div>
-  <div class="section"><div class="section-title">2. Contrôle Matière & Conditionnement</div><table>${CHECKS_KEYS.slice(8).map(k=>{const val=q[k+'_ok']??q[k];const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>';return'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:7px 12px;text-align:right">'+s+'</td></tr>'}).join('')}</table></div>
+  <div class="section"><div class="section-title">1. Visual Inspection & Dimensionnel</div><table>${CHECKS_KEYS.slice(0,8).map(k=>{const val=q[k+'_ok']??q[k];const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>';return'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:7px 12px;text-align:right">'+s+'</td></tr>'}).join('')}</table></div>
+  <div class="section"><div class="section-title">2. Material Check & Conditionnement</div><table>${CHECKS_KEYS.slice(8).map(k=>{const val=q[k+'_ok']??q[k];const s=val===true?'<span style="color:#16a34a;font-weight:700">✓ Conforme</span>':val===false?'<span style="color:#dc2626;font-weight:700">✗ Non-conforme</span>':'<span style="color:#94a3b8">— N/A</span>';return'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 12px;font-size:12px">'+checkLabels[k]+'</td><td style="padding:7px 12px;text-align:right">'+s+'</td></tr>'}).join('')}</table></div>
   ${q.non_conformities?'<div class="section"><div class="section-title">Non-Conformités</div><div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:12px;font-size:12px">'+q.non_conformities+'</div></div>':''}
   ${q.corrective_action?'<div class="section"><div class="section-title">Action Corrective</div><div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:12px">'+q.corrective_action+'</div></div>':''}
   <div class="result-banner" style="background:${q.overall_result==='approved'?'#f0fdf4':q.overall_result==='rejected'?'#fff1f2':'#fffbeb'};border:2px solid ${resultColor}"><div style="font-size:18px;font-weight:800;color:${resultColor}">${q.overall_result==='approved'?'✅ LOT APPROUVÉ — LIBÉRÉ POUR EXPÉDITION':q.overall_result==='rejected'?'❌ LOT REJETÉ — MISE EN QUARANTAINE REQUISE':'⏸ LOT EN ATTENTE — NE PAS EXPÉDIER'}</div></div>
   <div class="sig-grid">
-    <div class="sig-box"><div class="sig-label">Contrôleur qualité</div><div class="sig-name">${q.performed_by||'—'}</div><div class="sig-line">Signature</div></div>
+    <div class="sig-box"><div class="sig-label">Quality Inspector</div><div class="sig-name">${q.performed_by||'—'}</div><div class="sig-line">Signature</div></div>
     <div class="sig-box"><div class="sig-label">Responsable qualité</div><div class="sig-name" style="visibility:hidden">x</div><div style="height:40px"></div><div class="sig-line">Signature</div></div>
     <div class="sig-box"><div class="sig-label">Directeur général</div><div class="sig-name" style="visibility:hidden">x</div><div style="height:40px"></div><div class="sig-line">Signature</div></div>
   </div>
