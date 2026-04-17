@@ -459,6 +459,16 @@ import{createClient}from'https://esm.sh/@supabase/supabase-js@2'
 import{SUPABASE_CONFIG}from'./config.js'
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
 
+// Load excluded statuses from system_settings (configurable in Settings page)
+async function getBloomExcluded(){
+  try{
+    const{data}=await sb.from('system_settings').select('value').eq('key','bloom_excluded_statuses').single()
+    if(data?.value)return new Set(data.value.split(',').map(s=>s.trim()).filter(Boolean))
+  }catch(e){}
+  // Default fallback
+  return new Set(['ALIGNERS_RECEIVED','REFINEMENT_ALIGNERS_RECEIVED','RETAINER_ALIGNERS_RECEIVED','REPLACEMENT_ALIGNERS_RECEIVED','TREATMENT_PLAN_DECLINED_DOCTOR','TREATMENT_PLAN_DECLINED_OBSERVER','REFINEMENT_PLAN_DECLINED_DOCTOR','REFINEMENT_PLAN_DECLINED_OBSERVER','DELIVERED','ARCHIVE','CANCELLED'])
+}
+
 // Notification helpers
 
 async function checkLowStockNotify(){
@@ -832,10 +842,8 @@ window.deleteBom = async function(id) {
 let reqResults = []
 
 function updateAutoReqStats() {
-  const activeCases = bomCaseData.filter(c => {
-    const s = (c.current_status||'').toUpperCase()
-    return !['DELIVERED','ARCHIVE','CANCELLED'].includes(s)
-  })
+  const _excl=await getBloomExcluded()
+  const activeCases = bomCaseData.filter(c => !_excl.has((c.current_status||'').toUpperCase()))
   $('reqActiveBloom').textContent = activeCases.length.toLocaleString()
 
   // Total planned aligners from active cases
@@ -867,10 +875,8 @@ window.calculateRequisition = async function() {
   ;(lots||[]).forEach(l => { stockMap[l.item_name] = (stockMap[l.item_name]||0) + Number(l.available_qty||0) })
 
   // Calculate aligners still to produce
-  const activeCases = bomCaseData.filter(c => {
-    const s = (c.current_status||'').toUpperCase()
-    return !['DELIVERED','ARCHIVE','CANCELLED'].includes(s)
-  })
+  const _excl=await getBloomExcluded()
+  const activeCases = bomCaseData.filter(c => !_excl.has((c.current_status||'').toUpperCase()))
   let totalPlanned = 0
   activeCases.forEach(c => {
     const als = alignerMapBom[String(c.case_id)] || []

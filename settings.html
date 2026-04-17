@@ -24,6 +24,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .bb{background:var(--blue);color:#fff}.bb:hover{background:#2e4fc7}
 .bg{background:var(--green);color:#fff}
 .bgh{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}.bgh:hover{color:var(--txt)}
+.bpri{background:var(--blue);color:#fff;border:none}.bpri:hover{background:#2e4fc7}
 .ba{background:var(--amber);color:#fff}
 .body{padding:20px 28px 80px;max-width:900px}
 .card{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:24px;margin-bottom:20px}
@@ -251,6 +252,30 @@ tbody tr:last-child td{border:none}
       </div>
     </div>
 
+  <!-- ═══ BLOOM ACTIVE CASES CONFIGURATION ═══ -->
+  <div style="margin:0 28px 20px" id="bloomConfigSection">
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <div class="card-title">🔵 Bloom — Active Production Cases Config</div>
+      <div class="card-sub">Define which Bloom statuses are <strong>active (need production)</strong> vs <strong>excluded (already done)</strong>. The Auto-Requisition Calculator, Manager KPIs, and case totals all use this setting. Toggle each status — <span style="color:var(--green);font-weight:700">GREEN = active</span>, <span style="color:var(--red);font-weight:700">RED = excluded</span>.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;gap:8px">
+          <button onclick="setAllBloom(false)" style="padding:6px 12px;border:1px solid var(--g100);background:var(--g50);color:var(--green);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f)">✅ Set All Active</button>
+          <button onclick="setAllBloom(true)" style="padding:6px 12px;border:1px solid var(--r100);background:var(--r50);color:var(--red);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f)">❌ Exclude All</button>
+        </div>
+        <button onclick="saveBloomStatusConfig()" style="padding:8px 20px;background:var(--blue);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--f)">💾 Save Configuration</button>
+      </div>
+      <div id="bloomStatusGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px;margin-bottom:14px">
+        <div style="color:var(--dim);font-size:13px;padding:20px;text-align:center;grid-column:1/-1">Loading statuses…</div>
+      </div>
+      <div style="padding:12px 16px;background:var(--b50);border:1px solid var(--b100);border-radius:10px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap">
+        <span>🟢 Active: <strong id="bloomActiveCount" style="color:var(--green)">—</strong></span>
+        <span>🔴 Excluded: <strong id="bloomExcludedCount" style="color:var(--red)">—</strong></span>
+        <span>📊 Total: <strong id="bloomTotalCount" style="color:var(--mu)">—</strong></span>
+      </div>
+      <div id="bloomSaveStatus" style="margin-top:8px;font-size:12px;min-height:16px"></div>
+    </div>
+  </div>
+
   </div>
 </div>
 
@@ -266,6 +291,7 @@ function ntf(m,t='ok'){const e=document.getElementById('notif');e.textContent=(t
 
 async function load(){
   // Load settings
+  loadBloomStatusConfig()
   const{data:ss}=await sb.from('system_settings').select('*')
   const smap={};(ss||[]).forEach(s=>smap[s.key]=s.value)
   // Load manual lot toggle
@@ -485,6 +511,71 @@ window.sendTestWhatsApp=async()=>{
 }
 
 load()
+
+// ══════════════════════════════════════════
+// BLOOM STATUS CONFIGURATION
+// ══════════════════════════════════════════
+let _bloomAll=[], _bloomExcluded=new Set(), _bloomLabels={}
+
+async function loadBloomStatusConfig(){
+  try{
+    const{data:ss}=await sb.from('system_settings').select('key,value').in('key',['bloom_all_statuses','bloom_excluded_statuses','bloom_status_labels'])
+    if(!ss||!ss.length)return
+    const m={};ss.forEach(s=>m[s.key]=s.value)
+    _bloomAll=(m.bloom_all_statuses||'').split(',').map(s=>s.trim()).filter(Boolean)
+    _bloomExcluded=new Set((m.bloom_excluded_statuses||'').split(',').map(s=>s.trim()).filter(Boolean))
+    try{_bloomLabels=JSON.parse(m.bloom_status_labels||'{}')}catch(e){_bloomLabels={}}
+    renderBloomGrid()
+  }catch(e){console.warn('bloom config:',e.message)}
+}
+loadBloomStatusConfig()
+
+function renderBloomGrid(){
+  const grid=document.getElementById('bloomStatusGrid')
+  if(!grid)return
+  if(!_bloomAll.length){
+    grid.innerHTML='<div style="color:var(--dim);font-size:13px;padding:20px;text-align:center;grid-column:1/-1">No statuses found — run a Bloom sync first then refresh this page.</div>'
+    return
+  }
+  grid.innerHTML=_bloomAll.map(st=>{
+    const ex=_bloomExcluded.has(st)
+    const lbl=(_bloomLabels[st]||st).replace(/_/g,' ')
+    return`<div onclick="toggleBloom('${st}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:10px;border:1.5px solid ${ex?'#fecaca':'#bbf7d0'};background:${ex?'#fef2f2':'#f0fdf4'};cursor:pointer;transition:all .12s;user-select:none">
+      <div style="flex:1;min-width:0;margin-right:10px">
+        <div style="font-size:12px;font-weight:700;color:${ex?'#dc2626':'#16a34a'};line-height:1.3">${lbl}</div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--dim);margin-top:2px">${st}</div>
+      </div>
+      <div style="flex-shrink:0;text-align:center">
+        <div style="width:40px;height:22px;border-radius:999px;background:${ex?'#dc2626':'#16a34a'};position:relative">
+          <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;${ex?'left:2px':'right:2px'};box-shadow:0 1px 3px rgba(0,0,0,.25)"></div>
+        </div>
+        <div style="font-size:9px;font-weight:800;color:${ex?'#dc2626':'#16a34a'};margin-top:3px">${ex?'EXCLUDED':'ACTIVE'}</div>
+      </div>
+    </div>`
+  }).join('')
+  const ac=_bloomAll.filter(s=>!_bloomExcluded.has(s)).length
+  const els={bloomActiveCount:ac,bloomExcludedCount:_bloomExcluded.size,bloomTotalCount:_bloomAll.length}
+  Object.entries(els).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v})
+}
+
+window.toggleBloom=st=>{
+  if(_bloomExcluded.has(st))_bloomExcluded.delete(st);else _bloomExcluded.add(st)
+  renderBloomGrid()
+}
+window.setAllBloom=excludeAll=>{
+  if(excludeAll)_bloomAll.forEach(s=>_bloomExcluded.add(s));else _bloomExcluded.clear()
+  renderBloomGrid()
+}
+window.saveBloomStatusConfig=async()=>{
+  const val=[..._bloomExcluded].join(',')
+  const{error}=await sb.from('system_settings').upsert({key:'bloom_excluded_statuses',value:val,updated_at:new Date().toISOString()},{onConflict:'key'})
+  const el=document.getElementById('bloomSaveStatus')
+  if(error){if(el)el.innerHTML=`<span style="color:var(--red);font-weight:600">❌ ${error.message}</span>`;return}
+  const msg=`✅ Saved — ${_bloomAll.filter(s=>!_bloomExcluded.has(s)).length} active · ${_bloomExcluded.size} excluded`
+  if(el)el.innerHTML=`<span style="color:var(--green);font-weight:600">${msg}</span>`
+  setTimeout(()=>{if(el)el.innerHTML=''},5000)
+  ntf(msg)
+}
 </script>
 
 <!-- COPYRIGHT FOOTER -->

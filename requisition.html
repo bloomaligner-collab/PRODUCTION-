@@ -240,6 +240,16 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 import{SUPABASE_CONFIG}from'./config.js'
 import{createClient}from'https://esm.sh/@supabase/supabase-js@2'
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
+
+// Load excluded statuses from system_settings (configurable in Settings page)
+async function getBloomExcluded(){
+  try{
+    const{data}=await sb.from('system_settings').select('value').eq('key','bloom_excluded_statuses').single()
+    if(data?.value)return new Set(data.value.split(',').map(s=>s.trim()).filter(Boolean))
+  }catch(e){}
+  // Default fallback
+  return new Set(['ALIGNERS_RECEIVED','REFINEMENT_ALIGNERS_RECEIVED','RETAINER_ALIGNERS_RECEIVED','REPLACEMENT_ALIGNERS_RECEIVED','TREATMENT_PLAN_DECLINED_DOCTOR','TREATMENT_PLAN_DECLINED_OBSERVER','REFINEMENT_PLAN_DECLINED_DOCTOR','REFINEMENT_PLAN_DECLINED_OBSERVER','DELIVERED','ARCHIVE','CANCELLED'])
+}
 window._sb=sb
 let allReqs=[],filteredReqs=[],listPage=0,allLines=[],allBom=[],bloomCases=[],alignerMap={},prodRecords=[],autoReqLines=[],manualLines=[],currentReqId=null
 const PAGE=20,$=id=>document.getElementById(id)
@@ -431,7 +441,8 @@ window.openAutoReq=async function(){
   autoReqLines=[];$('arResults').style.display='none';$('arSaveDraft').style.display='none';$('arSubmit').style.display='none'
   $('arStatus').textContent='Click Calculate to generate requisition'
   $('arTitle').value=`Auto-Req ${new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}`;$('arNotes').value=''
-  const active=bloomCases.filter(c=>!['DELIVERED','ARCHIVE','CANCELLED'].includes((c.current_status||'').toUpperCase()))
+  const _excl=await getBloomExcluded()
+  const active=bloomCases.filter(c=>!_excl.has((c.current_status||'').toUpperCase()))
   let tp=0;active.forEach(c=>{const als=alignerMap[String(c.case_id)]||[];const a=als.find(x=>x.order_type==='TreatmentPlan')||als[0];if(a)tp+=Number(a.number_of_aligners)||(Number(a.aligner_upper||0)+Number(a.aligner_lower||0))})
   const prod=prodRecords.filter(r=>r.status==='complete').reduce((a,r)=>a+(r.aligners_produced||0),0)
   const rem=Math.max(0,tp-prod)
