@@ -568,6 +568,12 @@ function renderDetail(o){
           <div style="color:var(--dim);font-size:12px;padding:10px 0">Chargement…</div>
         </div>
 
+        <!-- PRODUCTION RECORDS (from new production system) -->
+        <div class="sec-title">🏭 Enregistrements de Production</div>
+        <div id="prodRecSection-${safeId}" style="margin-bottom:4px">
+          <div style="color:var(--dim);font-size:12px;padding:10px 0">Chargement…</div>
+        </div>
+
         <!-- SIGNATURES -->
         <div class="sec-title">✍ Signatures & Validation</div>
         <div class="sig-row">
@@ -614,6 +620,7 @@ function renderDetail(o){
       const safeId=o.order_no.replace(/[^a-z0-9]/gi,'_')
       if(document.getElementById('matSection-'+safeId)){
         renderMaterials(o)
+        renderProductionRecords(o)
       } else {
         setTimeout(checkReady,50)
       }
@@ -752,6 +759,52 @@ document.getElementById('srch').addEventListener('input',renderList)
 document.getElementById('fltStatus').addEventListener('change',renderList)
 document.getElementById('fltQC').addEventListener('change',renderList)
 load()
+
+// ── PRODUCTION RECORDS SECTION ─────────────────────────────────
+async function renderProductionRecords(o){
+  const safeId=o.order_no.replace(/[^a-z0-9]/gi,'_')
+  const el=document.getElementById('prodRecSection-'+safeId)
+  if(!el)return
+  try{
+    const{data:recs}=await window._sb.from('production_records')
+      .select('*').eq('case_id',String(o.order_no)).order('created_at',{ascending:false})
+    if(!recs||!recs.length){
+      el.innerHTML='<div style="color:var(--dim);font-size:12px;padding:8px 0">Aucun enregistrement de production dans le nouveau système</div>'
+      return
+    }
+    const totalProduced=recs.reduce((a,r)=>a+(r.aligners_produced||0),0)
+    const hasComplete=recs.some(r=>r.status==='complete')
+    el.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        <div style="background:var(--g50);border:1px solid var(--g100);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--green)">${totalProduced}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Total Produits</div>
+        </div>
+        <div style="background:var(--b50);border:1px solid var(--b100);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--blue)">${recs.length}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Sessions</div>
+        </div>
+        <div style="background:${hasComplete?'var(--g50)':'var(--a50)'};border:1px solid ${hasComplete?'var(--g100)':'var(--a100)'};border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:14px;font-weight:800;color:${hasComplete?'var(--green)':'var(--amber)'}">${hasComplete?'✅ Complet':'⚠️ Partiel'}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Statut</div>
+        </div>
+      </div>
+      <table class="steps-table">
+        <thead><tr><th>Date</th><th>Produits</th><th>Planifiés</th><th>Restants</th><th>Opérateur</th><th>Statut</th><th>Notes</th></tr></thead>
+        <tbody>
+          ${recs.map(r=>`<tr>
+            <td style="font-size:11px;white-space:nowrap">${r.session_date||r.created_at?.slice(0,10)||'—'}</td>
+            <td><strong style="color:var(--green);font-family:var(--mono)">${r.aligners_produced}</strong></td>
+            <td style="font-family:var(--mono)">${r.aligners_planned||'—'}</td>
+            <td style="font-family:var(--mono);color:${(r.aligners_remaining||0)>0?'var(--red)':'var(--green)'}">${r.aligners_remaining||0}</td>
+            <td style="font-size:12px">${r.completed_by||'—'}</td>
+            <td><span style="display:inline-flex;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:${r.status==='complete'?'var(--g100)':'var(--a100)'};color:${r.status==='complete'?'#15803d':'#92400e'}">${r.status==='complete'?'✅ Complet':'⚠️ Partiel'}</span></td>
+            <td style="font-size:11px;color:var(--mu);max-width:150px">${r.notes||'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`
+  }catch(e){el.innerHTML='<div style="color:var(--dim);font-size:12px;padding:8px 0">Erreur: '+e.message+'</div>'}
+}
 </script>
 
 <!-- COPYRIGHT FOOTER -->

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings SAS — Requisitions</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<script>const PAGE_KEY='requisition'</script>
+<script src="lang.js"></script>
+<script src="access.js"></script>
+<style>
+:root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;--blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;--green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;--amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;--red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;--purple:#7c3aed;--p50:#f5f3ff;--p100:#ede9fe;--teal:#0d9488;--t50:#f0fdfa;--t100:#ccfbf1;--f:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;--sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);--sh2:0 6px 24px rgba(0,0,0,.09),0 0 0 1px rgba(0,0,0,.04)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--card);border-right:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-top{display:flex;align-items:center;gap:12px;padding:20px 18px 16px;border-bottom:1px solid var(--bdr)}
+.sb-logo{width:40px;height:40px;background:linear-gradient(135deg,#3b5fe2,#6366f1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.sb-name{font-weight:800;font-size:14px}.sb-badge{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;margin-top:3px;background:var(--b50);color:var(--blue)}
+.sb-nav{flex:1;padding:10px}.sb-s{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:14px 8px 6px}
+.nl{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:500;color:var(--mu);text-decoration:none;transition:all .12s}
+.nl:hover{background:var(--bg);color:var(--txt)}.nl.on{background:var(--b50);color:var(--blue);font-weight:700}.nl .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:12px 10px;border-top:1px solid var(--bdr)}
+.content{margin-left:240px;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.page-title{font-size:20px;font-weight:800;letter-spacing:-.4px}.page-sub{font-size:12px;color:var(--mu);margin-top:2px}
+.body{padding:22px 28px 60px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border:none;border-radius:9px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.btn-ghost{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}.btn-ghost:hover{color:var(--txt);border-color:var(--blue)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2e4fc7}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#15803d}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{background:#b45309}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#b91c1c}
+.btn-sm{padding:5px 12px;font-size:12px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:18px;border-top:3px solid var(--blue)}
+.kpi-ico{font-size:24px;margin-bottom:10px}.kpi-val{font-size:28px;font-weight:800;font-family:var(--mono);letter-spacing:-1px;line-height:1}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:22px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tabs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:3px;margin-bottom:20px;width:fit-content}
+.tab{padding:7px 18px;font-size:13px;font-weight:600;border:none;background:transparent;color:var(--mu);border-radius:8px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.tab.on{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:700}
+.tw{overflow-x:auto;border-radius:12px;border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 14px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;background:#f8fafc;border-bottom:1px solid var(--bdr);white-space:nowrap;text-align:left}
+tbody td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--bdr);color:var(--txt);vertical-align:middle}
+tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
+.mono{font-family:var(--mono);font-size:12px}
+.bdg{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700}
+.b-g{background:var(--g100);color:#15803d}.b-a{background:var(--a100);color:#92400e}.b-r{background:var(--r100);color:#991b1b}
+.b-b{background:var(--b100);color:#1e40af}.b-p{background:var(--p100);color:#5b21b6}.b-t{background:var(--t100);color:#0f766e}.b-gray{background:#f1f5f9;color:var(--mu)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.fi-group{display:flex;flex-direction:column;gap:4px}.fi-label{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px}
+.fi{padding:8px 12px;border:1px solid var(--bdr);border-radius:9px;font-size:13px;font-family:var(--f);background:var(--card);color:var(--txt);min-width:160px}
+.fi:focus{outline:none;border-color:var(--blue)}
+.pgn{display:flex;align-items:center;gap:8px;margin-top:14px;justify-content:space-between}.pgn-info{font-size:12px;color:var(--mu)}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.2);width:100%;max-width:600px;max-height:90vh;overflow-y:auto;animation:modalIn .2s ease}
+.modal-lg{max-width:880px}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.modal-head{padding:24px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.modal-title{font-size:18px;font-weight:800;letter-spacing:-.3px}.modal-sub{font-size:13px;color:var(--mu);margin-top:4px}
+.modal-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--bdr);background:var(--bg);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-body{padding:20px 24px}.modal-foot{padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.form-row{margin-bottom:16px}
+.form-label{font-size:12px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:block}
+.form-input{width:100%;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:10px;font-size:14px;font-family:var(--f);color:var(--txt);background:var(--card);transition:border-color .12s}
+.form-input:focus{outline:none;border-color:var(--blue)}
+.form-select{width:100%;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:10px;font-size:14px;font-family:var(--f);color:var(--txt);background:var(--card)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sf-flow{display:flex;align-items:center;margin:16px 0 20px;overflow-x:auto}
+.sf-step{display:flex;flex-direction:column;align-items:center;flex:1;min-width:70px;position:relative}
+.sf-step::after{content:'';position:absolute;top:16px;left:50%;width:100%;height:2px;background:var(--bdr);z-index:0}
+.sf-step:last-child::after{display:none}
+.sf-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--bdr);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:14px;z-index:1;position:relative}
+.sf-dot.done{background:var(--green);border-color:var(--green);color:#fff}
+.sf-dot.active{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 0 4px var(--b50)}
+.sf-lbl{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;margin-top:5px;text-align:center}
+.sf-lbl.active{color:var(--blue)}.sf-lbl.done{color:var(--green)}
+.line-card{background:var(--bg);border:1px solid var(--bdr);border-radius:12px;padding:14px;margin-bottom:8px}
+.line-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.ln{background:var(--card);border-radius:8px;padding:8px;text-align:center;border:1px solid var(--bdr)}
+.ln-v{font-size:15px;font-weight:800;font-family:var(--mono)}.ln-l{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.sum-box{background:var(--b50);border:1px solid var(--b100);border-radius:14px;padding:16px;margin-top:16px}
+.sum-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--b100);font-size:13px}
+.sum-row:last-child{border:none;padding-top:8px}
+.empty{text-align:center;padding:40px 20px;color:var(--dim)}
+.empty-ico{font-size:40px;margin-bottom:10px}.empty-txt{font-size:14px;font-weight:600;color:var(--mu)}.empty-sub{font-size:12px;margin-top:4px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:999;animation:toastIn .25s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(max-width:768px){.sidebar{display:none}.content{margin-left:0}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+@media print{.sidebar,.topbar,.no-print{display:none!important}.content{margin-left:0}.body{padding:0}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sb-top"><div class="sb-logo">📋</div><div><div class="sb-name">Cedarwings SAS</div><div class="sb-badge" id="sb-role-lbl">Loading...</div></div></div>
+  <nav class="sb-nav"></nav><div class="sb-foot"></div>
+</aside>
+<div class="content">
+  <div class="topbar">
+    <div><div class="page-title">📋 Requisitions</div><div class="page-sub" id="todayDate"></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap" class="no-print">
+      <button class="btn btn-ghost" onclick="loadAll()">↻ Refresh</button>
+      <button class="btn btn-ghost" onclick="openAutoReq()">🧮 Auto-Calculate</button>
+      <button class="btn btn-blue" onclick="openNewReq()">+ New Requisition</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="kpi-row">
+      <div class="kpi" style="border-top-color:var(--blue)"><div class="kpi-ico">📋</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Total</div></div>
+      <div class="kpi" style="border-top-color:var(--amber)"><div class="kpi-ico">📝</div><div class="kpi-val" id="kpiDraft">—</div><div class="kpi-lbl">Draft</div></div>
+      <div class="kpi" style="border-top-color:var(--purple)"><div class="kpi-ico">👀</div><div class="kpi-val" id="kpiPending">—</div><div class="kpi-lbl">Pending Approval</div></div>
+      <div class="kpi" style="border-top-color:var(--green)"><div class="kpi-ico">✅</div><div class="kpi-val" id="kpiApproved">—</div><div class="kpi-lbl">Approved / Sent</div></div>
+      <div class="kpi" style="border-top-color:var(--teal)"><div class="kpi-ico">📦</div><div class="kpi-val" id="kpiReceived">—</div><div class="kpi-lbl">Received</div></div>
+    </div>
+    <div class="tabs no-print">
+      <button class="tab on" onclick="showTab('list')">📋 All Requisitions</button>
+      <button class="tab" onclick="showTab('pending')">⏳ Pending Approval</button>
+      <button class="tab" onclick="showTab('history')">📂 History</button>
+    </div>
+    <div id="tab-list">
+      <div class="card">
+        <div class="card-title">📋 All Requisitions <span style="font-size:12px;font-weight:500;color:var(--mu)" id="listCount"></span></div>
+        <div class="filters no-print">
+          <div class="fi-group"><div class="fi-label">Search</div><input class="fi" id="srchReq" placeholder="Req #, title..." oninput="filterList()"/></div>
+          <div class="fi-group"><div class="fi-label">Status</div>
+            <select class="fi" id="fStatus" onchange="filterList()">
+              <option value="">All</option><option value="draft">Draft</option><option value="pending_approval">Pending Approval</option>
+              <option value="approved">Approved</option><option value="sent">Sent</option><option value="received">Received</option><option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Clear</button>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>Req #</th><th>Title</th><th>Aligners Base</th><th>Lines</th><th>Status</th><th>By</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="reqListTbl"></tbody>
+        </table></div>
+        <div class="pgn">
+          <span class="pgn-info" id="listPgnInfo"></span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" id="listPrev" onclick="listPage--;renderList()">← Prev</button>
+            <button class="btn btn-ghost btn-sm" id="listNext" onclick="listPage++;renderList()">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="tab-pending" style="display:none">
+      <div class="card"><div class="card-title">⏳ Pending Approval <span style="font-size:12px;font-weight:500;color:var(--mu)" id="pendingCount"></span></div><div id="pendingList"></div></div>
+    </div>
+    <div id="tab-history" style="display:none">
+      <div class="card"><div class="card-title">📂 History <span style="font-size:12px;font-weight:500;color:var(--mu)" id="historyCount"></span></div>
+        <div class="tw"><table>
+          <thead><tr><th>Req #</th><th>Title</th><th>Status</th><th>Approved By</th><th>Sent</th><th>Received</th><th>Actions</th></tr></thead>
+          <tbody id="historyTbl"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NEW REQ -->
+<div class="modal-overlay" id="newReqModal">
+  <div class="modal">
+    <div class="modal-head"><div><div class="modal-title">➕ New Requisition</div><div class="modal-sub">Create a manual requisition</div></div><button class="modal-close" onclick="closeModal('newReqModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Title *</label><input class="form-input" id="nTitle" placeholder="e.g. Monthly film restock"/></div>
+      <div class="form-row"><label class="form-label">Notes</label><input class="form-input" id="nNotes" placeholder="Reason or details..."/></div>
+      <div style="border-top:1px solid var(--bdr);padding-top:16px;margin-top:4px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">📦 Line Items</div>
+        <div id="nLineItems"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addManualLine()" style="margin-top:8px">+ Add Material</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('newReqModal')">Cancel</button>
+      <button class="btn btn-ghost btn-sm" onclick="saveReqAs('draft')">💾 Draft</button>
+      <button class="btn btn-blue" onclick="saveReqAs('pending_approval')">📤 Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: AUTO REQ -->
+<div class="modal-overlay" id="autoReqModal">
+  <div class="modal modal-lg">
+    <div class="modal-head"><div><div class="modal-title">🧮 Auto-Requisition</div><div class="modal-sub">Based on active Bloom cases + BOM formulas</div></div><button class="modal-close" onclick="closeModal('autoReqModal')">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div style="background:var(--b50);border:1px solid var(--b100);border-radius:12px;padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:var(--blue)" id="arActiveCases">—</div><div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Active Cases</div></div>
+        <div style="background:var(--a50);border:1px solid var(--a100);border-radius:12px;padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:var(--amber)" id="arTotalPlanned">—</div><div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Aligners Planned</div></div>
+        <div style="background:var(--g50);border:1px solid var(--g100);border-radius:12px;padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:var(--green)" id="arProduced">—</div><div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Produced</div></div>
+        <div style="background:var(--r50);border:1px solid var(--r100);border-radius:12px;padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--mono);color:var(--red)" id="arRemaining">—</div><div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Still to Produce</div></div>
+      </div>
+      <div id="arStatus" style="font-size:13px;color:var(--mu);margin-bottom:16px;text-align:center;padding:10px;background:var(--bg);border-radius:8px">Click Calculate to generate requisition</div>
+      <div id="arResults" style="display:none">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📦 Materials Required</div>
+        <div id="arLineItems"></div>
+        <div class="sum-box" id="arSummary"></div>
+        <div style="background:var(--b50);border:1px solid var(--b100);border-radius:10px;padding:12px;font-size:12px;color:var(--mu);margin-top:12px"><strong>ℹ️ Note:</strong> Quantities include your safety reserve %. Review before approving.</div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="form-row"><label class="form-label">Title</label><input class="form-input" id="arTitle" placeholder="Auto-Req April 2026"/></div>
+        <div class="form-row"><label class="form-label">Notes</label><input class="form-input" id="arNotes" placeholder="Optional notes..."/></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('autoReqModal')">Cancel</button>
+      <button class="btn btn-amber" onclick="calculateAutoReq()">🧮 Calculate Now</button>
+      <button class="btn btn-ghost btn-sm" id="arSaveDraft" onclick="saveAutoReq('draft')" style="display:none">💾 Save Draft</button>
+      <button class="btn btn-blue" id="arSubmit" onclick="saveAutoReq('pending_approval')" style="display:none">📤 Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VIEW REQ -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal modal-lg">
+    <div class="modal-head"><div><div class="modal-title" id="viewTitle">Requisition</div><div class="modal-sub" id="viewSub"></div></div><button class="modal-close" onclick="closeModal('viewModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="sf-flow" id="viewSFFlow"></div>
+      <div class="g2" style="margin-bottom:16px">
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Info</div><div id="viewInfo"></div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Basis</div><div id="viewBasis"></div></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">📦 Line Items</div>
+      <div id="viewLines"></div>
+      <div id="viewNotesBox" style="display:none;margin-top:14px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">NOTES</div><div id="viewNotes" style="font-size:13px;background:var(--bg);border-radius:8px;padding:10px"></div></div>
+      <div id="approvalBox" style="display:none;margin-top:16px;border-top:1px solid var(--bdr);padding-top:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">✅ Approve Requisition</div>
+        <div class="form-row"><label class="form-label">Approved By</label><input class="form-input" id="approvedBy" placeholder="Your name"/></div>
+        <div class="form-row"><label class="form-label">Notes</label><input class="form-input" id="approvalNotes" placeholder="Any notes..."/></div>
+      </div>
+    </div>
+    <div class="modal-foot no-print" id="viewActions"></div>
+  </div>
+</div>
+
+<script type="module">
+import{SUPABASE_CONFIG}from'./config.js'
+import{createClient}from'https://esm.sh/@supabase/supabase-js@2'
+const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
+window._sb=sb
+let allReqs=[],filteredReqs=[],listPage=0,allLines=[],allBom=[],bloomCases=[],alignerMap={},prodRecords=[],autoReqLines=[],manualLines=[],currentReqId=null
+const PAGE=20,$=id=>document.getElementById(id)
+window.listPage=0
+
+document.addEventListener('DOMContentLoaded',()=>{
+  $('todayDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+  loadAll()
+})
+
+async function loadAll(){
+  try{
+    const[r1,r2,r3,r4,r5,r6]=await Promise.all([
+      sb.from('requisitions').select('*').order('created_at',{ascending:false}).limit(500),
+      sb.from('requisition_lines').select('*').limit(5000),
+      sb.from('bom').select('*').eq('active',true).order('category').order('material_name'),
+      sb.from('bloom_cases').select('case_id,current_status').limit(20000),
+      sb.from('bloom_aligner_details').select('case_number,number_of_aligners,aligner_upper,aligner_lower,order_type').limit(50000),
+      sb.from('production_records').select('case_id,aligners_produced,status').limit(5000),
+    ])
+    allReqs=r1.data||[];allLines=r2.data||[];allBom=r3.data||[];bloomCases=r4.data||[];prodRecords=r6.data||[]
+    alignerMap={}
+    ;(r5.data||[]).forEach(a=>{const k=String(a.case_number);if(!alignerMap[k])alignerMap[k]=[];alignerMap[k].push(a)})
+    updateKPIs();filterList();renderPending();renderHistory()
+  }catch(e){toast('❌ '+e.message,'red')}
+}
+window.loadAll=loadAll
+
+function getAl(caseId){const als=alignerMap[String(caseId)]||[];const tp=als.find(a=>a.order_type==='TreatmentPlan')||als[0];if(!tp)return 0;return Number(tp.number_of_aligners)||(Number(tp.aligner_upper||0)+Number(tp.aligner_lower||0))}
+
+function updateKPIs(){
+  $('kpiTotal').textContent=allReqs.length
+  $('kpiDraft').textContent=allReqs.filter(r=>r.status==='draft').length
+  $('kpiPending').textContent=allReqs.filter(r=>r.status==='pending_approval').length
+  $('kpiApproved').textContent=allReqs.filter(r=>['approved','sent'].includes(r.status)).length
+  $('kpiReceived').textContent=allReqs.filter(r=>r.status==='received').length
+}
+
+window.showTab=function(tab){
+  ['list','pending','history'].forEach(t=>{const el=$('tab-'+t);if(el)el.style.display=t===tab?'block':'none'})
+  document.querySelectorAll('.tab').forEach((b,i)=>{b.classList.toggle('on',['list','pending','history'][i]===tab)})
+}
+
+window.filterList=function(){
+  listPage=0
+  const q=($('srchReq').value||'').toLowerCase(),st=$('fStatus').value
+  filteredReqs=allReqs.filter(r=>{
+    if(q&&!`${r.requisition_no||''} ${r.title||''}`.toLowerCase().includes(q))return false
+    if(st&&r.status!==st)return false
+    return true
+  })
+  $('listCount').textContent=filteredReqs.length+' requisitions'
+  renderList()
+}
+window.clearFilters=function(){$('srchReq').value='';$('fStatus').value='';filterList()}
+
+window.renderList=function(){
+  const total=filteredReqs.length,slice=filteredReqs.slice(listPage*PAGE,(listPage+1)*PAGE)
+  $('listPgnInfo').textContent=`${Math.min(listPage*PAGE+1,total)}–${Math.min((listPage+1)*PAGE,total)} of ${total}`
+  $('listPrev').disabled=listPage===0;$('listNext').disabled=(listPage+1)*PAGE>=total
+  if(!slice.length){$('reqListTbl').innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">No requisitions found</div><div class="empty-sub">Create a new requisition to get started</div></div></td></tr>';return}
+  $('reqListTbl').innerHTML=slice.map(r=>{
+    const lines=allLines.filter(l=>l.requisition_id===r.id)
+    const cls=sc(r.status),lbl=sl(r.status)
+    return`<tr>
+      <td class="mono" style="font-weight:700;color:var(--blue)">${r.requisition_no||'—'}</td>
+      <td style="font-weight:600;max-width:180px">${r.title||'—'}</td>
+      <td class="mono" style="text-align:center">${r.aligners_base?.toLocaleString()||'—'}</td>
+      <td class="mono" style="text-align:center">${lines.length}</td>
+      <td><span class="bdg ${cls}">${lbl}</span></td>
+      <td style="font-size:12px">${r.generated_by||'—'}</td>
+      <td style="font-size:12px;color:var(--mu)">${r.created_at?.slice(0,10)||'—'}</td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="viewReq('${r.id}')">👁 View</button>
+        ${r.status==='draft'?`<button class="btn btn-blue btn-sm" onclick="submitReq('${r.id}')">📤 Submit</button>`:''}
+        ${r.status==='pending_approval'?`<button class="btn btn-green btn-sm" onclick="viewReq('${r.id}')">✅ Approve</button>`:''}
+        ${r.status==='approved'?`<button class="btn btn-amber btn-sm" onclick="markSent('${r.id}')">📬 Sent</button>`:''}
+        ${r.status==='sent'?`<button class="btn btn-green btn-sm" onclick="markReceived('${r.id}')">📦 Received</button>`:''}
+      </div></td>
+    </tr>`
+  }).join('')
+}
+
+function renderPending(){
+  const pending=allReqs.filter(r=>r.status==='pending_approval')
+  $('pendingCount').textContent=pending.length+' awaiting approval'
+  if(!pending.length){$('pendingList').innerHTML='<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">No pending approvals</div><div class="empty-sub">All requisitions are up to date</div></div>';return}
+  $('pendingList').innerHTML=pending.map(r=>{
+    const lines=allLines.filter(l=>l.requisition_id===r.id)
+    const toOrder=lines.filter(l=>(l.qty_to_order||0)>0).length
+    return`<div style="border:1.5px solid var(--p100);border-radius:14px;padding:18px;margin-bottom:12px;background:var(--p50)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:15px;font-weight:800">${r.requisition_no} — ${r.title||'Untitled'}</div>
+          <div style="font-size:12px;color:var(--mu);margin-top:4px">By: <strong>${r.generated_by||'—'}</strong> · ${r.aligners_base?`<strong>${r.aligners_base.toLocaleString()}</strong> aligners · `:''}${lines.length} materials · ${toOrder} to order</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.created_at?.slice(0,10)||'—'}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" onclick="viewReq('${r.id}')">👁 View</button>
+          <button class="btn btn-red btn-sm" onclick="cancelReq('${r.id}')">✕ Reject</button>
+          <button class="btn btn-green btn-sm" onclick="viewReq('${r.id}')">✅ Approve</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+        ${lines.slice(0,5).map(l=>`<div style="background:var(--card);border-radius:8px;padding:9px;border:1px solid var(--bdr)"><div style="font-size:12px;font-weight:700">${l.material_name}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">${l.qty_to_order>0?`<strong style="color:var(--red)">${l.qty_to_order} ${l.unit||''}</strong>`:`<strong style="color:var(--green)">✅ OK</strong>`}</div></div>`).join('')}
+        ${lines.length>5?`<div style="background:var(--card);border-radius:8px;padding:9px;border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mu)">+${lines.length-5} more</div>`:''}
+      </div>
+    </div>`
+  }).join('')
+}
+
+function renderHistory(){
+  const hist=allReqs.filter(r=>['received','cancelled'].includes(r.status))
+  $('historyCount').textContent=hist.length+' completed'
+  if(!hist.length){$('historyTbl').innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-ico">📂</div><div class="empty-txt">No history yet</div></div></td></tr>';return}
+  $('historyTbl').innerHTML=hist.map(r=>`<tr>
+    <td class="mono" style="font-weight:700;color:var(--blue)">${r.requisition_no||'—'}</td>
+    <td style="font-weight:600">${r.title||'—'}</td>
+    <td><span class="bdg ${sc(r.status)}">${sl(r.status)}</span></td>
+    <td style="font-size:12px">${r.approved_by||'—'}</td>
+    <td style="font-size:12px;color:var(--mu)">${r.sent_at?.slice(0,10)||'—'}</td>
+    <td style="font-size:12px;color:var(--mu)">${r.updated_at?.slice(0,10)||'—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="viewReq('${r.id}')">👁 View</button></td>
+  </tr>`).join('')
+}
+
+window.viewReq=function(id){
+  const req=allReqs.find(r=>r.id===id);if(!req)return
+  currentReqId=id
+  const lines=allLines.filter(l=>l.requisition_id===id)
+  $('viewTitle').textContent=req.requisition_no||'Requisition'
+  $('viewSub').textContent=req.title||''
+  const steps=[{k:'draft',i:'📝',l:'Draft'},{k:'pending_approval',i:'👀',l:'Pending'},{k:'approved',i:'✅',l:'Approved'},{k:'sent',i:'📬',l:'Sent'},{k:'received',i:'📦',l:'Received'}]
+  const sord=['draft','pending_approval','approved','sent','received']
+  const ci=sord.indexOf(req.status)
+  $('viewSFFlow').innerHTML=steps.map((s,i)=>{const c=req.status==='cancelled'?'':i<ci?'done':i===ci?'active':'';return`<div class="sf-step"><div class="sf-dot ${c}">${s.i}</div><div class="sf-lbl ${c}">${s.l}</div></div>`}).join('')
+  $('viewInfo').innerHTML=`<div style="font-size:13px;display:grid;gap:6px">
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Req #</span><strong>${req.requisition_no||'—'}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Status</span><span class="bdg ${sc(req.status)}">${sl(req.status)}</span></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Generated By</span><strong>${req.generated_by||'—'}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Created</span><strong>${req.created_at?.slice(0,10)||'—'}</strong></div>
+    ${req.approved_by?`<div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Approved By</span><strong>${req.approved_by}</strong></div>`:''}
+    ${req.sent_at?`<div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Sent</span><strong>${req.sent_at.slice(0,10)}</strong></div>`:''}
+  </div>`
+  $('viewBasis').innerHTML=req.aligners_base?`<div style="font-size:13px;display:grid;gap:6px">
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Aligners Base</span><strong style="color:var(--blue);font-family:var(--mono)">${req.aligners_base.toLocaleString()}</strong></div>
+    <div style="font-size:11px;color:var(--mu);margin-top:4px">BOM × ${req.aligners_base.toLocaleString()} aligners remaining</div>
+  </div>`:`<div style="font-size:12px;color:var(--mu)">Manual requisition</div>`
+  if(req.notes){$('viewNotesBox').style.display='block';$('viewNotes').textContent=req.notes}else $('viewNotesBox').style.display='none'
+  const totalCost=lines.reduce((a,l)=>a+(l.total_cost||0),0)
+  const toOrderCount=lines.filter(l=>(l.qty_to_order||0)>0).length
+  $('viewLines').innerHTML=lines.length?lines.map(l=>{const ok=(l.qty_to_order||0)<=0;return`<div class="line-card" style="border-color:${ok?'var(--g100)':'var(--a100)'}">
+    <div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:13px;font-weight:700">${l.material_name}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">${l.unit||'—'}</div></div><span class="bdg ${ok?'b-g':'b-a'}">${ok?'✅ Sufficient':'⚠️ Order Needed'}</span></div>
+    <div class="line-nums">
+      <div class="ln"><div class="ln-v" style="color:var(--blue)">${(l.qty_needed||0).toLocaleString()}</div><div class="ln-l">Needed</div></div>
+      <div class="ln"><div class="ln-v" style="color:var(--green)">${(l.qty_in_stock||0).toLocaleString()}</div><div class="ln-l">In Stock</div></div>
+      <div class="ln"><div class="ln-v" style="color:${ok?'var(--green)':'var(--red)'}">${(l.qty_to_order||0).toLocaleString()}</div><div class="ln-l">To Order</div></div>
+      <div class="ln"><div class="ln-v" style="color:var(--purple)">${l.packs_to_order||'—'}</div><div class="ln-l">Packs</div></div>
+    </div>
+  </div>`}).join('')+(totalCost>0?`<div class="sum-box"><div style="font-size:14px;font-weight:800;margin-bottom:10px;color:var(--blue)">💰 Cost Summary</div>
+    <div class="sum-row"><span style="color:var(--mu)">Total Items</span><strong>${lines.length}</strong></div>
+    <div class="sum-row"><span style="color:var(--mu)">To Order</span><strong style="color:var(--red)">${toOrderCount}</strong></div>
+    <div class="sum-row"><span style="color:var(--mu)">Est. Total Cost</span><strong style="color:var(--green);font-size:18px">€${totalCost.toLocaleString()}</strong></div>
+  </div>`:''):`<div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">No line items</div>`
+  $('approvalBox').style.display=req.status==='pending_approval'?'block':'none'
+  if(req.status==='pending_approval')$('approvedBy').value=CW_ACCESS.getName()||''
+  let acts=`<button class="btn btn-ghost" onclick="closeModal('viewModal')">Close</button>`
+  if(req.status==='draft')acts+=`<button class="btn btn-blue" onclick="closeModal('viewModal');submitReq('${id}')">📤 Submit</button>`
+  if(req.status==='pending_approval')acts+=`<button class="btn btn-red btn-sm" onclick="closeModal('viewModal');cancelReq('${id}')">✕ Reject</button><button class="btn btn-green" onclick="confirmApprove('${id}')">✅ Approve</button>`
+  if(req.status==='approved')acts+=`<button class="btn btn-amber" onclick="closeModal('viewModal');markSent('${id}')">📬 Mark Sent</button>`
+  if(req.status==='sent')acts+=`<button class="btn btn-green" onclick="closeModal('viewModal');markReceived('${id}')">📦 Mark Received</button>`
+  acts+=`<button class="btn btn-ghost btn-sm no-print" onclick="window.print()">🖨 Print</button>`
+  $('viewActions').innerHTML=acts
+  $('viewModal').classList.add('open')
+}
+
+window.submitReq=async function(id){const{error}=await sb.from('requisitions').update({status:'pending_approval',updated_at:new Date().toISOString()}).eq('id',id);if(error){toast('❌ '+error.message,'red');return};toast('📤 Submitted for approval');loadAll()}
+window.confirmApprove=async function(id){const by=$('approvedBy').value.trim();if(!by){toast('❌ Enter approver name','red');return};const{error}=await sb.from('requisitions').update({status:'approved',approved_by:by,notes:$('approvalNotes').value||null,approved_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);if(error){toast('❌ '+error.message,'red');return};closeModal('viewModal');toast('✅ Approved!');loadAll()}
+window.cancelReq=async function(id){if(!confirm('Reject this requisition?'))return;await sb.from('requisitions').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',id);toast('❌ Rejected');loadAll()}
+window.markSent=async function(id){await sb.from('requisitions').update({status:'sent',sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);toast('📬 Marked as sent');loadAll()}
+window.markReceived=async function(id){await sb.from('requisitions').update({status:'received',updated_at:new Date().toISOString()}).eq('id',id);toast('📦 Received!');loadAll()}
+
+window.openNewReq=function(){manualLines=[{name:'',unit:'',qty:''}];$('nTitle').value='';$('nNotes').value='';renderManualLines();$('newReqModal').classList.add('open')}
+window.addManualLine=function(){manualLines.push({name:'',unit:'',qty:''});renderManualLines()}
+function renderManualLines(){$('nLineItems').innerHTML=manualLines.map((l,i)=>`<div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px"><div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end"><div><label class="form-label">Material</label><input class="form-input" value="${l.name}" oninput="manualLines[${i}].name=this.value" placeholder="Film Sheet"/></div><div><label class="form-label">Unit</label><input class="form-input" value="${l.unit}" oninput="manualLines[${i}].unit=this.value" placeholder="sheet"/></div><div><label class="form-label">Qty</label><input class="form-input" type="number" value="${l.qty}" oninput="manualLines[${i}].qty=this.value" placeholder="100"/></div><button class="btn btn-ghost btn-sm" style="align-self:end;color:var(--red)" onclick="manualLines.splice(${i},1);renderManualLines()">✕</button></div></div>`).join('')}
+window.saveReqAs=async function(status){const title=$('nTitle').value.trim();if(!title){toast('❌ Title required','red');return};const vl=manualLines.filter(l=>l.name.trim());if(!vl.length){toast('❌ Add at least one material','red');return};const emp=CW_ACCESS.getName()||'Manager';const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,notes:$('nNotes').value||null,updated_at:new Date().toISOString()}).select().single();if(error){toast('❌ '+error.message,'red');return};await sb.from('requisition_lines').insert(vl.map(l=>({requisition_id:req.id,material_name:l.name.trim(),unit:l.unit.trim()||null,qty_to_order:parseFloat(l.qty)||null,qty_needed:parseFloat(l.qty)||null})));closeModal('newReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted!');loadAll()}
+
+window.openAutoReq=async function(){
+  autoReqLines=[];$('arResults').style.display='none';$('arSaveDraft').style.display='none';$('arSubmit').style.display='none'
+  $('arStatus').textContent='Click Calculate to generate requisition'
+  $('arTitle').value=`Auto-Req ${new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}`;$('arNotes').value=''
+  const active=bloomCases.filter(c=>!['DELIVERED','ARCHIVE','CANCELLED'].includes((c.current_status||'').toUpperCase()))
+  let tp=0;active.forEach(c=>{const als=alignerMap[String(c.case_id)]||[];const a=als.find(x=>x.order_type==='TreatmentPlan')||als[0];if(a)tp+=Number(a.number_of_aligners)||(Number(a.aligner_upper||0)+Number(a.aligner_lower||0))})
+  const prod=prodRecords.filter(r=>r.status==='complete').reduce((a,r)=>a+(r.aligners_produced||0),0)
+  const rem=Math.max(0,tp-prod)
+  $('arActiveCases').textContent=active.length.toLocaleString();$('arTotalPlanned').textContent=tp.toLocaleString();$('arProduced').textContent=prod.toLocaleString();$('arRemaining').textContent=rem.toLocaleString()
+  window._arRem=rem;$('autoReqModal').classList.add('open')
+}
+
+window.calculateAutoReq=async function(){
+  if(!allBom.length){toast('❌ No BOM entries. Add materials in Inventory → BOM tab first.','red');return}
+  const rem=window._arRem||0
+  if(rem===0){$('arStatus').textContent='⚠️ No aligners remaining — no requisition needed';return}
+  const{data:lots}=await sb.from('inventory_lots_enriched_view').select('item_name,available_qty').limit(500)
+  const stock={};(lots||[]).forEach(l=>{stock[l.item_name]=(stock[l.item_name]||0)+Number(l.available_qty||0)})
+  autoReqLines=allBom.map(b=>{const res=(b.safety_reserve_pct||10)/100,qr=b.qty_per_aligner*rem,qt=Math.ceil(qr*(1+res)),ins=stock[b.material_name]||0,to=Math.max(0,qt-ins),pt=b.pack_size?Math.ceil(to/b.pack_size):null;return{bom_id:b.id,material_name:b.material_name,unit:b.unit,qty_needed:Math.ceil(qr),qty_reserve:Math.ceil(qr*res),qty_total:qt,qty_in_stock:ins,qty_to_order:to,pack_size:b.pack_size,pack_unit:b.pack_unit,packs_to_order:pt,ok:to<=0}})
+  const tord=autoReqLines.filter(l=>!l.ok)
+  $('arStatus').textContent=`✅ Calculated for ${rem.toLocaleString()} aligners — ${tord.length} materials to order`
+  $('arLineItems').innerHTML=autoReqLines.map(l=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bdr);font-size:13px"><div><div style="font-weight:700">${l.material_name}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">Need: ${l.qty_total.toLocaleString()} ${l.unit} (${l.qty_needed.toLocaleString()} + ${l.qty_reserve.toLocaleString()} reserve) · Stock: ${l.qty_in_stock.toLocaleString()}</div></div><div style="text-align:right;flex-shrink:0;margin-left:16px">${l.ok?`<span class="bdg b-g">✅ OK</span>`:`<div style="font-size:16px;font-weight:800;font-family:var(--mono);color:var(--red)">${l.qty_to_order.toLocaleString()} ${l.unit}</div>${l.packs_to_order?`<div style="font-size:11px;color:var(--mu)">${l.packs_to_order} ${l.pack_unit||'packs'}</div>`:''}`}</div></div>`).join('')
+  $('arSummary').innerHTML=`<div style="font-size:14px;font-weight:800;margin-bottom:10px;color:var(--blue)">📊 Summary</div><div class="sum-row"><span style="color:var(--mu)">Aligners Base</span><strong style="color:var(--blue);font-family:var(--mono)">${rem.toLocaleString()}</strong></div><div class="sum-row"><span style="color:var(--mu)">Total Materials</span><strong>${autoReqLines.length}</strong></div><div class="sum-row"><span style="color:var(--mu)">To Order</span><strong style="color:var(--red)">${tord.length}</strong></div><div class="sum-row"><span style="color:var(--mu)">Sufficient</span><strong style="color:var(--green)">${autoReqLines.length-tord.length}</strong></div>`
+  $('arResults').style.display='block';$('arSaveDraft').style.display='inline-flex';$('arSubmit').style.display='inline-flex'
+}
+
+window.saveAutoReq=async function(status){
+  if(!autoReqLines.length){toast('❌ Calculate first','red');return}
+  const title=$('arTitle').value.trim()||`Auto-Req ${new Date().toLocaleDateString('en-GB')}`,emp=CW_ACCESS.getName()||'System'
+  const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,aligners_base:window._arRem||0,notes:$('arNotes').value||null,updated_at:new Date().toISOString()}).select().single()
+  if(error){toast('❌ '+error.message,'red');return}
+  await sb.from('requisition_lines').insert(autoReqLines.map(l=>({requisition_id:req.id,bom_id:l.bom_id,material_name:l.material_name,unit:l.unit,qty_needed:l.qty_needed,qty_in_stock:l.qty_in_stock,qty_to_order:l.qty_to_order,pack_size:l.pack_size,packs_to_order:l.packs_to_order})))
+  closeModal('autoReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted for approval!');loadAll()
+}
+
+function sc(s){return s==='received'?'b-g':s==='approved'?'b-t':s==='sent'?'b-b':s==='pending_approval'?'b-p':s==='cancelled'?'b-r':'b-gray'}
+function sl(s){return s==='received'?'📦 Received':s==='approved'?'✅ Approved':s==='sent'?'📬 Sent':s==='pending_approval'?'👀 Pending':s==='cancelled'?'❌ Cancelled':'📝 Draft'}
+window.closeModal=function(id){document.getElementById(id).classList.remove('open')}
+function toast(msg,type='green'){const el=document.createElement('div');el.className='toast';el.style.background=type==='red'?'var(--red)':type==='amber'?'var(--amber)':'#0f172a';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3500)}
+</script>
+</body>
+</html>

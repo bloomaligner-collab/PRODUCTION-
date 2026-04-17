@@ -29,6 +29,7 @@ const CW_ACCESS = {
     customer_feedback:    { label: 'Customer Feedback',   icon: '💬', section: 'Quality' },
     internal_audit:       { label: 'Internal Audits',     icon: '🔍', section: 'Quality' },
     inventory:            { label: 'Inventory',           icon: '📦', section: 'Resources' },
+    requisition:          { label: 'Requisitions',        icon: '📋', section: 'Resources' },
     bloom_import:         { label: 'Bloom Import',        icon: '🔵', section: 'Orders' },
     iso_compliance:       { label: 'ISO 13485 Compliance',icon: '✅', section: 'System' },
     settings:             { label: 'Settings',            icon: '⚙',  section: 'System' },

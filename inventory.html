@@ -167,6 +167,8 @@
       <button class="tb" data-t="items">🗂 Items</button>
       <button class="tb" data-t="reqs">📋 Requisitions</button>
       <button class="tb" data-t="fefo">🔄 FEFO Consume</button>
+      <button class="tb" data-t="bom">⚗️ BOM</button>
+      <button class="tb" data-t="autoreq">🧮 Auto-Requisition</button>
     </div>
 
     <!-- STOCK -->
@@ -274,6 +276,141 @@
         </div>
       </div>
     </div>
+
+    <!-- ⚗️ BOM — Bill of Materials -->
+    <div class="tp" id="tp-bom">
+      <div class="g2e">
+        <div>
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <div>
+                <div class="ct">⚗️ Bill of Materials</div>
+                <div class="cs" style="margin-bottom:0">Define how much of each material is consumed per aligner produced. Used by auto-requisition to calculate purchase orders.</div>
+              </div>
+              <button class="btn b-pri b-sm" onclick="openAddBom()">+ Add Material</button>
+            </div>
+            <div class="tw"><table>
+              <thead><tr><th>Material</th><th>Category</th><th>Unit</th><th>Qty / Aligner</th><th>Pack Size</th><th>Pack Unit</th><th>Reserve %</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="bomTbl"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--dim)">Loading BOM...</td></tr></tbody>
+            </table></div>
+          </div>
+        </div>
+        <div>
+          <div class="card" id="bomFormCard">
+            <div class="ct" style="margin-bottom:14px" id="bomFormTitle">➕ Add BOM Entry</div>
+            <div style="display:grid;gap:11px">
+              <input type="hidden" id="bomEditId"/>
+              <div><lbl>Material Name *</lbl><input class="fi" id="bomName" placeholder="e.g. Film Sheet"/></div>
+              <div><lbl>Category</lbl>
+                <select class="fi" id="bomCategory">
+                  <option value="Film">Film</option>
+                  <option value="Resin">Resin</option>
+                  <option value="Packaging">Packaging</option>
+                  <option value="Cleaning">Cleaning</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="fg">
+                <div><lbl>Unit *</lbl><input class="fi" id="bomUnit" placeholder="sheet / liter / unit"/></div>
+                <div><lbl>Qty per Aligner *</lbl><input class="fi" id="bomQtyPerAligner" type="number" step="0.001" min="0.001" placeholder="e.g. 1"/></div>
+              </div>
+              <div class="fg">
+                <div><lbl>Pack Size</lbl><input class="fi" id="bomPackSize" type="number" step="1" min="1" placeholder="e.g. 50"/></div>
+                <div><lbl>Pack Unit</lbl><input class="fi" id="bomPackUnit" placeholder="e.g. roll / box"/></div>
+              </div>
+              <div><lbl>Safety Reserve %</lbl><input class="fi" id="bomReserve" type="number" step="1" min="0" max="100" value="10" placeholder="10"/></div>
+              <div><lbl>Notes</lbl><input class="fi" id="bomNotes" placeholder="Optional notes..."/></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button class="btn b-gho" style="flex:1;justify-content:center" onclick="resetBomForm()">Cancel</button>
+              <button class="btn b-pri" style="flex:2;justify-content:center" onclick="saveBom()">💾 Save Material</button>
+            </div>
+            <div id="bomErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+          </div>
+          <!-- BOM Summary -->
+          <div class="card">
+            <div class="ct" style="margin-bottom:12px">📊 BOM Summary</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Materials needed to produce <strong>1,000 aligners</strong>:</div>
+            <div id="bomSummary"><div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">Add BOM entries to see summary</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🧮 AUTO-REQUISITION -->
+    <div class="tp" id="tp-autoreq">
+      <!-- Calculator Section -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="ct">🧮 Auto-Requisition Calculator</div>
+        <div class="cs">System reads all active Bloom cases, calculates total aligners still to produce, applies BOM formulas, compares against current inventory, and generates a proforma purchase order for missing materials.</div>
+
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+          <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:800;font-family:var(--mono);color:var(--blue)" id="reqActiveBloom">—</div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Active Bloom Cases</div>
+          </div>
+          <div style="background:var(--amber-50);border:1px solid var(--amber-100);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:800;font-family:var(--mono);color:var(--amber)" id="reqTotalPlanned">—</div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Total Aligners Planned</div>
+          </div>
+          <div style="background:var(--green-50);border:1px solid var(--green-100);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:800;font-family:var(--mono);color:var(--green)" id="reqTotalProduced">—</div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Already Produced</div>
+          </div>
+          <div style="background:var(--red-50);border:1px solid var(--red-100);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:800;font-family:var(--mono);color:var(--red)" id="reqAlignersLeft">—</div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px">Still to Produce</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn b-pri" onclick="calculateRequisition()">🧮 Calculate Now</button>
+          <div style="font-size:12px;color:var(--muted)" id="reqLastCalc"></div>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <div class="card" id="reqResultCard" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div>
+            <div class="ct">📋 Proforma Requisition</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:3px" id="reqSubTitle"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn b-gho b-sm" onclick="exportReqCSV()">⬇ Export CSV</button>
+            <button class="btn b-pri b-sm" onclick="saveRequisition()">💾 Save as Draft Requisition</button>
+          </div>
+        </div>
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th>Material</th><th>Unit</th>
+              <th>Qty Needed</th><th>+ Reserve</th><th>Total Needed</th>
+              <th>In Stock</th><th>To Order</th><th>Packs to Order</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody id="reqResultTbl"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:16px;padding:14px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:12px;font-size:13px">
+          <strong>ℹ️ Note:</strong> This is a proforma estimate based on BOM formulas and current inventory snapshot. Approve and send to supplier after review.
+        </div>
+      </div>
+
+      <!-- Saved Requisitions -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="ct">📂 Saved Requisitions</div>
+          <span style="font-size:12px;color:var(--muted)" id="savedReqCount"></span>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>Req #</th><th>Title</th><th>Aligners Base</th><th>Status</th><th>Generated By</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody id="savedReqTbl"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">No requisitions saved yet</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -556,6 +693,315 @@ document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{
 }))
 $('sSearch').addEventListener('input',rStock);$('sStatus').addEventListener('change',rStock);$('sCat').addEventListener('change',rStock)
 $('btnR').addEventListener('click',loadAll)
+
+// ════════════════════════════════════════════════════════
+// ⚗️ BOM — BILL OF MATERIALS
+// ════════════════════════════════════════════════════════
+let allBom = []
+let bomCaseData = [], alignerMapBom = {}, prodRecordsBom = []
+
+async function loadBom() {
+  const [bomRes, casesRes, alsRes, recsRes] = await Promise.all([
+    sb.from('bom').select('*').order('category').order('material_name'),
+    sb.from('bloom_cases').select('case_id,current_status').limit(20000),
+    sb.from('bloom_aligner_details').select('case_number,number_of_aligners,aligner_upper,aligner_lower,order_type').limit(50000),
+    sb.from('production_records').select('case_id,aligners_produced,status').limit(5000),
+  ])
+  allBom = bomRes.data || []
+  bomCaseData = casesRes.data || []
+  prodRecordsBom = recsRes.data || []
+  alignerMapBom = {}
+  ;(alsRes.data||[]).forEach(a=>{const k=String(a.case_number);if(!alignerMapBom[k])alignerMapBom[k]=[];alignerMapBom[k].push(a)})
+  renderBom()
+  updateAutoReqStats()
+}
+
+function renderBom() {
+  if (!allBom.length) {
+    $('bomTbl').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--dim)"><div style="font-size:32px;margin-bottom:8px">⚗️</div><div style="font-size:14px;font-weight:600;color:var(--muted)">No BOM entries yet</div><div style="font-size:12px;margin-top:4px">Add materials to define your production formula</div></td></tr>'
+    $('bomSummary').innerHTML = '<div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">Add BOM entries to see summary</div>'
+    return
+  }
+  $('bomTbl').innerHTML = allBom.map(b => {
+    const packInfo = b.pack_size && b.pack_unit ? `${b.pack_size} ${b.unit}/${b.pack_unit}` : '—'
+    return `<tr>
+      <td style="font-weight:700">${b.material_name}</td>
+      <td><span class="bdg bb">${b.category||'—'}</span></td>
+      <td class="mono">${b.unit}</td>
+      <td class="mono" style="font-weight:700;color:var(--blue)">${b.qty_per_aligner}</td>
+      <td class="mono">${b.pack_size||'—'}</td>
+      <td style="font-size:12px">${b.pack_unit||'—'}</td>
+      <td class="mono">${b.safety_reserve_pct||10}%</td>
+      <td><span class="bdg ${b.active?'bg':'bgy'}">${b.active?'Active':'Inactive'}</span></td>
+      <td><div style="display:flex;gap:5px">
+        <button class="btn b-gho b-sm" onclick="editBom('${b.id}')">✏ Edit</button>
+        <button class="btn b-red b-sm" onclick="deleteBom('${b.id}')">✕</button>
+      </div></td>
+    </tr>`
+  }).join('')
+
+  // BOM Summary for 1000 aligners
+  $('bomSummary').innerHTML = allBom.filter(b=>b.active).map(b => {
+    const qty1000 = b.qty_per_aligner * 1000
+    const packs = b.pack_size ? Math.ceil(qty1000 / b.pack_size) : null
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="font-weight:600">${b.material_name}</span>
+      <span style="font-family:var(--mono);color:var(--blue);font-weight:700">${qty1000.toLocaleString()} ${b.unit}${packs?` = ${packs} ${b.pack_unit}`:''}</span>
+    </div>`
+  }).join('') || '<div style="color:var(--dim);font-size:13px;padding:10px">No active BOM entries</div>'
+}
+
+window.openAddBom = function() {
+  $('bomEditId').value = ''
+  $('bomFormTitle').textContent = '➕ Add BOM Entry'
+  $('bomName').value = ''; $('bomCategory').value = 'Film'
+  $('bomUnit').value = ''; $('bomQtyPerAligner').value = ''
+  $('bomPackSize').value = ''; $('bomPackUnit').value = ''
+  $('bomReserve').value = '10'; $('bomNotes').value = ''
+  $('bomErr').textContent = ''
+  $('bomName').focus()
+}
+
+window.editBom = function(id) {
+  const b = allBom.find(x=>x.id===id)
+  if (!b) return
+  $('bomEditId').value = b.id
+  $('bomFormTitle').textContent = '✏️ Edit BOM Entry'
+  $('bomName').value = b.material_name || ''
+  $('bomCategory').value = b.category || 'Film'
+  $('bomUnit').value = b.unit || ''
+  $('bomQtyPerAligner').value = b.qty_per_aligner || ''
+  $('bomPackSize').value = b.pack_size || ''
+  $('bomPackUnit').value = b.pack_unit || ''
+  $('bomReserve').value = b.safety_reserve_pct || 10
+  $('bomNotes').value = b.notes || ''
+  $('bomErr').textContent = ''
+}
+
+window.saveBom = async function() {
+  const name = $('bomName').value.trim()
+  const unit = $('bomUnit').value.trim()
+  const qty = parseFloat($('bomQtyPerAligner').value)
+  if (!name) { $('bomErr').textContent = 'Material name required'; return }
+  if (!unit) { $('bomErr').textContent = 'Unit required'; return }
+  if (!qty || qty <= 0) { $('bomErr').textContent = 'Qty per aligner must be > 0'; return }
+
+  const row = {
+    material_name: name, category: $('bomCategory').value,
+    unit, qty_per_aligner: qty,
+    pack_size: parseFloat($('bomPackSize').value) || null,
+    pack_unit: $('bomPackUnit').value.trim() || null,
+    safety_reserve_pct: parseInt($('bomReserve').value) || 10,
+    notes: $('bomNotes').value.trim() || null,
+    active: true, updated_at: new Date().toISOString()
+  }
+  const id = $('bomEditId').value
+  const { error } = id
+    ? await sb.from('bom').update(row).eq('id', id)
+    : await sb.from('bom').insert(row)
+  if (error) { $('bomErr').textContent = error.message; return }
+  notify(id ? 'BOM entry updated' : 'BOM entry added')
+  resetBomForm()
+  loadBom()
+}
+
+window.resetBomForm = function() {
+  $('bomEditId').value = ''; $('bomFormTitle').textContent = '➕ Add BOM Entry'
+  $('bomName').value = ''; $('bomUnit').value = ''; $('bomQtyPerAligner').value = ''
+  $('bomPackSize').value = ''; $('bomPackUnit').value = ''; $('bomReserve').value = '10'
+  $('bomNotes').value = ''; $('bomErr').textContent = ''
+}
+
+window.deleteBom = async function(id) {
+  if (!confirm('Delete this BOM entry?')) return
+  await sb.from('bom').delete().eq('id', id)
+  notify('Deleted'); loadBom()
+}
+
+// ════════════════════════════════════════════════════════
+// 🧮 AUTO-REQUISITION
+// ════════════════════════════════════════════════════════
+let reqResults = []
+
+function updateAutoReqStats() {
+  const activeCases = bomCaseData.filter(c => {
+    const s = (c.current_status||'').toUpperCase()
+    return !['DELIVERED','ARCHIVE','CANCELLED'].includes(s)
+  })
+  $('reqActiveBloom').textContent = activeCases.length.toLocaleString()
+
+  // Total planned aligners from active cases
+  let totalPlanned = 0
+  activeCases.forEach(c => {
+    const als = alignerMapBom[String(c.case_id)] || []
+    const tp = als.find(a=>a.order_type==='TreatmentPlan') || als[0]
+    if (tp) totalPlanned += Number(tp.number_of_aligners)||(Number(tp.aligner_upper||0)+Number(tp.aligner_lower||0))
+  })
+  $('reqTotalPlanned').textContent = totalPlanned.toLocaleString()
+
+  // Already produced
+  const produced = prodRecordsBom
+    .filter(r=>r.status==='complete')
+    .reduce((a,r)=>a+(r.aligners_produced||0),0)
+  $('reqTotalProduced').textContent = produced.toLocaleString()
+  $('reqAlignersLeft').textContent = Math.max(0, totalPlanned - produced).toLocaleString()
+}
+
+window.calculateRequisition = async function() {
+  if (!allBom.filter(b=>b.active).length) {
+    notify('Add BOM entries first before calculating', 'err'); return
+  }
+
+  // Get current inventory snapshot
+  const { data: lots } = await sb.from('inventory_lots_enriched_view')
+    .select('item_name,available_qty').limit(500)
+  const stockMap = {}
+  ;(lots||[]).forEach(l => { stockMap[l.item_name] = (stockMap[l.item_name]||0) + Number(l.available_qty||0) })
+
+  // Calculate aligners still to produce
+  const activeCases = bomCaseData.filter(c => {
+    const s = (c.current_status||'').toUpperCase()
+    return !['DELIVERED','ARCHIVE','CANCELLED'].includes(s)
+  })
+  let totalPlanned = 0
+  activeCases.forEach(c => {
+    const als = alignerMapBom[String(c.case_id)] || []
+    const tp = als.find(a=>a.order_type==='TreatmentPlan') || als[0]
+    if (tp) totalPlanned += Number(tp.number_of_aligners)||(Number(tp.aligner_upper||0)+Number(tp.aligner_lower||0))
+  })
+  const produced = prodRecordsBom.filter(r=>r.status==='complete').reduce((a,r)=>a+(r.aligners_produced||0),0)
+  const alignersLeft = Math.max(0, totalPlanned - produced)
+
+  // Calculate materials needed
+  reqResults = allBom.filter(b=>b.active).map(b => {
+    const reserve = (b.safety_reserve_pct||10) / 100
+    const qtyRaw = b.qty_per_aligner * alignersLeft
+    const qtyWithReserve = Math.ceil(qtyRaw * (1 + reserve))
+    const inStock = stockMap[b.material_name] || 0
+    const toOrder = Math.max(0, qtyWithReserve - inStock)
+    const packsToOrder = b.pack_size ? Math.ceil(toOrder / b.pack_size) : null
+    return {
+      bom_id: b.id,
+      material_name: b.material_name,
+      unit: b.unit,
+      qty_needed: Math.ceil(qtyRaw),
+      qty_reserve: Math.ceil(qtyRaw * reserve),
+      qty_total: qtyWithReserve,
+      in_stock: inStock,
+      to_order: toOrder,
+      pack_size: b.pack_size,
+      pack_unit: b.pack_unit,
+      packs_to_order: packsToOrder,
+      sufficient: toOrder <= 0
+    }
+  })
+
+  // Render results
+  $('reqResultCard').style.display = 'block'
+  $('reqSubTitle').textContent = `Based on ${alignersLeft.toLocaleString()} aligners still to produce across ${activeCases.length} active cases`
+  $('reqLastCalc').textContent = `Last calculated: ${new Date().toLocaleTimeString()}`
+
+  const needsOrder = reqResults.filter(r=>!r.sufficient)
+  $('reqResultTbl').innerHTML = reqResults.map(r => {
+    const stCls = r.sufficient ? 'bg' : r.to_order > 1000 ? 'br' : 'ba'
+    const stLbl = r.sufficient ? '✅ Covered' : '⚠️ Order Needed'
+    return `<tr style="${!r.sufficient?'background:var(--amber-50)':''}">
+      <td style="font-weight:700">${r.material_name}</td>
+      <td class="mono">${r.unit}</td>
+      <td class="mono">${r.qty_needed.toLocaleString()}</td>
+      <td class="mono" style="color:var(--muted)">+${r.qty_reserve.toLocaleString()}</td>
+      <td class="mono" style="font-weight:700">${r.qty_total.toLocaleString()}</td>
+      <td class="mono" style="color:var(--green)">${r.in_stock.toLocaleString()}</td>
+      <td class="mono" style="font-weight:700;color:${r.sufficient?'var(--green)':'var(--red)'}">${r.to_order.toLocaleString()}</td>
+      <td class="mono" style="color:var(--blue)">${r.packs_to_order!=null?r.packs_to_order+(r.pack_unit?' '+r.pack_unit:''):'—'}</td>
+      <td><span class="bdg ${stCls}">${stLbl}</span></td>
+    </tr>`
+  }).join('')
+
+  if (!needsOrder.length) {
+    notify('✅ All materials covered — no purchase needed!')
+  } else {
+    notify(`⚠️ ${needsOrder.length} material(s) need ordering`, 'warn')
+  }
+}
+
+window.saveRequisition = async function() {
+  if (!reqResults.length) { notify('Run calculation first', 'err'); return }
+  const { data: req, error: e1 } = await sb.from('requisitions').insert({
+    title: 'Auto-Requisition ' + new Date().toLocaleDateString('en-GB'),
+    generated_by: 'auto-calculator',
+    aligners_base: parseInt($('reqAlignersLeft').textContent.replace(/,/g,'')),
+    status: 'draft'
+  }).select().single()
+  if (e1) { notify(e1.message, 'err'); return }
+
+  const lines = reqResults.map(r => ({
+    requisition_id: req.id,
+    bom_id: r.bom_id,
+    material_name: r.material_name,
+    unit: r.unit,
+    qty_needed: r.qty_total,
+    qty_in_stock: r.in_stock,
+    qty_to_order: r.to_order,
+    pack_size: r.pack_size,
+    packs_to_order: r.packs_to_order
+  }))
+  await sb.from('requisition_lines').insert(lines)
+  notify(`✅ Requisition ${req.requisition_no} saved as draft!`)
+  loadSavedRequisitions()
+}
+
+window.exportReqCSV = function() {
+  if (!reqResults.length) return
+  const rows = [['Material','Unit','Qty Needed','+ Reserve','Total Needed','In Stock','To Order','Packs to Order','Status']]
+  reqResults.forEach(r => rows.push([r.material_name,r.unit,r.qty_needed,r.qty_reserve,r.qty_total,r.in_stock,r.to_order,r.packs_to_order||'—',r.sufficient?'Covered':'Order Needed']))
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv)
+  a.download = `requisition-${new Date().toISOString().slice(0,10)}.csv`; a.click()
+}
+
+async function loadSavedRequisitions() {
+  const { data } = await sb.from('requisitions').select('*').order('created_at',{ascending:false}).limit(20)
+  const reqs = data || []
+  $('savedReqCount').textContent = reqs.length + ' requisitions'
+  if (!reqs.length) {
+    $('savedReqTbl').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--dim)">No requisitions saved yet</td></tr>'
+    return
+  }
+  const stCls = s => s==='approved'?'bg':s==='sent'?'bb':s==='draft'?'bgy':s==='received'?'bg':'ba'
+  $('savedReqTbl').innerHTML = reqs.map(r=>`<tr>
+    <td class="mono" style="font-weight:700;color:var(--blue)">${r.requisition_no||'—'}</td>
+    <td style="font-weight:600">${r.title||'—'}</td>
+    <td class="mono" style="text-align:center">${(r.aligners_base||0).toLocaleString()}</td>
+    <td><span class="bdg ${stCls(r.status)}">${r.status}</span></td>
+    <td style="font-size:12px">${r.generated_by||'—'}</td>
+    <td style="font-size:12px;color:var(--muted)">${r.created_at?.slice(0,10)||'—'}</td>
+    <td><div style="display:flex;gap:5px">
+      ${r.status==='draft'?`<button class="btn b-grn b-sm" onclick="approveReq('${r.id}')">✓ Approve</button>`:''}
+      <button class="btn b-gho b-sm" onclick="viewReqLines('${r.id}','${r.requisition_no||''}')">📋 View</button>
+    </div></td>
+  </tr>`).join('')
+}
+
+window.approveReq = async function(id) {
+  await sb.from('requisitions').update({status:'approved',approved_by:CW_ACCESS?.getName?.()||'Manager',approved_at:new Date().toISOString()}).eq('id',id)
+  notify('✅ Requisition approved'); loadSavedRequisitions()
+}
+
+window.viewReqLines = async function(id, reqNo) {
+  const { data } = await sb.from('requisition_lines').select('*').eq('requisition_id', id)
+  const lines = data || []
+  if (!lines.length) { notify('No lines in this requisition'); return }
+  const txt = lines.map(l=>`${l.material_name}: ${l.qty_to_order} ${l.unit} (${l.packs_to_order||'—'} packs)`).join('\n')
+  alert(`Requisition ${reqNo}\n\n${txt}`)
+}
+
+// Load BOM when tab is clicked
+document.querySelectorAll('.tb').forEach(b => {
+  if (b.dataset.t === 'bom') b.addEventListener('click', loadBom)
+  if (b.dataset.t === 'autoreq') b.addEventListener('click', () => { loadBom(); loadSavedRequisitions() })
+})
+
 loadAll()
 </script>
 

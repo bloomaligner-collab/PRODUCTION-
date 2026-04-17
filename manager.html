@@ -57,7 +57,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .btn-ghost{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}.btn-ghost:hover{color:var(--txt);border-color:var(--blue)}
 .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2e4fc7}
 /* PAGE BODY */
-.body{padding:20px 28px 80px}
+.body{padding:22px 28px 60px}
 /* KPI GRID */
 .kpi-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:14px;margin-bottom:22px}
 .kpi{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:20px 18px 16px;position:relative;overflow:hidden;transition:box-shadow .2s;cursor:default;cursor:pointer;transition:box-shadow .15s,transform .12s;text-decoration:none;display:block;color:inherit}
@@ -125,24 +125,7 @@ tbody tr:hover{background:#f8fafc}
 @media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.sidebar{display:none}.content{margin-left:0}}
 @media(max-width:640px){.kpi-grid{grid-template-columns:1fr 1fr}.g2e{grid-template-columns:1fr}}
-
-/* Order searchable dropdown */
-.order-wrap{position:relative}
-.order-dd{display:none;position:absolute;z-index:300;top:100%;left:0;right:0;
-  background:#fff;border:1.5px solid var(--bdr);border-radius:10px;
-  box-shadow:0 8px 28px rgba(0,0,0,.12);max-height:260px;overflow-y:auto;margin-top:3px}
-.order-dd-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px}
-.order-dd-item:last-child{border-bottom:none}
-.order-dd-item:hover{background:var(--b50)}
-.order-dd-item .oi-id{font-weight:700;font-family:var(--mono);color:var(--blue)}
-.order-dd-item .oi-name{font-size:11px;color:var(--mu);margin-top:1px}
-.order-dd-empty{padding:12px 14px;font-size:12px;color:var(--mu);text-align:center}
-
 </style>
-<script>const PAGE_KEY='manager'</script>
-<script src="access.js"></script>
-<script src="lang.js"></script>
-<script src="orders.js"></script>
 </head>
 <body>
 
@@ -163,7 +146,6 @@ tbody tr:hover{background:#f8fafc}
     <a href="production.html" class="nl"><span class="ic">🏭</span>Production</a>
     <a href="production_materials.html" class="nl"><span class="ic">🧪</span>Materials & Lots</a>
     <a href="machines.html" class="nl"><span class="ic">⚙</span>Machines</a>
-    <a href="maintenance_history.html" class="nl"><span class="ic">🔧</span>Maintenance History</a>
     <div class="sb-s">Team</div>
     <a href="employees.html" class="nl"><span class="ic">👥</span>Employees</a>
     <a href="employee_profile.html" class="nl"><span class="ic">👤</span>Employee Profile</a>
@@ -171,34 +153,17 @@ tbody tr:hover{background:#f8fafc}
     <div class="sb-s">Quality</div>
     <a href="tracabilite.html" class="nl"><span class="ic">🔖</span>Traceability</a>
     <a href="qualite.html" class="nl"><span class="ic">✅</span>Quality Control</a>
-    <a href="non_conformity.html" class="nl"><span class="ic">⚠️</span>Non-Conformity</a>
-    <a href="suppliers.html" class="nl"><span class="ic">🏭</span>Suppliers</a>
-    <a href="customer_feedback.html" class="nl"><span class="ic">💬</span>Customer Feedback</a>
-    <a href="internal_audit.html" class="nl"><span class="ic">🔍</span>Internal Audits</a>
     <div class="sb-s">Resources</div>
     <a href="inventory.html" class="nl"><span class="ic">📦</span>Inventory</a>
     <div class="sb-s">Integrations</div>
     <a href="bloom_import.html" class="nl"><span class="ic">🌸</span>Bloom Import</a>
     <div class="sb-s">System</div>
-    <a href="iso_compliance.html" class="nl"><span class="ic">✅</span>ISO 13485 Compliance</a>
     <a href="settings.html" class="nl"><span class="ic">⚙</span>Settings</a>
-    <a href="changelog.html" class="nl"><span class="ic">📝</span>Changelog</a>
     <a href="roles.html" class="nl"><span class="ic">🔑</span>Roles</a>
     <div class="sb-s">Terminal</div>
     <a href="clocking.html" class="nl"><span class="ic">⏱</span>Clocking Terminal</a>
   </nav>
   <div class="sb-foot">
-<button id="sbLangBtn" title="Changer la langue / Switch Language"
-  onclick="(function(){const l=localStorage.getItem('cw_lang')||'fr';const n=l==='fr'?'en':'fr';localStorage.setItem('cw_lang',n);document.getElementById('sbLangBtn').innerHTML=n==='fr'?'🇬🇧 EN':'🇫🇷 FR';if(typeof CW_LANG!=='undefined')CW_LANG.apply();})()"
-  style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;
-         font-size:12px;font-weight:600;color:var(--mu);background:none;border:none;
-         cursor:pointer;width:100%;text-align:left;font-family:var(--f);
-         transition:background .12s,color .12s"
-  onmouseover="this.style.background='var(--bg)';this.style.color='var(--txt)'"
-  onmouseout="this.style.background='none';this.style.color='var(--mu)'">
-  🇫🇷 FR
-</button>
-<script>(function(){const l=localStorage.getItem('cw_lang')||'fr';const b=document.getElementById('sbLangBtn');if(b)b.innerHTML=l==='fr'?'🇬🇧 EN':'🇫🇷 FR';})()</script>
     <a href="index.html" class="nl"><span class="ic">←</span>Switch Role</a>
   </div>
 </aside>
@@ -210,7 +175,6 @@ tbody tr:hover{background:#f8fafc}
       <div class="page-date" id="pageDate">Loading…</div>
     </div>
     <div class="top-right">
-      
       <div class="live-badge"><div class="live-dot"></div>Live</div>
       <div class="range-tabs">
         <button class="rt active" data-r="today">Today</button>
@@ -280,70 +244,23 @@ tbody tr:hover{background:#f8fafc}
         <div class="kpi-stripe" style="background:linear-gradient(90deg,#7c3aed,#a855f7)"></div>
         <div class="kpi-ico" style="background:var(--p50)">🦷</div>
         <div class="kpi-val" id="kBloomA">—</div>
-        <div class="kpi-lbl">Bloom Aligners Today</div>
+        <div class="kpi-lbl">Bloom Aligners</div>
         <div class="kpi-sub" id="kBloomASub">Total planned</div>
       </a>
-    </div>
-
-
-    <!-- WHAT'S NEW BANNER -->
-    <div id="whatsNewBanner" style="margin-bottom:22px">
-      <div style="background:linear-gradient(135deg,#1e40af 0%,#3b5fe2 40%,#6366f1 100%);border-radius:16px;padding:20px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;box-shadow:0 4px 20px rgba(59,95,226,.25)">
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <span style="background:rgba(255,255,255,.2);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px">v2.0 — APRIL 2026</span>
-            <span style="background:#10b981;border-radius:999px;padding:3px 10px;font-size:10px;font-weight:700;color:#fff">LATEST UPDATE</span>
-          </div>
-          <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:8px">🆕 What's New in Cedarwings Platform</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <a href="bloom_import.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              🔵 Bloom Import — CSV + Excel sync
-            </a>
-            <a href="maintenance_history.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              🔧 Maintenance History Log
-            </a>
-            <a href="non_conformity.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              ⚠️ Non-Conformity Reports
-            </a>
-            <a href="suppliers.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              🏭 Supplier Management
-            </a>
-            <a href="customer_feedback.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              💬 Customer Feedback Register
-            </a>
-            <a href="internal_audit.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              🔍 Internal Audits
-            </a>
-            <a href="iso_compliance.html" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
-              ✅ ISO 13485 Compliance Dashboard
-            </a>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;align-items:flex-end">
-          <a href="changelog.html" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;color:#fff;text-decoration:none;white-space:nowrap">📝 Full Changelog →</a>
-          <button onclick="document.getElementById('whatsNewBanner').style.display='none'" style="background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.6);cursor:pointer;font-family:var(--f)">Dismiss</button>
-        </div>
-      </div>
-
-      <!-- ISO STATUS ROW -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
-        <a href="non_conformity.html" style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:14px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;border-left:4px solid var(--red);transition:box-shadow .15s" onmouseover="this.style.boxShadow='var(--sh2)'" onmouseout="this.style.boxShadow='var(--sh)'">
-          <span style="font-size:22px">⚠️</span>
-          <div><div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">Open NCs</div><div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--red)" id="wNOpenNC">—</div></div>
-        </a>
-        <a href="suppliers.html" style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:14px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;border-left:4px solid var(--green);transition:box-shadow .15s" onmouseover="this.style.boxShadow='var(--sh2)'" onmouseout="this.style.boxShadow='var(--sh)'">
-          <span style="font-size:22px">🏭</span>
-          <div><div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">Approved Suppliers</div><div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--green)" id="wNSuppliers">—</div></div>
-        </a>
-        <a href="internal_audit.html" style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:14px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;border-left:4px solid var(--amber);transition:box-shadow .15s" onmouseover="this.style.boxShadow='var(--sh2)'" onmouseout="this.style.boxShadow='var(--sh)'">
-          <span style="font-size:22px">🔍</span>
-          <div><div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">Planned Audits</div><div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--amber)" id="wNAudits">—</div></div>
-        </a>
-        <a href="iso_compliance.html" style="background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:14px 16px;display:flex;align-items:center;gap:12px;text-decoration:none;border-left:4px solid var(--blue);transition:box-shadow .15s" onmouseover="this.style.boxShadow='var(--sh2)'" onmouseout="this.style.boxShadow='var(--sh)'">
-          <span style="font-size:22px">✅</span>
-          <div><div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">ISO Compliance</div><div style="font-size:20px;font-weight:800;font-family:var(--mono);color:var(--blue)" id="wNISOScore">—</div></div>
-        </a>
-      </div>
+      <a href="production.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,var(--red),#f87171)"></div>
+        <div class="kpi-ico" style="background:var(--r50)">⚠️</div>
+        <div class="kpi-val" id="kIncomplete">—</div>
+        <div class="kpi-lbl">Incomplete Cases</div>
+        <div class="kpi-sub" id="kIncompleteSub">Partial production</div>
+      </a>
+      <a href="production.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,var(--amber),#fbbf24)"></div>
+        <div class="kpi-ico" style="background:var(--a50)">🔔</div>
+        <div class="kpi-val" id="kReminders">—</div>
+        <div class="kpi-lbl">Pending Reminders</div>
+        <div class="kpi-sub" id="kRemindersSub">Production follow-ups</div>
+      </a>
     </div>
 
     <!-- CHARTS ROW 1: trend + doughnut -->
@@ -411,6 +328,31 @@ tbody tr:hover{background:#f8fafc}
         <div id="reqList"><div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">Loading…</div></div>
       </div>
     </div>
+
+    <!-- ⚠️ INCOMPLETE PRODUCTION CASES -->
+    <div class="g2e" style="margin-bottom:0">
+      <div class="card">
+        <div class="section-hdr">
+          <div>
+            <div class="section-title">⚠️ Incomplete Production Cases</div>
+            <div class="section-sub">Cases partially produced — aligners still missing</div>
+          </div>
+          <a href="production.html" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:600">All Production →</a>
+        </div>
+        <div id="incompleteProdList"><div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="section-hdr">
+          <div>
+            <div class="section-title">🔔 Production Reminders</div>
+            <div class="section-sub">Scheduled follow-ups on incomplete cases</div>
+          </div>
+          <a href="production.html" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:600">View All →</a>
+        </div>
+        <div id="prodRemindersList"><div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">Loading…</div></div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px"></div>
 
     <!-- EMP SUMMARY + PRODUCTION LOG -->
     <div class="g2e">
@@ -571,139 +513,29 @@ function lineOpts(){return{responsive:true,maintainAspectRatio:false,interaction
 function barOpts(){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#64748b',font:{family:"'DM Sans'",size:11},boxWidth:11,padding:14}}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}},y:{beginAtZero:true,ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#f1f5f9'}}}}}
 function dnutOpts(){return{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#64748b',font:{family:"'DM Sans'",size:11},boxWidth:11,padding:12}}}}}
 
-async function loadWhatsNewStats(){
-  try{
-    const[nc,sup,aud]=await Promise.all([
-      sb.from('non_conformity_reports').select('id,status').eq('status','open'),
-      sb.from('suppliers').select('id,status').eq('status','approved'),
-      sb.from('internal_audits').select('id,status').eq('status','planned')
-    ]);
-    const openNC=(nc.data||[]).length;
-    const elNC=document.getElementById('wNOpenNC');
-    const elSup=document.getElementById('wNSuppliers');
-    const elAud=document.getElementById('wNAudits');
-    const elISO=document.getElementById('wNISOScore');
-    if(elNC){elNC.textContent=openNC;if(openNC>0)elNC.style.color='var(--red)';}
-    if(elSup)elSup.textContent=(sup.data||[]).length;
-    if(elAud)elAud.textContent=(aud.data||[]).length;
-    if(elISO){
-      let ok=0,part=0,tot=0;
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('iso_status_')){const v=localStorage.getItem(k);if(v==='ok')ok++;else if(v==='partial')part++;if(v!=='na')tot++;}}
-      if(tot>0){const pct=Math.round((ok+(part*.5))/tot*100);elISO.textContent=pct+'%';}
-      else{elISO.textContent='Set up →';}
-    }
-  }catch(e){console.warn('whatsNew stats:',e);}
-}
-
-// ── Quick Entry Order Dropdown ──────────────────────────────────
-let qeAllOrders = []
-
-async function loadQeOrders() {
-  const {data} = await sb.from('bloom_cases')
-    .select('case_id,patient_name,doctor,current_status')
-    .not('current_status','in','(ARCHIVE,DELIVERED)')
-    .order('case_id',{ascending:false})
-    .limit(500)
-  qeAllOrders = data || []
-  // Also add from order_step_tracking
-  const {data:tracked} = await sb.from('order_step_tracking')
-    .select('order_no').order('order_no',{ascending:false}).limit(200)
-  const bloomIds = new Set(qeAllOrders.map(o=>String(o.case_id)))
-  ;(tracked||[]).filter(t=>!bloomIds.has(String(t.order_no))).forEach(t=>{
-    qeAllOrders.push({case_id:t.order_no,patient_name:'',doctor:'',current_status:'In Production'})
-  })
-}
-
-window.showQeOrderDD = () => {
-  document.getElementById('qeOrderDD').style.display = 'block'
-  filterQeOrders(document.getElementById('qeOrder').value)
-  setTimeout(()=>{
-    document.addEventListener('click', function closeDD(e){
-      if(!e.target.closest('.order-wrap')){
-        document.getElementById('qeOrderDD').style.display='none'
-        document.removeEventListener('click',closeDD)
-      }
-    })
-  },100)
-}
-
-window.filterQeOrders = (term) => {
-  const list = document.getElementById('qeOrderList')
-  const filtered = term
-    ? qeAllOrders.filter(o=>
-        String(o.case_id).toLowerCase().includes(term.toLowerCase()) ||
-        (o.patient_name||'').toLowerCase().includes(term.toLowerCase()))
-    : qeAllOrders.slice(0,50)
-  if(!filtered.length){
-    list.innerHTML='<div class="order-dd-empty">No orders found</div>'
-    return
-  }
-  list.innerHTML = filtered.map(o=>`
-    <div class="order-dd-item" onclick="selectQeOrder('${o.case_id}')">
-      <div class="oi-id">${o.case_id}</div>
-      <div class="oi-name">${o.patient_name||''}${o.doctor?' · '+o.doctor:''} <span style="color:var(--amber)">${o.current_status||''}</span></div>
-    </div>`).join('')
-}
-
-window.selectQeOrder = async (caseId) => {
-  document.getElementById('qeOrder').value = caseId
-  document.getElementById('qeOrderDD').style.display = 'none'
-  // Auto-fill aligner counts from bloom_aligner_details
-  const {data} = await sb.from('bloom_aligner_details')
-    .select('aligner_upper,aligner_lower,number_of_aligners,order_type')
-    .eq('case_number', String(caseId))
-    .limit(10)
-  if(data && data.length > 0){
-    // Sum all orders for this case
-    const totalUpper = data.reduce((s,r)=>s+(Number(r.aligner_upper)||0),0)
-    const totalLower = data.reduce((s,r)=>s+(Number(r.aligner_lower)||0),0)
-    const total = data.reduce((s,r)=>s+(Number(r.number_of_aligners)||0),0) || totalUpper+totalLower
-    document.getElementById('qeTotal').value = total || ''
-    document.getElementById('qeUpper').value = totalUpper || ''
-    document.getElementById('qeLower').value = totalLower || ''
-    // Set case type if available
-    const orderType = data[0].order_type
-    if(orderType){
-      const sel = document.getElementById('qeCase')
-      for(let i=0;i<sel.options.length;i++){
-        if(sel.options[i].value.toLowerCase().includes(orderType.toLowerCase())){
-          sel.selectedIndex=i; break
-        }
-      }
-    }
-  }
-}
-
-
 async function load(){
-  try {
   const{s,e}=getRange()
-  // Safe individual fetches — one failure won't break everything
-  const safe = async (p) => { try { const r = await p; return r; } catch(e) { return {data:[],error:e}; } }
-  const [sR,pR,lR,rR,bCR,bAR,cSR,peR] = await Promise.all([
-    safe(sb.from('time_sessions').select('*').gte('started_at',s.toISOString()).lte('started_at',e.toISOString()).order('started_at',{ascending:false}).limit(500)),
-    safe(sb.from('production_records').select('*').gte('created_at',s.toISOString()).lte('created_at',e.toISOString()).order('created_at',{ascending:false}).limit(200)),
-    safe(sb.from('inventory_lots_enriched_view').select('item_name,available_qty,min_qty,min_stock,expiry_date,lot_no').limit(200)),
-    safe(sb.from('inventory_requisitions').select('*').in('status',['pending','approved']).order('created_at',{ascending:false}).limit(10)),
-    safe(sb.from('bloom_cases').select('case_id,current_status,creation_date,patient_name,doctor').order('creation_date',{ascending:false}).limit(10000)),
-    safe(sb.from('bloom_aligner_details').select('case_number,aligner_upper,aligner_lower,number_of_aligners,order_type').limit(20000)),
-    safe(sb.from('order_step_tracking').select('order_no,step,status,completed_at').eq('status','complete').gte('completed_at',s.toISOString()).lte('completed_at',e.toISOString()))
+  const[sR,pR,lR,rR,bCR,bAR,cSR,incR,remR]=await Promise.all([
+    sb.from('time_sessions').select('*').gte('started_at',s.toISOString()).lte('started_at',e.toISOString()).order('started_at',{ascending:false}).limit(500),
+    sb.from('production_records').select('*').gte('created_at',s.toISOString()).lte('created_at',e.toISOString()).order('created_at',{ascending:false}).limit(200),
+    sb.from('inventory_lots_enriched_view').select('item_name,available_qty,min_qty,min_stock,expiry_date,lot_no').limit(200),
+    sb.from('inventory_requisitions').select('*').in('status',['pending','approved']).order('created_at',{ascending:false}).limit(10),
+    sb.from('bloom_cases').select('case_id,current_status,creation_date,last_updated_at').order('last_updated_at',{ascending:false}).limit(5000),
+    sb.from('bloom_aligner_details').select('case_number,aligner_upper,aligner_lower,number_of_aligners,order_type').limit(20000),
+    sb.from('order_step_tracking').select('order_no,step,status,completed_at').eq('status','complete').gte('completed_at',s.toISOString()).lte('completed_at',e.toISOString()),
+    sb.from('production_records').select('*').eq('status','partial').order('created_at',{ascending:false}).limit(100),
+    sb.from('production_reminders').select('*').in('status',['pending','in_progress']).order('reminder_date',{ascending:true}).limit(20),
   ])
   allSess=sR.data||[];allProd=pR.data||[]
   const bloomCases=bCR.data||[]
   const bloomAligners=bAR.data||[]
-  const prodEntries=peR?.data||[]
-  if(cSR.error) console.warn('[Dashboard] order_step_tracking error:',cSR.error.message||JSON.stringify(cSR.error))
-  if(sR.error) console.warn('[Dashboard] time_sessions error:',sR.error.message||JSON.stringify(sR.error))
-  if(pR.error) console.warn('[Dashboard] production_records error:',pR.error.message||JSON.stringify(pR.error))
-  if(lR.error) console.warn('[Dashboard] inventory_lots_enriched_view error:',lR.error.message||JSON.stringify(lR.error))
-  if(rR.error) console.warn('[Dashboard] inventory_requisitions error:',rR.error.message||JSON.stringify(rR.error))
-  if(bCR.error) console.warn('[Dashboard] bloom_cases error:',bCR.error.message||JSON.stringify(bCR.error))
-  if(bAR.error) console.warn('[Dashboard] bloom_aligner_details error:',bAR.error.message||JSON.stringify(bAR.error))
   const completedStepsInPeriod=cSR.data||[]
+  const incompleteRecs=incR.data||[]
+  const pendingReminders=remR.data||[]
 
   // Cases that completed PACKAGING (final step) in this period = produced this period
-  const uniqueProducedOrders=completedStepsInPeriod.filter(r=>r.step==='Packaging').map(r=>r.order_no)
+  const packagingDoneInPeriod=completedStepsInPeriod.filter(r=>r.step==='Packaging').map(r=>r.order_no)
+  const uniqueProducedOrders=[...new Set(packagingDoneInPeriod)]
 
   // For each produced order, get aligner count from bloom_aligner_details
   const alignersByCase={}
@@ -739,11 +571,9 @@ async function load(){
   })
 
   // Aligner totals: aligners PRODUCED in selected period (cases that completed Packaging)
-  // totAl set after bloom block below
-  let totAl = 0
-  // Cases completed in period = orders where Packaging step completed in period
-  const uniqueCompletedInPeriod = [...new Set(uniqueProducedOrders)]
-  const totCs = uniqueCompletedInPeriod.length
+  const totAl=producedAligners
+  // Cases produced in period
+  const totCs=allProd.reduce((a,r)=>a+(r.cases_count||0),0)
   const tot=pMin+wMin,eff=tot>0?Math.round(pMin/tot*100):0
   const lowItems=lots.filter(r=>{const q=Number(r.available_qty||0),m=Number(r.min_qty||r.min_stock||0);return q<=0||(m>0&&q<=m)})
   const nearExp=lots.filter(r=>{const d=dUntil(r.expiry_date);return d!==null&&d>=0&&d<=30})
@@ -755,78 +585,93 @@ async function load(){
   document.getElementById('kEff').textContent=eff+'%'
   document.getElementById('kEffSub').textContent=`${hm(pMin)} productive`
   document.getElementById('kEffSub').style.color=eff>=70?'var(--green)':eff>=40?'var(--amber)':'var(--red)'
-  // ── BLOOM KPIs (rule: match case creation_date to selected range) ──────────
-  const {s:rS, e:rE} = getRange()  // use existing date range filter
-  const totalBloomCases = bloomCases.length
-  const activeBloom = bloomCases.filter(r=>r.current_status&&!['DELIVERED','ARCHIVE','delivered','archive'].includes((r.current_status||'').toLowerCase())).length
-
-  // Cases created within the selected period (Day / Week / Month)
-  const periodCaseIds = new Set(
-    bloomCases
-      .filter(r => {
-        if (!r.creation_date) return false
-        const d = new Date(r.creation_date)
-        return d >= rS && d <= rE
-      })
-      .map(r => String(r.case_id || r.case_number || r.id))
-  )
-
-  // Build aligner lookup: case_number → { upper, lower, total }
-  const alignerMap = {}
-  bloomAligners.forEach(r => {
-    const k = String(r.case_number)
-    if (!alignerMap[k]) alignerMap[k] = { upper: 0, lower: 0, total: 0 }
-    alignerMap[k].upper += Number(r.aligner_upper) || 0
-    alignerMap[k].lower += Number(r.aligner_lower) || 0
-    alignerMap[k].total += Number(r.number_of_aligners) || (Number(r.aligner_upper)||0) + (Number(r.aligner_lower)||0)
-  })
-
-  // Aligners PRODUCED = actual from production_entries; fallback to Bloom plan
-  let periodUpperAl = 0, periodLowerAl = 0, periodTotalAl = 0
-  let bloomPlannedTotal = 0
-  // Always compute bloom planned
-  periodCaseIds.forEach(id => {
-    const a = alignerMap[id]
-    if (a) bloomPlannedTotal += a.total || (a.upper + a.lower)
-  })
-  if (prodEntries && prodEntries.length > 0) {
-    // Actual data from clocking
-    prodEntries.forEach(e => {
-      periodTotalAl += Number(e.aligners_done) || 0
-      periodUpperAl += Number(e.upper_count) || 0
-      periodLowerAl += Number(e.lower_count) || 0
-    })
-  } else {
-    // No production entries yet — show Bloom plan as estimate
-    periodTotalAl = bloomPlannedTotal
-    periodCaseIds.forEach(id => {
-      const a = alignerMap[id]
-      if (a) { periodUpperAl += a.upper; periodLowerAl += a.lower }
-    })
-  }
-  // All-time totals
-  totAl = periodTotalAl
   document.getElementById('kAl').textContent=totAl.toLocaleString()
-  document.getElementById('kAlSub').textContent=prodEntries&&prodEntries.length?`↑${periodUpperAl} upper · ↓${periodLowerAl} lower (actual) · ${bloomPlannedTotal} planned`:`↑${periodUpperAl} upper · ↓${periodLowerAl} lower · ${periodCaseIds.size} cases (Bloom plan)`
+  document.getElementById('kAlSub').textContent=`${uniqueProducedOrders.length} cases produced this period`
   document.getElementById('kCs').textContent=totCs.toLocaleString()
-  document.getElementById('kCsSub').textContent=`${uniqueCompletedInPeriod.length} cases · ${fullyCompletedOrders.length} all-time completed`
+  document.getElementById('kCsSub').textContent=`${fullyCompletedOrders.length} fully produced all-time · ${bloomCases.filter(r=>r.current_status&&!["DELIVERED","ARCHIVE"].includes(r.current_status)).length} active in Bloom`
   document.getElementById('kLow').textContent=lowItems.length
   document.getElementById('kLowSub').textContent=lowItems.length>0?`⏰ ${nearExp.length} near expiry`:'All stock OK'
   document.getElementById('kLowSub').style.color=lowItems.length>0?'var(--red)':'var(--green)'
   document.getElementById('kReq').textContent=reqs.length
 
-  // now safe to assign
-  const totalBloomAl = bloomAligners.reduce((a,r)=>a+(Number(r.number_of_aligners)||((Number(r.aligner_upper)||0)+(Number(r.aligner_lower)||0))),0)
-  const upperAl = periodUpperAl
-  const lowerAl = periodLowerAl
-  const todayAl = periodTotalAl  // used by kBloomA KPI below
+  // Bloom KPIs - total cases and total aligners
+  const totalBloomCases=bloomCases.length
+  const activeBloom=bloomCases.filter(r=>r.current_status&&!['DELIVERED','ARCHIVE','delivered','archive'].includes((r.current_status||'').toLowerCase())).length
+  const totalBloomAl=bloomAligners.reduce((a,r)=>a+(r.number_of_aligners||0),0)
+  const upperAl=bloomAligners.filter(r=>r.order_type==='TreatmentPlan').reduce((a,r)=>a+(r.aligner_upper||0),0)
+  const lowerAl=bloomAligners.filter(r=>r.order_type==='TreatmentPlan').reduce((a,r)=>a+(r.aligner_lower||0),0)
   document.getElementById('kBloomC').textContent=totalBloomCases.toLocaleString()
   document.getElementById('kBloomCSub').textContent=`${activeBloom} active · ${totalBloomCases-activeBloom} delivered`
-  // Show TODAY's aligners prominently, total as sub
-  document.getElementById('kBloomA').textContent=periodTotalAl>0?periodTotalAl.toLocaleString():totalBloomAl.toLocaleString()
-  document.getElementById('kBloomASub').textContent=`↑${periodUpperAl} upper · ↓${periodLowerAl} lower`
+  document.getElementById('kBloomA').textContent=totalBloomAl.toLocaleString()
+  document.getElementById('kBloomASub').textContent=`↑${upperAl} upper · ↓${lowerAl} lower`
   document.getElementById('kReqSub').textContent=`${reqs.filter(r=>r.status==='approved').length} approved`
   document.getElementById('kReqSub').style.color=reqs.length>0?'var(--amber)':'var(--dim)'
+
+  // ── INCOMPLETE PRODUCTION KPIs
+  const incCaseMap={}
+  incompleteRecs.forEach(r=>{
+    const k=String(r.case_id)
+    if(!incCaseMap[k])incCaseMap[k]={case_id:k,patient_name:r.patient_name,doctor:r.doctor,planned:r.aligners_planned||0,produced:0,remaining:0,by:r.completed_by,last:r.created_at}
+    incCaseMap[k].produced+=(r.aligners_produced||0)
+    if(r.aligners_remaining>incCaseMap[k].remaining)incCaseMap[k].remaining=r.aligners_remaining||0
+    if(r.created_at>incCaseMap[k].last)incCaseMap[k].last=r.created_at
+  })
+  const incCases=Object.values(incCaseMap).filter(c=>c.remaining>0)
+  const overdueReminders=pendingReminders.filter(r=>r.reminder_date<new Date().toISOString().slice(0,10))
+  document.getElementById('kIncomplete').textContent=incCases.length
+  document.getElementById('kIncompleteSub').textContent=incCases.length>0?`${incCases.reduce((a,c)=>a+c.remaining,0)} aligners missing`:'All complete ✅'
+  document.getElementById('kIncompleteSub').style.color=incCases.length>0?'var(--red)':'var(--green)'
+  document.getElementById('kReminders').textContent=pendingReminders.length
+  document.getElementById('kRemindersSub').textContent=overdueReminders.length>0?`🔴 ${overdueReminders.length} overdue!`:'All on schedule'
+  document.getElementById('kRemindersSub').style.color=overdueReminders.length>0?'var(--red)':'var(--mu)'
+
+  // ── RENDER INCOMPLETE CASES
+  document.getElementById('incompleteProdList').innerHTML=incCases.length?incCases.slice(0,6).map(c=>{
+    const pct=c.planned>0?Math.round(c.produced/c.planned*100):0
+    const pctColor=pct>=75?'var(--green)':pct>=50?'var(--blue)':'var(--amber)'
+    return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+      <div style="width:38px;height:38px;border-radius:10px;background:var(--r50);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">⚠️</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">Case #${c.case_id} — ${c.patient_name||'Unknown'}</div>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">${c.doctor||'—'} · ${c.by||'—'} · ${c.last?.slice(0,10)||'—'}</div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:5px;background:var(--bg);border-radius:999px;overflow:hidden;border:1px solid var(--bdr)">
+            <div style="height:100%;width:${pct}%;background:${pctColor};border-radius:999px"></div>
+          </div>
+          <span style="font-size:11px;font-family:var(--mono);color:${pctColor};font-weight:700">${pct}%</span>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--red)">${c.remaining}</div>
+        <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">missing</div>
+      </div>
+    </div>`
+  }).join('')+''+
+  (incCases.length>6?`<div style="text-align:center;padding:10px 0 0"><a href="production.html" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none">View all ${incCases.length} incomplete cases →</a></div>`:'')
+  :`<div style="background:var(--g50);border:1px solid var(--g100);border-radius:10px;padding:12px;font-size:13px;color:var(--green);font-weight:600;text-align:center">🎉 All production cases fully completed!</div>`
+
+  // ── RENDER REMINDERS
+  document.getElementById('prodRemindersList').innerHTML=pendingReminders.length?pendingReminders.slice(0,6).map(r=>{
+    const today=new Date().toISOString().slice(0,10)
+    const overdue=r.reminder_date<today
+    const priIco=r.priority==='urgent'?'🔴':r.priority==='high'?'🟠':r.priority==='normal'?'🔵':'⚪'
+    return`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr);${overdue?'background:var(--r50);margin:0 -14px;padding:10px 14px;':''}">
+      <div style="font-size:18px;flex-shrink:0;margin-top:2px">${priIco}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">Case #${r.case_id} — ${r.patient_name||'Unknown'}</div>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.reason||'Production follow-up'}</div>
+        <div style="font-size:11px;margin-top:3px;display:flex;gap:8px">
+          <span style="color:${overdue?'var(--red)':'var(--mu)'};font-weight:${overdue?700:400}">📅 ${r.reminder_date}</span>
+          ${r.assigned_to?`<span style="color:var(--mu)">👤 ${r.assigned_to}</span>`:''}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--amber)">${r.aligners_remaining||'—'}</div>
+        <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">missing</div>
+      </div>
+    </div>`
+  }).join('')
+  :`<div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">✅ No pending reminders</div>`
 
   // 7-day data
   const days7=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);days7.push(d.toISOString().slice(0,10))}
@@ -935,16 +780,6 @@ async function load(){
 
   renderSessions()
   document.getElementById('sessCount').textContent=`${allSess.length} sessions in this period`
-  } catch(err) {
-    console.error('[Dashboard] Load error:', err)
-    document.querySelectorAll('[id^="k"]').forEach(el => { if(el.textContent==='Loading...') el.textContent='—' })
-    // Show error visibly on page
-    const errDiv = document.getElementById('dashError') || document.createElement('div')
-    errDiv.id = 'dashError'
-    errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;padding:12px 20px;font-size:13px;font-weight:700;z-index:9999;font-family:monospace'
-    errDiv.textContent = '❌ Dashboard Error: ' + (err.message || String(err))
-    if (!document.getElementById('dashError')) document.body.prepend(errDiv)
-  }
 }
 
 function renderSessions(){
@@ -986,11 +821,8 @@ document.getElementById('refreshBtn').addEventListener('click',load)
 document.getElementById('sessSearch').addEventListener('input',renderSessions)
 document.getElementById('sessFilter').addEventListener('change',renderSessions)
 document.getElementById('pageDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
-loadQeOrders()
 load()
-loadWhatsNewStats()
 setInterval(load,30000)
-setInterval(loadWhatsNewStats,60000)
 
 // ── QUICK ENTRY ──────────────────────────────────────────────
 document.getElementById('quickEntryBtn').addEventListener('click',()=>{
@@ -1051,41 +883,5 @@ setTimeout(async()=>{
   checkDailyReport(al,ca,recs,eff)
 },2000)
 </script>
-
-<!-- COPYRIGHT FOOTER -->
-<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card,#fff);border-top:1px solid var(--bdr,#e2e8f0);padding:6px 20px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--dim,#94a3b8);z-index:999;font-family:'DM Sans',sans-serif">
-  <span>© 2026 <strong style="color:var(--mu,#64748b)">Cedarwings SAS</strong> — Dental Aligner Manufacturing Platform</span>
-  <span>v2.0 · ISO 13485 Compliant · All rights reserved</span>
-</div>
-
-
-
-    </div>
-    <div style="background:var(--b50);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--blue);font-weight:500">The central hub for all operations. Shows real-time KPIs, charts, production logs, and employee activity. Managers use this daily to monitor performance.</div>
-    <div style="font-size:13px;line-height:1.8"><div style="margin-bottom:10px"><strong style="color:var(--txt)">📅 Period Filter</strong><br><span style="color:var(--mu);font-size:12px">Today / This Week / This Month tabs filter all KPIs and charts to the selected period.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">📊 8 KPI Cards</strong><br><span style="color:var(--mu);font-size:12px">Sessions, Efficiency, Aligners Produced, Cases Completed, Stock Alerts, Open Requisitions, Bloom Cases, Bloom Aligners Today. Each is clickable and links to the relevant page.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">📈 Charts</strong><br><span style="color:var(--mu);font-size:12px">Production trend (line), Session type split (doughnut), Efficiency by employee (bar), Materials consumed (bar).</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">👥 Employee Summary</strong><br><span style="color:var(--mu);font-size:12px">Top employees by productive hours for the period.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">🏭 Recent Production</strong><br><span style="color:var(--mu);font-size:12px">Last production batches logged.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">📋 Session Log</strong><br><span style="color:var(--mu);font-size:12px">Every clocked session with search and type filter.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">🦷 + Log Production</strong><br><span style="color:var(--mu);font-size:12px">Quick modal to log aligner production directly from Bloom data.</span></div><div style="margin-bottom:10px"><strong style="color:var(--txt)">⬇ Export CSV</strong><br><span style="color:var(--mu);font-size:12px">Downloads all session data for the selected period.</span></div></div>
-  </div>
-</div>
-<button onclick="document.getElementById('helpModal').classList.add('on')" style="position:fixed;bottom:50px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(59,95,226,.4);z-index:800;font-family:var(--f)">?</button>
-
-
-
-<!-- HELP PANEL PLACEHOLDER - filled by lang.js CW_HELP -->
-<div id="helpPanelMount"></div>
-<script>
-(function() {
-  // Wait for lang.js to load then build the panel
-  function mountHelp() {
-    if (typeof CW_HELP === 'undefined' || typeof CW_HELP.buildPanel !== 'function') {
-      setTimeout(mountHelp, 50); return;
-    }
-    const html = CW_HELP.buildPanel('manager', '📊', 'Tableau de bord', 'Dashboard');
-    document.getElementById('helpPanelMount').innerHTML = html;
-    CW_HELP.init('manager', '📊', 'Tableau de bord', 'Dashboard');
-  }
-  document.addEventListener('DOMContentLoaded', mountHelp);
-})();
-</script>
-
-
 </body>
 </html>
