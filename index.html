@@ -84,6 +84,9 @@ lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:
     </div>
     <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In →</button>
     <div class="foot">Forgot credentials? Contact your administrator.</div>
+    <div class="foot" style="margin-top:6px">
+      <a href="#" id="resetSessionBtn" style="color:var(--mu);text-decoration:underline;font-size:11px">🧹 Reset session (clear cache & old logins)</a>
+    </div>
   </div>
 </div>
 
@@ -189,6 +192,30 @@ window.doLogin=async()=>{
 }
 
 function showErr(msg){const b=document.getElementById("errBox");b.textContent=msg;b.classList.add("on")}
+
+// Brute-force escape hatch: wipe every Supabase auth token + session key,
+// sign out of the current Supabase client, then reload. Use this when a
+// stale JWT from a previous project/environment is causing 401 loops.
+document.getElementById("resetSessionBtn")?.addEventListener("click", async (e) => {
+  e.preventDefault()
+  try { await sb.auth.signOut() } catch {}
+  // Drop ALL Supabase auth-token entries (any project ref, any version)
+  const rm = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k && (k.startsWith("sb-") || k.startsWith("cw_"))) rm.push(k)
+  }
+  rm.forEach(k => localStorage.removeItem(k))
+  sessionStorage.clear()
+  // Clear cookies for safety
+  document.cookie.split(";").forEach(c => {
+    const eq = c.indexOf("=")
+    const name = (eq > -1 ? c.substr(0, eq) : c).trim()
+    document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+  })
+  alert("Session reset. Reloading…")
+  location.reload()
+})
 </script>
 
 <!-- COPYRIGHT FOOTER -->
