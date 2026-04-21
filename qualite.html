@@ -583,7 +583,39 @@ async function load(){
 
   // Only mark as done if QC was APPROVED — rejected orders need re-QC
   const qcDoneOrders=new Set(allQC.filter(q=>q.overall_result==='approved').map(q=>String(q.order_no||q.lot_number||'')))
-  const pendingQCOrders=packagingDone.filter(o=>!qcDoneOrders.has(String(o)))
+  let pendingQCOrders=packagingDone.filter(o=>!qcDoneOrders.has(String(o)))
+
+  // Also list Bloom cases by Active status (same setting as the
+  // 'Bloom Active Production Cases Config' card in Settings, used by
+  // Auto-Requisition / KPIs / Tracabilité). So QC can pick any case
+  // worth inspecting even before it has been clocked through.
+  try{
+    const excluded=new Set((smap.bloom_excluded_statuses||'').split(',').map(s=>s.trim()).filter(Boolean))
+    // Page through bloom_cases past PostgREST's 1000-row cap
+    const PAGE=1000; let from=0
+    const bloomActive=[]
+    while(true){
+      const{data:bs,error}=await sb.from('bloom_cases')
+        .select('case_id,patient_name,doctor,current_status,status_change_date')
+        .order('status_change_date',{ascending:false,nullsFirst:false})
+        .range(from,from+PAGE-1)
+      if(error)break
+      if(!bs?.length)break
+      bs.forEach(b=>{
+        const k=String(b.case_id)
+        if(excluded.has(b.current_status||''))return
+        if(qcDoneOrders.has(k))return     // already QC-approved
+        if(pendingQCOrders.includes(k))return // already in pending list
+        bloomActive.push(k)
+        // Make sure the bloom enrichment maps know this case
+        if(!bloomCaseMap[k])bloomCaseMap[k]={case_id:k,patient_name:b.patient_name,doctor:b.doctor,current_status:b.current_status}
+      })
+      if(bs.length<PAGE)break
+      from+=PAGE
+    }
+    pendingQCOrders=[...pendingQCOrders, ...bloomActive]
+    console.log('[QC] bloom-active orders added:',bloomActive.length,' total pending:',pendingQCOrders.length)
+  }catch(e){console.warn('[QC] Bloom-status load:',e)}
 
   // ── Lot Select ──
   const lSel=document.getElementById("qcLot")
