@@ -14,7 +14,7 @@ supabase login
 
 ### 3. Link to Cedarwings project
 ```bash
-supabase link --project-ref oaauobugpbcixnbmlakc
+supabase link --project-ref cvrmadmzzualqukxxlro
 ```
 
 ### 4. Deploy the Edge Function
@@ -31,7 +31,7 @@ SELECT cron.schedule(
   '*/5 * * * *',
   $$
   SELECT net.http_post(
-    url := 'https://oaauobugpbcixnbmlakc.supabase.co/functions/v1/bloom-sync',
+    url := 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/bloom-sync',
     headers := '{"Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb
   )
   $$
@@ -45,6 +45,6 @@ supabase functions invoke bloom-sync
 
 Or via curl:
 ```bash
-curl -X POST https://oaauobugpbcixnbmlakc.supabase.co/functions/v1/bloom-sync \
+curl -X POST https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/bloom-sync \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```

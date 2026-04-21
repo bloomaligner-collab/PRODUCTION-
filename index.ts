@@ -8,7 +8,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const BLOOM_API_BASE  = 'https://api.bloomaligner.fr'
-const BLOOM_API_TOKEN = '2405cb1d3b6520787d35b03f8e586582437e6db0e77b1e3252b04fd7825c9e15'
+// Read from Supabase edge function secrets (set via: supabase secrets set BLOOM_API_TOKEN=...)
+const BLOOM_API_TOKEN = Deno.env.get('BLOOM_API_TOKEN') ?? ''
 const BLOOM_HEADERS   = {
   'Authorization': `Bearer ${BLOOM_API_TOKEN}`,
   'Content-Type': 'application/json'

@@ -1,7 +1,7 @@
 -- ══════════════════════════════════════════════════════════════════════
 -- Cedarwings — migrate employee login to Supabase Auth
 -- Run AFTER the previous migration (bom_qty_basis_migration.sql)
--- Project: onjbwhkmmtqnymhjnplw
+-- Project: cvrmadmzzualqukxxlro
 -- ══════════════════════════════════════════════════════════════════════
 
 -- 1. Link employees to auth.users

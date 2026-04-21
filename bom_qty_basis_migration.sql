@@ -1,6 +1,6 @@
 -- ══════════════════════════════════════════════════════════════════════
 -- BOM — add qty_basis column (per_aligner | per_case)
--- Run in Supabase SQL editor for project onjbwhkmmtqnymhjnplw
+-- Run in Supabase SQL editor for project cvrmadmzzualqukxxlro
 -- ══════════════════════════════════════════════════════════════════════
 
 ALTER TABLE bom
