@@ -262,28 +262,62 @@ const CW_ACCESS = {
   // ── Helpers ────────────────────────────────────────────────────
   getName() { return sessionStorage.getItem('cw_name') || 'User'; },
   getRole()  { return sessionStorage.getItem('cw_role') || 'employee'; },
+  getAccess() {
+    // Login (index.html doLogin) stores the array under cw_pages. Older
+    // builds also wrote cw_access — read either, prefer cw_pages.
+    try {
+      const raw = sessionStorage.getItem('cw_pages') || sessionStorage.getItem('cw_access') || '[]';
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  },
+  hasFullAccess() {
+    const a = this.getAccess();
+    return this.getRole() === 'manager' || a.includes('all');
+  },
+  homePage() {
+    if (this.hasFullAccess()) return 'manager.html';
+    const a = this.getAccess();
+    const map = {
+      manager: 'manager.html', dashboard: 'manager.html',
+      inventory: 'inventory.html', suppliers: 'suppliers.html',
+      production_materials: 'production_materials.html',
+      requisition: 'requisition.html',
+      tracabilite: 'tracabilite.html', qualite: 'qualite.html',
+      non_conformity: 'non_conformity.html', internal_audit: 'internal_audit.html',
+      customer_feedback: 'customer_feedback.html',
+      production: 'production.html', machines: 'machines.html',
+      maintenance_history: 'maintenance_history.html',
+      employees: 'employees.html', employee_profile: 'employee_profile.html',
+      time_report: 'time_report.html',
+      settings: 'settings.html', roles: 'roles.html',
+      changelog: 'changelog.html', iso_compliance: 'iso_compliance.html',
+      bloom_import: 'bloom_import.html', clocking: 'clocking.html'
+    };
+    for (const key of a) if (map[key]) return map[key];
+    return 'employee_profile.html';
+  },
 
   // ── Guard ──────────────────────────────────────────────────────
   guard(pageKey) {
     const name = sessionStorage.getItem('cw_name');
-    const role = sessionStorage.getItem('cw_role');
     if (!name) { window.location.href = 'index.html'; return false; }
-    const home = role === 'manager' ? 'manager.html' : 'production.html';
-    const access = JSON.parse(sessionStorage.getItem('cw_access') || '[]');
-    if (role !== 'manager' && access.length > 0 && !access.includes(pageKey)) {
-      window.location.href = home; return false;
+    if (this.hasFullAccess()) return true;
+    const access = this.getAccess();
+    if (!access.includes(pageKey)) {
+      window.location.href = this.homePage(); return false;
     }
     return true;
   },
 
   // ── Build nav HTML ─────────────────────────────────────────────
   buildNav(activeKey) {
-    const role   = this.getRole();
-    const access = JSON.parse(sessionStorage.getItem('cw_access') || '[]');
+    const fullAccess = this.hasFullAccess();
+    const access = this.getAccess();
     let html = '';
     for (const item of this.nav) {
       if (item.section) { html += `<div class="sb-s">${item.section}</div>`; continue; }
-      if (role !== 'manager' && access.length > 0 && !access.includes(item.key)) continue;
+      if (!fullAccess && !access.includes(item.key)) continue;
       const active = item.key === activeKey ? ' on' : '';
       html += `<a href="${item.file}" class="nl${active}"><span class="ic">${item.icon}</span>${item.label}</a>`;
     }
@@ -384,7 +418,7 @@ const CW_ACCESS = {
     const name = this.getName();
     const role = this.getRole();
     const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-    const home = role === 'manager' ? 'manager.html' : 'production.html';
+    const home = this.homePage();
 
     const navEl = document.querySelector('.sb-nav');
     if (navEl) navEl.innerHTML = this.buildNav(activeKey);
