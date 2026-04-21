@@ -401,7 +401,7 @@ const CW_ACCESS = {
           👤 ${name} <span style="font-weight:500;opacity:.7">— ${roleLabel}</span>
         </div>
         <a href="${home}" class="nl"><span class="ic">🏠</span>Home</a>
-        <a href="index.html" class="nl" onclick="sessionStorage.clear()" style="color:var(--red,#dc2626)"><span class="ic">🚪</span>Logout</a>
+        <a href="index.html" class="nl" onclick="event.preventDefault();(window.cwSignOut?window.cwSignOut():(sessionStorage.clear(),location.replace('index.html')))" style="color:var(--red,#dc2626)"><span class="ic">🚪</span>Logout</a>
       `;
     }
 
