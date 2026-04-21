@@ -435,14 +435,37 @@ function bars(data,total,color='var(--blue)',limit=15){
 }
 
 // ── LOAD ALL ───────────────────────────────────────────────────────────
+// Supabase PostgREST caps responses at 1000 rows per request by default.
+// Paginate with .range() so we actually get every row.
+async function fetchAllRows(table, { select = '*', orderCol, ascending = false } = {}){
+  const PAGE = 1000
+  let all = [], from = 0, total = null
+  while (true) {
+    let q = sb.from(table).select(select, { count: 'exact' })
+    if (orderCol) q = q.order(orderCol, { ascending })
+    const { data, count, error } = await q.range(from, from + PAGE - 1)
+    if (error) throw error
+    if (total == null) total = count ?? 0
+    if (!data?.length) break
+    all = all.concat(data)
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return { data: all, count: total }
+}
+
 async function loadAll(){
   try{
-    const[{data:cases,count:total},{data:aligData,count:alTotal},{data:logs},{count:snapCount}]=await Promise.all([
-      sb.from('bloom_cases').select('*',{count:'exact'}).order('case_id',{ascending:false}).limit(20000),
-      sb.from('bloom_aligner_details').select('*',{count:'exact'}).order('case_number',{ascending:false}).limit(50000),
+    const [casesRes, alignersRes, logsRes, snapsRes] = await Promise.all([
+      fetchAllRows('bloom_cases',            { orderCol: 'case_id'     }),
+      fetchAllRows('bloom_aligner_details',  { orderCol: 'case_number' }),
       sb.from('bloom_sync_log').select('*').order('started_at',{ascending:false}).limit(50),
       sb.from('bloom_case_snapshots').select('*',{count:'exact',head:true})
     ])
+    const cases     = casesRes.data,    total   = casesRes.count
+    const aligData  = alignersRes.data, alTotal = alignersRes.count
+    const logs      = logsRes.data
+    const snapCount = snapsRes.count
 
     allCases=cases||[]
     allAligners=aligData||[]
