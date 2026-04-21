@@ -1012,7 +1012,7 @@ window.triggerSync=async()=>{
   const btn=$('syncBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Syncing...'
   ntf('🔄 Sync triggered...')
   try{
-    const r=await fetch(SUPABASE_CONFIG.url+'/functions/v1/bloom-sync',{method:'POST',headers:{'Content-Type':'application/json'}})
+    const r=await fetch(SUPABASE_CONFIG.url+'/functions/v1/bloom-sync',{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_CONFIG.anonKey,Authorization:'Bearer '+SUPABASE_CONFIG.anonKey}})
     const d=await r.json()
     if(r.ok)ntf(`✅ Done — ${(d.cases_fetched||0).toLocaleString()} cases · ${d.snapshots_saved||0} snapshots saved`)
     else ntf('⚠️ Error '+r.status,false)
