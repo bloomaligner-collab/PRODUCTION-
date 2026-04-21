@@ -471,7 +471,7 @@
         <thead style="background:var(--bg);position:sticky;top:0"><tr>
           <th style="padding:8px 10px;text-align:left">Item Name</th>
           <th style="padding:8px 10px;text-align:left">Sales Description</th>
-          <th style="padding:8px 10px;text-align:left">UPC</th>
+          <th style="padding:8px 10px;text-align:left">Qty</th>
           <th style="padding:8px 10px;text-align:left">Product Type</th>
           <th style="padding:8px 10px;text-align:left">Action</th>
         </tr></thead>
@@ -1141,9 +1141,16 @@ document.querySelectorAll('.tb').forEach(b => {
 
 // ────────────────────────────────────────────────────────────────────
 // Import Items from xlsx / csv
-// Expected columns: Item Name (required), Sales Description, UPC, Product Type
-// Matches by lower(item_name); existing rows → UPDATE, new rows → INSERT.
+// Expected columns: Item Name (required), Sales Description, UPC (=qty), Product Type
+// - inventory_items row is upserted by lower(item_name) with name / description / category.
+// - The UPC column IS the stock quantity. Written to inventory_lots as a
+//   dedicated lot per item (lot_no='EXCEL-IMPORT'), so the page's stock UI
+//   (which sums available_qty from lots) picks it up.
+//   Re-importing the same file overwrites the same lot rather than creating
+//   duplicates.
 // ────────────────────────────────────────────────────────────────────
+const IMPORT_LOT_NO = 'EXCEL-IMPORT'
+
 const impFile = $('itemsImportFile')
 const impBtn  = $('btnImportItems')
 const impMo   = $('mImport')
@@ -1163,6 +1170,11 @@ function readCell(row, keys){
   }
   return ''
 }
+function parseQty(v){
+  if (v === '' || v == null) return 0
+  const n = Number(String(v).replace(/[,\s]/g,''))
+  return Number.isFinite(n) ? n : 0
+}
 
 impBtn?.addEventListener('click', () => impFile.click())
 impCancel?.addEventListener('click', () => impMo.classList.remove('on'))
@@ -1179,13 +1191,12 @@ impFile?.addEventListener('change', async (ev) => {
     _impRows = rows.map(r => ({
       item_name:         readCell(r, ['Item Name','item_name','name','ItemName']),
       sales_description: readCell(r, ['Sales Description','description','sales_desc','Description']),
-      upc:               readCell(r, ['UPC','upc','barcode','Barcode']),
+      qty:               parseQty(readCell(r, ['UPC','qty','quantity','Qty','Quantity','available_qty','qte','Qte','stock','Stock'])),
       product_type:      readCell(r, ['Product Type','product_type','category','Category','type','Type'])
     })).filter(r => r.item_name)
     if (!_impRows.length) throw new Error("No rows with a populated 'Item Name' column")
 
     // Pre-match against existing items (by case-insensitive name)
-    const namesLower = _impRows.map(r => r.item_name.toLowerCase())
     const { data: existing } = await sb.from('inventory_items').select('id,item_name,name')
     const existByName = new Map()
     ;(existing || []).forEach(it => {
@@ -1199,12 +1210,12 @@ impFile?.addEventListener('change', async (ev) => {
 
     const newCt = _impRows.filter(r => !r._existingId).length
     const updCt = _impRows.length - newCt
-    impInfo.textContent = `${f.name} — ${_impRows.length} rows: ${newCt} new, ${updCt} existing will be updated.`
+    impInfo.textContent = `${f.name} — ${_impRows.length} rows: ${newCt} new, ${updCt} existing will be updated. Stock quantities go into a lot labelled "${IMPORT_LOT_NO}".`
 
     impTbody.innerHTML = _impRows.slice(0, 500).map(r => `<tr>
       <td style="padding:6px 10px;border-top:1px solid var(--bdr)">${r.item_name || ''}</td>
       <td style="padding:6px 10px;border-top:1px solid var(--bdr);color:var(--muted)">${r.sales_description || ''}</td>
-      <td style="padding:6px 10px;border-top:1px solid var(--bdr);font-family:var(--mono);font-size:11px">${r.upc || ''}</td>
+      <td style="padding:6px 10px;border-top:1px solid var(--bdr);font-family:var(--mono);font-weight:700">${r.qty.toLocaleString()}</td>
       <td style="padding:6px 10px;border-top:1px solid var(--bdr)">${r.product_type || ''}</td>
       <td style="padding:6px 10px;border-top:1px solid var(--bdr);font-weight:700;color:${r._existingId ? 'var(--amber)' : 'var(--green)'}">${r._existingId ? '↻ Update' : '+ New'}</td>
     </tr>`).join('')
@@ -1224,45 +1235,86 @@ impSave?.addEventListener('click', async () => {
   impSave.disabled = true
   impSave.textContent = 'Importing…'
   impErr.textContent = ''
-  let ins = 0, upd = 0, fail = 0
+  let ins = 0, upd = 0, lotsUpserted = 0, fail = 0
   try {
     const BATCH = 200
     const newRows     = _impRows.filter(r => !r._existingId)
     const updateRows  = _impRows.filter(r =>  r._existingId)
 
-    // INSERT new rows (set both item_name and name for compatibility)
+    // ── 1. INSERT new inventory_items (name/description/category only) ───
     for (let i = 0; i < newRows.length; i += BATCH) {
       const slice = newRows.slice(i, i + BATCH).map(r => ({
         item_name:    r.item_name,
         name:         r.item_name,
         description:  r.sales_description || null,
-        barcode:      r.upc || null,
         category:     r.product_type || null,
         category_name:r.product_type || null,
         active: true, is_active: true
       }))
-      const { error } = await sb.from('inventory_items').insert(slice)
+      const { data: inserted, error } = await sb.from('inventory_items').insert(slice).select('id,item_name,name')
       if (error) { fail += slice.length; console.error(error); continue }
-      ins += slice.length
+      ins += inserted?.length || 0
+      // Map back the new ids so step 3 can create lots for them
+      ;(inserted || []).forEach(ex => {
+        const key = (ex.item_name || ex.name || '').toLowerCase().trim()
+        const row = newRows.find(r => r.item_name.toLowerCase() === key)
+        if (row) row._existingId = ex.id
+      })
     }
 
-    // UPDATE existing rows one-by-one (RPC-safe, small scale)
+    // ── 2. UPDATE existing inventory_items (same 3 fields, no qty here) ──
     for (const r of updateRows) {
-      const payload = {
+      const { error } = await sb.from('inventory_items').update({
         item_name:    r.item_name,
         name:         r.item_name,
         description:  r.sales_description || null,
-        barcode:      r.upc || null,
         category:     r.product_type || null,
         category_name:r.product_type || null,
         updated_at:   new Date().toISOString()
-      }
-      const { error } = await sb.from('inventory_items').update(payload).eq('id', r._existingId)
+      }).eq('id', r._existingId)
       if (error) { fail++; console.error(error); continue }
       upd++
     }
 
-    notify(`✅ Import done — ${ins} added, ${upd} updated${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'err' : 'ok')
+    // ── 3. Upsert the EXCEL-IMPORT lot for each row (stock qty lives here) ──
+    // For each item that now has an id, insert a fresh lot or update the
+    // existing EXCEL-IMPORT lot. We don't touch any other lots the user
+    // may have created manually (with real lot numbers / expiry dates).
+    const withId = _impRows.filter(r => r._existingId)
+    // Fetch current EXCEL-IMPORT lots so we know which to update vs insert.
+    const { data: existingLots } = await sb.from('inventory_lots')
+      .select('id,item_id')
+      .eq('lot_no', IMPORT_LOT_NO)
+    const lotByItem = new Map((existingLots || []).map(l => [l.item_id, l.id]))
+
+    for (const r of withId) {
+      const existingLotId = lotByItem.get(r._existingId)
+      if (existingLotId) {
+        const { error } = await sb.from('inventory_lots').update({
+          item_name:     r.item_name,
+          available_qty: r.qty,
+          initial_qty:   r.qty,
+          is_active:     true,
+          updated_at:    new Date().toISOString()
+        }).eq('id', existingLotId)
+        if (error) { fail++; console.error(error); continue }
+      } else {
+        const { error } = await sb.from('inventory_lots').insert({
+          item_id:       r._existingId,
+          item_name:     r.item_name,
+          lot_no:        IMPORT_LOT_NO,
+          lot_number:    IMPORT_LOT_NO,
+          available_qty: r.qty,
+          initial_qty:   r.qty,
+          quantity:      r.qty,
+          is_active:     true
+        })
+        if (error) { fail++; console.error(error); continue }
+      }
+      lotsUpserted++
+    }
+
+    notify(`✅ Import done — ${ins} added, ${upd} updated, ${lotsUpserted} stock lots synced${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'err' : 'ok')
     impMo.classList.remove('on')
     loadAll()
   } catch (err) {
