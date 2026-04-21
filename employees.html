@@ -227,6 +227,17 @@ lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:
       </div>
     </div>
 
+    <div class="fg2">
+      <div>
+        <lbl>Email <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional — for notifications)</span></lbl>
+        <input class="fi" id="fEmail" type="email" placeholder="youssef@cedarwings.com" autocomplete="off" autocapitalize="off" spellcheck="false"/>
+      </div>
+      <div>
+        <lbl>Phone <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional)</span></lbl>
+        <input class="fi" id="fPhone" type="tel" placeholder="+961 70 000 000" autocomplete="off"/>
+      </div>
+    </div>
+
     <!-- PRIMARY ROLE -->
     <div class="fgrp">
       <div class="sec-lbl">Primary Role</div>
@@ -475,6 +486,8 @@ function resetModal(){
   document.getElementById('fPassword').value=''
   document.getElementById('fPassword').placeholder='At least 6 characters'
   document.getElementById('fPasswordLbl').textContent='Password *'
+  document.getElementById('fEmail').value=''
+  document.getElementById('fPhone').value=''
   document.getElementById('fStep').value=''
   document.getElementById('moErr').textContent=''
   document.getElementById('editId').value=''
@@ -505,6 +518,8 @@ window.openEdit=(id)=>{
   document.getElementById('fPassword').value=''
   document.getElementById('fPassword').placeholder=e.auth_user_id?'Leave blank to keep current password':'At least 6 characters'
   document.getElementById('fPasswordLbl').textContent=e.auth_user_id?'New Password (optional)':'Password *'
+  document.getElementById('fEmail').value=e.email||''
+  document.getElementById('fPhone').value=e.phone||''
   document.getElementById('fStep').value=e.workflow_step||''
   document.getElementById('moTitle').textContent='Edit Employee: '+e.name
   document.getElementById('moSub').textContent=e.auth_user_id?'Update roles, PIN, or reset password.':'No login yet — set a username and password to enable login.'
@@ -566,6 +581,8 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
   const pin=document.getElementById('fPin').value.trim()
   const username=document.getElementById('fUsername').value.trim().toLowerCase()
   const password=document.getElementById('fPassword').value
+  const email=document.getElementById('fEmail').value.trim().toLowerCase()
+  const phone=document.getElementById('fPhone').value.trim()
   const step=document.getElementById('fStep').value
   const setErr=m=>{document.getElementById('moErr').textContent=m}
   setErr('')
@@ -573,6 +590,7 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
   if(!selPrimary)return setErr('Select a primary role')
   if(!username)return setErr('Username is required')
   if(!/^[a-z0-9._-]{2,}$/.test(username))return setErr('Username: lowercase letters, digits, . _ - only, min 2 chars')
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return setErr('Email looks invalid')
   const needsAuth=!existing||!existing.auth_user_id
   if(needsAuth&&password.length<6)return setErr('Password must be at least 6 characters')
   if(!needsAuth&&password&&password.length<6)return setErr('New password must be at least 6 characters')
@@ -589,6 +607,7 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
   const sysRole=allR.some(r=>r.name==='manager')?'manager':'employee'
   const extraNames=extraRoles.map(r=>r.name)
   const payload={name,username,role:sysRole,pin:pin||null,is_active:true,
+    email:email||null,phone:phone||null,
     page_access:finalPages,custom_role:selPrimary.name,
     extra_roles:JSON.stringify(extraNames),
     workflow_step:step||null}
@@ -596,8 +615,9 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
   try{
     let authUserId=existing?.auth_user_id||null
     if(needsAuth){
-      // Create the auth.users entry via service-role edge function
-      const res=await adminUser({action:'create',email:toEmail(username),password,name,role:sysRole})
+      // Use the real Email if provided, otherwise synthetic <username>@cedarwings.local
+      const authEmail=email||toEmail(username)
+      const res=await adminUser({action:'create',email:authEmail,password,name,role:sysRole})
       authUserId=res?.id||res?.user?.id
       if(!authUserId)throw new Error('Auth creation failed — no id returned')
     }else if(password){
