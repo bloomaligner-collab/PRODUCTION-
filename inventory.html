@@ -569,6 +569,7 @@ function whenSuppliersReady(fn){
   else _supplierReadyCallbacks.push(fn)
 }
 
+let _cachedExcluded = null;
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
   // Load items via edge function — immune to any Promise.all ordering bugs
   try{

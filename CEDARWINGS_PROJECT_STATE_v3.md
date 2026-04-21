@@ -6,7 +6,7 @@
 ## DEPLOYMENT
 - **Production URL:** https://bloomaligner-collab.github.io/PRODUCTION-/
 - **GitHub Repo:** `bloomaligner-collab/PRODUCTION-`
-- **Supabase Project:** `cvrmadmzzualqukxxlro` (PAID)
+- **Supabase Project:** `onjbwhkmmtqnymhjnplw` (PAID)
 - **Bloom API:** `https://api.bloomaligner.fr`
 - **Bloom Token:** `2405cb1d3b6520787d35b03f8e586582437e6db0e77b1e3252b04fd7825c9e15`
 
