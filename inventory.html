@@ -312,7 +312,13 @@
               </div>
               <div class="fg">
                 <div><lbl>Unit *</lbl><input class="fi" id="bomUnit" placeholder="sheet / liter / unit"/></div>
-                <div><lbl>Qty per Aligner *</lbl><input class="fi" id="bomQtyPerAligner" type="number" step="0.001" min="0.001" placeholder="e.g. 1"/></div>
+                <div><lbl>Qty *</lbl><input class="fi" id="bomQtyPerAligner" type="number" step="0.001" min="0.001" placeholder="e.g. 1"/></div>
+              </div>
+              <div><lbl>Per *</lbl>
+                <select class="fi" id="bomQtyBasis">
+                  <option value="per_aligner">Per Aligner (scales with aligner count)</option>
+                  <option value="per_case">Per Case (fixed amount per case)</option>
+                </select>
               </div>
               <div class="fg">
                 <div><lbl>Pack Size</lbl><input class="fi" id="bomPackSize" type="number" step="1" min="1" placeholder="e.g. 50"/></div>
@@ -800,12 +806,13 @@ function renderBom() {
     return
   }
   $('bomTbl').innerHTML = allBom.map(b => {
-    const packInfo = b.pack_size && b.pack_unit ? `${b.pack_size} ${b.unit}/${b.pack_unit}` : '—'
+    const basis = b.qty_basis || 'per_aligner'
+    const basisLbl = basis === 'per_case' ? '/case' : '/aligner'
     return `<tr>
       <td style="font-weight:700">${b.material_name}</td>
       <td><span class="bdg bb">${b.category||'—'}</span></td>
       <td class="mono">${b.unit}</td>
-      <td class="mono" style="font-weight:700;color:var(--blue)">${b.qty_per_aligner}</td>
+      <td class="mono" style="font-weight:700;color:var(--blue)">${b.qty_per_aligner}${basisLbl}</td>
       <td class="mono">${b.pack_size||'—'}</td>
       <td style="font-size:12px">${b.pack_unit||'—'}</td>
       <td class="mono">${b.safety_reserve_pct||10}%</td>
@@ -817,13 +824,16 @@ function renderBom() {
     </tr>`
   }).join('')
 
-  // BOM Summary for 1000 aligners
+  // BOM Summary: per-aligner materials shown for 1,000 aligners; per-case shown per case
   $('bomSummary').innerHTML = allBom.filter(b=>b.active).map(b => {
-    const qty1000 = b.qty_per_aligner * 1000
-    const packs = b.pack_size ? Math.ceil(qty1000 / b.pack_size) : null
+    const basis = b.qty_basis || 'per_aligner'
+    let qty, suffix
+    if (basis === 'per_case') { qty = b.qty_per_aligner; suffix = 'per case' }
+    else { qty = b.qty_per_aligner * 1000; suffix = 'per 1,000 aligners' }
+    const packs = b.pack_size ? Math.ceil(qty / b.pack_size) : null
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
       <span style="font-weight:600">${b.material_name}</span>
-      <span style="font-family:var(--mono);color:var(--blue);font-weight:700">${qty1000.toLocaleString()} ${b.unit}${packs?` = ${packs} ${b.pack_unit}`:''}</span>
+      <span style="font-family:var(--mono);color:var(--blue);font-weight:700">${qty.toLocaleString()} ${b.unit} ${suffix}${packs?` = ${packs} ${b.pack_unit}`:''}</span>
     </div>`
   }).join('') || '<div style="color:var(--dim);font-size:13px;padding:10px">No active BOM entries</div>'
 }
@@ -833,6 +843,7 @@ window.openAddBom = function() {
   $('bomFormTitle').textContent = '➕ Add BOM Entry'
   $('bomName').value = ''; $('bomCategory').value = 'Film'
   $('bomUnit').value = ''; $('bomQtyPerAligner').value = ''
+  $('bomQtyBasis').value = 'per_aligner'
   $('bomPackSize').value = ''; $('bomPackUnit').value = ''
   $('bomReserve').value = '10'; $('bomNotes').value = ''
   $('bomErr').textContent = ''
@@ -844,7 +855,11 @@ window.onBomMaterialChange = function() {
   if (!o) return
   const u = o.dataset.unit, c = o.dataset.category
   if (u && !$('bomUnit').value.trim()) $('bomUnit').value = u
-  if (c && ['Film','Resin','Packaging','Cleaning','Other'].includes(c)) $('bomCategory').value = c
+  if (c && ['Film','Resin','Packaging','Cleaning','Other'].includes(c)) {
+    $('bomCategory').value = c
+    // Packaging defaults to per_case; other categories default to per_aligner
+    if (c === 'Packaging') $('bomQtyBasis').value = 'per_case'
+  }
 }
 
 window.editBom = function(id) {
@@ -860,6 +875,7 @@ window.editBom = function(id) {
   $('bomCategory').value = b.category || 'Film'
   $('bomUnit').value = b.unit || ''
   $('bomQtyPerAligner').value = b.qty_per_aligner || ''
+  $('bomQtyBasis').value = b.qty_basis || 'per_aligner'
   $('bomPackSize').value = b.pack_size || ''
   $('bomPackUnit').value = b.pack_unit || ''
   $('bomReserve').value = b.safety_reserve_pct || 10
@@ -871,13 +887,14 @@ window.saveBom = async function() {
   const name = $('bomName').value.trim()
   const unit = $('bomUnit').value.trim()
   const qty = parseFloat($('bomQtyPerAligner').value)
+  const basis = $('bomQtyBasis').value || 'per_aligner'
   if (!name) { $('bomErr').textContent = 'Material name required'; return }
   if (!unit) { $('bomErr').textContent = 'Unit required'; return }
-  if (!qty || qty <= 0) { $('bomErr').textContent = 'Qty per aligner must be > 0'; return }
+  if (!qty || qty <= 0) { $('bomErr').textContent = 'Qty must be > 0'; return }
 
   const row = {
     material_name: name, category: $('bomCategory').value,
-    unit, qty_per_aligner: qty,
+    unit, qty_per_aligner: qty, qty_basis: basis,
     pack_size: parseFloat($('bomPackSize').value) || null,
     pack_unit: $('bomPackUnit').value.trim() || null,
     safety_reserve_pct: parseInt($('bomReserve').value) || 10,
@@ -897,6 +914,7 @@ window.saveBom = async function() {
 window.resetBomForm = function() {
   $('bomEditId').value = ''; $('bomFormTitle').textContent = '➕ Add BOM Entry'
   $('bomName').value = ''; $('bomUnit').value = ''; $('bomQtyPerAligner').value = ''
+  $('bomQtyBasis').value = 'per_aligner'
   $('bomPackSize').value = ''; $('bomPackUnit').value = ''; $('bomReserve').value = '10'
   $('bomNotes').value = ''; $('bomErr').textContent = ''
 }
@@ -956,11 +974,14 @@ window.calculateRequisition = async function() {
   })
   const produced = prodRecordsBom.filter(r=>r.status==='complete').reduce((a,r)=>a+(r.aligners_produced||0),0)
   const alignersLeft = Math.max(0, totalPlanned - produced)
+  const casesLeft = activeCases.length
 
   // Calculate materials needed
   reqResults = allBom.filter(b=>b.active).map(b => {
     const reserve = (b.safety_reserve_pct||10) / 100
-    const qtyRaw = b.qty_per_aligner * alignersLeft
+    const basis = b.qty_basis || 'per_aligner'
+    const multiplier = basis === 'per_case' ? casesLeft : alignersLeft
+    const qtyRaw = b.qty_per_aligner * multiplier
     const qtyWithReserve = Math.ceil(qtyRaw * (1 + reserve))
     const inStock = stockMap[b.material_name] || 0
     const toOrder = Math.max(0, qtyWithReserve - inStock)
