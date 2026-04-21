@@ -572,7 +572,7 @@ function whenSuppliersReady(fn){
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
   // Load items via edge function — immune to any Promise.all ordering bugs
   try{
-    const _ir = await fetch('https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/get-inventory-items')
+    const _ir = await fetch('https://onjbwhkmmtqnymhjnplw.supabase.co/functions/v1/get-inventory-items')
     const _id = await _ir.json()
     allItems = _id.data||[]
   }catch(e){
