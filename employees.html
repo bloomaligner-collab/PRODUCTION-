@@ -211,8 +211,19 @@ lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:
         <input class="fi" id="fName" placeholder="e.g. Youssef Benali" autocomplete="off"/>
       </div>
       <div>
-        <lbl>PIN <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(used to log in)</span></lbl>
+        <lbl>PIN <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional — for quick clocking)</span></lbl>
         <input class="fi" id="fPin" placeholder="e.g. 1234" maxlength="6" style="letter-spacing:4px;font-family:var(--mono)" autocomplete="off"/>
+      </div>
+    </div>
+
+    <div class="fg2">
+      <div>
+        <lbl>Username * <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(login, lowercase)</span></lbl>
+        <input class="fi" id="fUsername" placeholder="e.g. youssef" autocomplete="off" autocapitalize="off" spellcheck="false"/>
+      </div>
+      <div>
+        <lbl id="fPasswordLbl">Password *</lbl>
+        <input class="fi" id="fPassword" type="password" placeholder="At least 6 characters" autocomplete="new-password"/>
       </div>
     </div>
 
@@ -453,9 +464,17 @@ document.addEventListener('click',e=>{
 })
 
 /* ─── OPEN/CLOSE MODAL ─── */
+const AUTH_DOMAIN='cedarwings.local'
+const toEmail=u=>u.includes('@')?u.toLowerCase():`${u.toLowerCase()}@${AUTH_DOMAIN}`
+
 function resetModal(){
   document.getElementById('fName').value=''
   document.getElementById('fPin').value=''
+  document.getElementById('fUsername').value=''
+  document.getElementById('fUsername').disabled=false
+  document.getElementById('fPassword').value=''
+  document.getElementById('fPassword').placeholder='At least 6 characters'
+  document.getElementById('fPasswordLbl').textContent='Password *'
   document.getElementById('fStep').value=''
   document.getElementById('moErr').textContent=''
   document.getElementById('editId').value=''
@@ -470,7 +489,7 @@ function resetModal(){
 document.getElementById('addEmpBtn').addEventListener('click',()=>{
   resetModal()
   document.getElementById('moTitle').textContent='Add Employee'
-  document.getElementById('moSub').textContent='Create a new employee. Assign a primary role, then optionally stack extra roles.'
+  document.getElementById('moSub').textContent='Create a new employee. Username + password become their login credentials.'
   document.getElementById('modal').classList.add('on')
 })
 
@@ -481,9 +500,14 @@ window.openEdit=(id)=>{
   document.getElementById('editId').value=id
   document.getElementById('fName').value=e.name
   document.getElementById('fPin').value=e.pin||''
+  document.getElementById('fUsername').value=e.username||''
+  document.getElementById('fUsername').disabled=!!e.auth_user_id // username locked once an auth account exists
+  document.getElementById('fPassword').value=''
+  document.getElementById('fPassword').placeholder=e.auth_user_id?'Leave blank to keep current password':'At least 6 characters'
+  document.getElementById('fPasswordLbl').textContent=e.auth_user_id?'New Password (optional)':'Password *'
   document.getElementById('fStep').value=e.workflow_step||''
   document.getElementById('moTitle').textContent='Edit Employee: '+e.name
-  document.getElementById('moSub').textContent='Update roles, access, or PIN.'
+  document.getElementById('moSub').textContent=e.auth_user_id?'Update roles, PIN, or reset password.':'No login yet — set a username and password to enable login.'
   document.getElementById('delBtn').style.display='inline-flex'
   // Restore primary
   const pName=e.custom_role||e.role||'employee'
@@ -502,13 +526,30 @@ document.getElementById('cancelBtn').addEventListener('click',closeModal)
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal()})
 
 /* ─── SAVE ─── */
+async function adminUser(body){
+  const{data,error}=await sb.functions.invoke('admin-user',{body})
+  if(error)throw new Error(error.message||'Auth service error')
+  if(data&&data.error)throw new Error(data.error)
+  return data
+}
+
 document.getElementById('saveBtn').addEventListener('click',async()=>{
   const id=document.getElementById('editId').value
+  const existing=id?allEmps.find(x=>x.id===id):null
   const name=document.getElementById('fName').value.trim()
   const pin=document.getElementById('fPin').value.trim()
+  const username=document.getElementById('fUsername').value.trim().toLowerCase()
+  const password=document.getElementById('fPassword').value
   const step=document.getElementById('fStep').value
-  if(!name){document.getElementById('moErr').textContent='Name is required';return}
-  if(!selPrimary){document.getElementById('moErr').textContent='Select a primary role';return}
+  const setErr=m=>{document.getElementById('moErr').textContent=m}
+  setErr('')
+  if(!name)return setErr('Name is required')
+  if(!selPrimary)return setErr('Select a primary role')
+  if(!username)return setErr('Username is required')
+  if(!/^[a-z0-9._-]{2,}$/.test(username))return setErr('Username: lowercase letters, digits, . _ - only, min 2 chars')
+  const needsAuth=!existing||!existing.auth_user_id
+  if(needsAuth&&password.length<6)return setErr('Password must be at least 6 characters')
+  if(!needsAuth&&password&&password.length<6)return setErr('New password must be at least 6 characters')
   // Compute merged page access
   const allR=[selPrimary,...extraRoles]
   let mergedPages=new Set()
@@ -519,14 +560,25 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
     else pa.forEach(p=>mergedPages.add(p))
   })
   const finalPages=hasAll?['all']:[...mergedPages]
-  // Determine system role (manager if any role is manager type)
   const sysRole=allR.some(r=>r.name==='manager')?'manager':'employee'
   const extraNames=extraRoles.map(r=>r.name)
-  const payload={name,role:sysRole,pin:pin||null,is_active:true,
+  const payload={name,username,role:sysRole,pin:pin||null,is_active:true,
     page_access:finalPages,custom_role:selPrimary.name,
     extra_roles:JSON.stringify(extraNames),
     workflow_step:step||null}
+  document.getElementById('saveBtn').disabled=true
   try{
+    let authUserId=existing?.auth_user_id||null
+    if(needsAuth){
+      // Create the auth.users entry via service-role edge function
+      const res=await adminUser({action:'create',email:toEmail(username),password,name,role:sysRole})
+      authUserId=res?.id||res?.user?.id
+      if(!authUserId)throw new Error('Auth creation failed — no id returned')
+    }else if(password){
+      // Password reset on existing auth user
+      await adminUser({action:'update',uid:authUserId,updates:{password}})
+    }
+    payload.auth_user_id=authUserId
     if(id){
       const{error}=await sb.from('employees').update(payload).eq('id',id)
       if(error)throw error
@@ -535,27 +587,43 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
       if(error)throw error
     }
     closeModal();ntf(id?'Employee updated':'Employee added');load()
-  }catch(err){document.getElementById('moErr').textContent=err.message}
+  }catch(err){setErr(err.message||String(err))}
+  finally{document.getElementById('saveBtn').disabled=false}
 })
 
 /* ─── DELETE IN MODAL ─── */
 window.deleteEmpModal=async()=>{
   const id=document.getElementById('editId').value
   const name=document.getElementById('fName').value
-  if(!confirm(`Permanently delete ${name}?`))return
-  await sb.from('employees').delete().eq('id',id)
-  closeModal();ntf('Employee deleted');load()
+  if(!confirm(`Permanently delete ${name}? This removes their login too.`))return
+  const e=allEmps.find(x=>x.id===id)
+  try{
+    if(e?.auth_user_id)await adminUser({action:'delete',uid:e.auth_user_id})
+    const{error}=await sb.from('employees').delete().eq('id',id)
+    if(error)throw error
+    closeModal();ntf('Employee deleted');load()
+  }catch(err){document.getElementById('moErr').textContent=err.message||String(err)}
 }
 
 /* ─── INLINE ACTIONS ─── */
 window.toggleBlock=async(id,unblock)=>{
   const e=allEmps.find(x=>x.id===id)
   if(!confirm(unblock?`Unblock ${e?.name}?`:`Block ${e?.name}?`))return
+  // Also ban/unban the auth user so JWT issuance is blocked
+  try{
+    if(e?.auth_user_id){
+      await adminUser({action:'update',uid:e.auth_user_id,updates:{ban_duration:unblock?'none':'876000h'}})
+    }
+  }catch{/* non-fatal — still flip is_active */}
   await sb.from('employees').update({is_active:unblock}).eq('id',id);load()
 }
 window.deleteEmp=async(id,name)=>{
-  if(!confirm(`Permanently delete ${name}?`))return
-  await sb.from('employees').delete().eq('id',id);load()
+  if(!confirm(`Permanently delete ${name}? This removes their login too.`))return
+  const e=allEmps.find(x=>x.id===id)
+  try{
+    if(e?.auth_user_id)await adminUser({action:'delete',uid:e.auth_user_id})
+    await sb.from('employees').delete().eq('id',id);load()
+  }catch(err){ntf(err.message||String(err),'err')}
 }
 
 document.getElementById('srch').addEventListener('input',renderTable)
