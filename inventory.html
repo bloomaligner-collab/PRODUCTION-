@@ -129,6 +129,8 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn b-pri" id="btnAI">+ Add Item</button>
       <button class="btn b-grn" id="btnAL">+ Add Stock Lot</button>
+      <button class="btn b-gho" id="btnImportItems" title="Import items from an Excel file">📥 Import Items</button>
+      <input type="file" id="itemsImportFile" accept=".xlsx,.xls,.csv" style="display:none"/>
       <button class="btn b-gho" id="btnR">↻ Refresh</button>
     </div>
   </div>
@@ -459,7 +461,35 @@
   </div>
 </div>
 
+<!-- Import Items — preview modal -->
+<div class="mov" id="mImport">
+  <div class="mo" style="max-width:900px;width:100%">
+    <div class="mt">📥 Import Items from Excel</div>
+    <div id="impInfo" style="font-size:12px;color:var(--muted);margin:6px 0 12px">No file loaded</div>
+    <div style="max-height:55vh;overflow:auto;border:1px solid var(--bdr);border-radius:10px">
+      <table style="width:100%;font-size:12px" id="impTbl">
+        <thead style="background:var(--bg);position:sticky;top:0"><tr>
+          <th style="padding:8px 10px;text-align:left">Item Name</th>
+          <th style="padding:8px 10px;text-align:left">Sales Description</th>
+          <th style="padding:8px 10px;text-align:left">UPC</th>
+          <th style="padding:8px 10px;text-align:left">Product Type</th>
+          <th style="padding:8px 10px;text-align:left">Action</th>
+        </tr></thead>
+        <tbody id="impTbody"></tbody>
+      </table>
+    </div>
+    <div class="moa" style="margin-top:12px">
+      <button class="btn b-gho" id="cImp">Cancel</button>
+      <button class="btn b-pri" id="svImp" disabled>💾 Import rows</button>
+    </div>
+    <div class="mer" id="eImp"></div>
+  </div>
+</div>
+
 <div class="notif" id="notif"></div>
+
+<!-- SheetJS for xlsx parsing in the browser -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script type="module">
 import{createClient}from'https://esm.sh/@supabase/supabase-js@2'
@@ -1107,6 +1137,140 @@ window.viewReqLines = async function(id, reqNo) {
 document.querySelectorAll('.tb').forEach(b => {
   if (b.dataset.t === 'bom') b.addEventListener('click', loadBom)
   if (b.dataset.t === 'autoreq') b.addEventListener('click', () => { loadBom(); loadSavedRequisitions() })
+})
+
+// ────────────────────────────────────────────────────────────────────
+// Import Items from xlsx / csv
+// Expected columns: Item Name (required), Sales Description, UPC, Product Type
+// Matches by lower(item_name); existing rows → UPDATE, new rows → INSERT.
+// ────────────────────────────────────────────────────────────────────
+const impFile = $('itemsImportFile')
+const impBtn  = $('btnImportItems')
+const impMo   = $('mImport')
+const impTbody= $('impTbody')
+const impInfo = $('impInfo')
+const impSave = $('svImp')
+const impCancel = $('cImp')
+const impErr  = $('eImp')
+
+let _impRows = []   // cleaned rows ready to upsert
+
+function normHeader(s){ return String(s||'').trim().toLowerCase().replace(/[\s_\-]+/g,'') }
+function readCell(row, keys){
+  for (const k of Object.keys(row)) {
+    const n = normHeader(k)
+    for (const want of keys) if (n === normHeader(want)) return String(row[k] ?? '').trim()
+  }
+  return ''
+}
+
+impBtn?.addEventListener('click', () => impFile.click())
+impCancel?.addEventListener('click', () => impMo.classList.remove('on'))
+
+impFile?.addEventListener('change', async (ev) => {
+  const f = ev.target.files?.[0]
+  if (!f) return
+  try {
+    const buf = await f.arrayBuffer()
+    const wb  = XLSX.read(buf, { type: 'array' })
+    const ws  = wb.Sheets[wb.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+    if (!rows.length) throw new Error('Sheet is empty')
+    _impRows = rows.map(r => ({
+      item_name:         readCell(r, ['Item Name','item_name','name','ItemName']),
+      sales_description: readCell(r, ['Sales Description','description','sales_desc','Description']),
+      upc:               readCell(r, ['UPC','upc','barcode','Barcode']),
+      product_type:      readCell(r, ['Product Type','product_type','category','Category','type','Type'])
+    })).filter(r => r.item_name)
+    if (!_impRows.length) throw new Error("No rows with a populated 'Item Name' column")
+
+    // Pre-match against existing items (by case-insensitive name)
+    const namesLower = _impRows.map(r => r.item_name.toLowerCase())
+    const { data: existing } = await sb.from('inventory_items').select('id,item_name,name')
+    const existByName = new Map()
+    ;(existing || []).forEach(it => {
+      const key = (it.item_name || it.name || '').toLowerCase().trim()
+      if (key) existByName.set(key, it)
+    })
+    _impRows.forEach(r => {
+      const match = existByName.get(r.item_name.toLowerCase())
+      r._existingId = match?.id || null
+    })
+
+    const newCt = _impRows.filter(r => !r._existingId).length
+    const updCt = _impRows.length - newCt
+    impInfo.textContent = `${f.name} — ${_impRows.length} rows: ${newCt} new, ${updCt} existing will be updated.`
+
+    impTbody.innerHTML = _impRows.slice(0, 500).map(r => `<tr>
+      <td style="padding:6px 10px;border-top:1px solid var(--bdr)">${r.item_name || ''}</td>
+      <td style="padding:6px 10px;border-top:1px solid var(--bdr);color:var(--muted)">${r.sales_description || ''}</td>
+      <td style="padding:6px 10px;border-top:1px solid var(--bdr);font-family:var(--mono);font-size:11px">${r.upc || ''}</td>
+      <td style="padding:6px 10px;border-top:1px solid var(--bdr)">${r.product_type || ''}</td>
+      <td style="padding:6px 10px;border-top:1px solid var(--bdr);font-weight:700;color:${r._existingId ? 'var(--amber)' : 'var(--green)'}">${r._existingId ? '↻ Update' : '+ New'}</td>
+    </tr>`).join('')
+    if (_impRows.length > 500) impTbody.innerHTML += `<tr><td colspan="5" style="padding:10px;text-align:center;color:var(--muted)">… and ${_impRows.length - 500} more rows (all will be imported)</td></tr>`
+
+    impErr.textContent = ''
+    impSave.disabled = false
+    impMo.classList.add('on')
+  } catch (err) {
+    notify('⚠️ ' + (err.message || err), 'err')
+  } finally {
+    impFile.value = ''
+  }
+})
+
+impSave?.addEventListener('click', async () => {
+  impSave.disabled = true
+  impSave.textContent = 'Importing…'
+  impErr.textContent = ''
+  let ins = 0, upd = 0, fail = 0
+  try {
+    const BATCH = 200
+    const newRows     = _impRows.filter(r => !r._existingId)
+    const updateRows  = _impRows.filter(r =>  r._existingId)
+
+    // INSERT new rows (set both item_name and name for compatibility)
+    for (let i = 0; i < newRows.length; i += BATCH) {
+      const slice = newRows.slice(i, i + BATCH).map(r => ({
+        item_name:    r.item_name,
+        name:         r.item_name,
+        description:  r.sales_description || null,
+        barcode:      r.upc || null,
+        category:     r.product_type || null,
+        category_name:r.product_type || null,
+        active: true, is_active: true
+      }))
+      const { error } = await sb.from('inventory_items').insert(slice)
+      if (error) { fail += slice.length; console.error(error); continue }
+      ins += slice.length
+    }
+
+    // UPDATE existing rows one-by-one (RPC-safe, small scale)
+    for (const r of updateRows) {
+      const payload = {
+        item_name:    r.item_name,
+        name:         r.item_name,
+        description:  r.sales_description || null,
+        barcode:      r.upc || null,
+        category:     r.product_type || null,
+        category_name:r.product_type || null,
+        updated_at:   new Date().toISOString()
+      }
+      const { error } = await sb.from('inventory_items').update(payload).eq('id', r._existingId)
+      if (error) { fail++; console.error(error); continue }
+      upd++
+    }
+
+    notify(`✅ Import done — ${ins} added, ${upd} updated${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'err' : 'ok')
+    impMo.classList.remove('on')
+    loadAll()
+  } catch (err) {
+    impErr.textContent = err.message || String(err)
+  } finally {
+    impSave.textContent = '💾 Import rows'
+    impSave.disabled = false
+  }
 })
 
 loadAll()
