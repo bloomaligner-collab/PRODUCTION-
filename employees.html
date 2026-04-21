@@ -527,8 +527,34 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target===docu
 
 /* ─── SAVE ─── */
 async function adminUser(body){
-  const{data,error}=await sb.functions.invoke('admin-user',{body})
-  if(error)throw new Error(error.message||'Auth service error')
+  // Pre-check: do we even have a live session? If not, force sign-in.
+  const{data:sess}=await sb.auth.getSession()
+  if(!sess?.session?.access_token){
+    if(window.cwSignOut){await window.cwSignOut();return}
+    sessionStorage.clear();location.replace('index.html');return
+  }
+  // Pass the access_token explicitly so the function always gets a real JWT,
+  // not the anon-key fallback that causes silent 401s when sessions are stale.
+  const{data,error}=await sb.functions.invoke('admin-user',{
+    body,
+    headers:{Authorization:'Bearer '+sess.session.access_token}
+  })
+  if(error){
+    // FunctionsHttpError is thrown for non-2xx. If it's a 401, the session
+    // is bad on the server side — force a fresh sign-in instead of looping.
+    const status=error?.context?.response?.status||error?.status
+    if(status===401||/401|unauthor|invalid.*session/i.test(error.message||'')){
+      alert('Your session expired. Please sign in again.')
+      if(window.cwSignOut){await window.cwSignOut();return}
+      sessionStorage.clear();location.replace('index.html');return
+    }
+    // Try to surface the function's trace if it returned a JSON body
+    try{
+      const body=await error?.context?.response?.json?.()
+      if(body?.error)throw new Error(body.error+(body?.trace?' — '+JSON.stringify(body.trace):''))
+    }catch(_){/* fall through */}
+    throw new Error(error.message||'Auth service error')
+  }
   if(data&&data.error)throw new Error(data.error)
   return data
 }
