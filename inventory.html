@@ -1289,6 +1289,7 @@ impSave?.addEventListener('click', async () => {
 
     for (const r of withId) {
       const existingLotId = lotByItem.get(r._existingId)
+      let lotId = existingLotId
       if (existingLotId) {
         const { error } = await sb.from('inventory_lots').update({
           item_name:     r.item_name,
@@ -1299,7 +1300,7 @@ impSave?.addEventListener('click', async () => {
         }).eq('id', existingLotId)
         if (error) { fail++; console.error(error); continue }
       } else {
-        const { error } = await sb.from('inventory_lots').insert({
+        const { data: newLot, error } = await sb.from('inventory_lots').insert({
           item_id:       r._existingId,
           item_name:     r.item_name,
           lot_no:        IMPORT_LOT_NO,
@@ -1308,10 +1309,22 @@ impSave?.addEventListener('click', async () => {
           initial_qty:   r.qty,
           quantity:      r.qty,
           is_active:     true
-        })
+        }).select('id').single()
         if (error) { fail++; console.error(error); continue }
+        lotId = newLot?.id
       }
       lotsUpserted++
+      // Log an activity row so the Recent Activity panel shows the import
+      try {
+        await sb.from('inventory_stock_history').insert({
+          lot_id:      lotId,
+          item_id:     r._existingId,
+          item_name:   r.item_name,
+          action_type: 'import',
+          quantity:    r.qty,
+          note:        existingLotId ? 'Re-imported from Excel (qty updated)' : 'Imported from Excel'
+        })
+      } catch(e) { /* non-fatal — activity log is best-effort */ }
     }
 
     notify(`✅ Import done — ${ins} added, ${upd} updated, ${lotsUpserted} stock lots synced${fail ? ', ' + fail + ' failed' : ''}`, fail ? 'err' : 'ok')
