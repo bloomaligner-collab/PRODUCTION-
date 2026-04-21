@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Cedarwings SAS — Quality Control</title>
+<script type="module" src="auth_guard.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
@@ -109,7 +110,7 @@ tr:hover td{background:#fafbfc}
       style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:600;color:var(--mu);background:none;border:none;cursor:pointer;width:100%;font-family:var(--f)">
       🇫🇷 FR
     </button>
-    <a href="index.html" onclick="sessionStorage.clear()" class="nl" style="color:var(--red);font-size:12px">
+    <a href="index.html" onclick="event.preventDefault();(window.cwSignOut?window.cwSignOut():(sessionStorage.clear(),location.replace('index.html')))" class="nl" style="color:var(--red);font-size:12px">
       <span class="ic">🚪</span>Déconnexion
     </a>
   </div>
