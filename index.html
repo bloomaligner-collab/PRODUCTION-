@@ -154,9 +154,24 @@ window.doLogin=async()=>{
   if(!username||!password){showErr("Please enter your username and password.");return}
   const btn=document.getElementById("loginBtn");btn.disabled=true;btn.textContent="Signing in…"
   try{
-    // 1. Authenticate via Supabase Auth (bcrypt-verified server-side)
+    // 1a. Resolve username → email. New employees may have a real Email
+    //     filled in (auth.users.email = that email), older ones use the
+    //     synthetic <username>@cedarwings.local. Look up employees first
+    //     so the user can keep typing their short username either way.
+    let loginEmail
+    if (username.includes("@")) {
+      loginEmail = username.toLowerCase()
+    } else {
+      const u = username.toLowerCase()
+      const { data: emp } = await sb.from("employees")
+        .select("email")
+        .ilike("username", u)
+        .limit(1).maybeSingle()
+      loginEmail = emp?.email || toEmail(u)
+    }
+    // 1b. Authenticate via Supabase Auth (bcrypt-verified server-side)
     const{data:authData,error:authErr}=await sb.auth.signInWithPassword({
-      email:toEmail(username),password
+      email:loginEmail,password
     })
     if(authErr){
       showErr("Incorrect username or password.")
