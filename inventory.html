@@ -300,7 +300,7 @@
             <div class="ct" style="margin-bottom:14px" id="bomFormTitle">➕ Add BOM Entry</div>
             <div style="display:grid;gap:11px">
               <input type="hidden" id="bomEditId"/>
-              <div><lbl>Material Name *</lbl><input class="fi" id="bomName" placeholder="e.g. Film Sheet"/></div>
+              <div><lbl>Material Name *</lbl><select class="fi" id="bomName" onchange="onBomMaterialChange()"><option value="">— Select from inventory —</option></select></div>
               <div><lbl>Category</lbl>
                 <select class="fi" id="bomCategory">
                   <option value="Film">Film</option>
@@ -596,6 +596,8 @@ async function loadAll(){_cachedExcluded=null // reset config cache on each load
   cats.forEach(c=>{if(!ex.includes(c)){const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o)}})
   // Item dropdowns
   const pops=['lIt','fItem'];pops.forEach(id=>{const s=$(id),cv=s.value;s.innerHTML='<option value="">— Select item —</option>';allItems.forEach(it=>{const iname=it.item_name||it.name||'?';const o=document.createElement('option');o.value=it.id;o.dataset.name=iname;o.dataset.unit=it.unit_of_measure||it.unit||'';o.textContent=iname+((it.unit_of_measure||it.unit)?' ('+(it.unit_of_measure||it.unit)+')':'');s.appendChild(o)});if(cv)s.value=cv})
+  // BOM material dropdown — value is the item name (BOM stores material_name)
+  const bs=$('bomName');if(bs){const bcv=bs.value;bs.innerHTML='<option value="">— Select from inventory —</option>';allItems.forEach(it=>{const iname=it.item_name||it.name||'';if(!iname)return;const o=document.createElement('option');o.value=iname;o.dataset.unit=it.unit_of_measure||it.unit||'';o.dataset.category=it.category_name||it.category||'';o.textContent=iname+((it.unit_of_measure||it.unit)?' ('+(it.unit_of_measure||it.unit)+')':'');bs.appendChild(o)});if(bcv){if(![...bs.options].some(o=>o.value===bcv)){const o=document.createElement('option');o.value=bcv;o.textContent=bcv+' (not in inventory)';bs.appendChild(o)}bs.value=bcv}}
   rStock();rItems();rReqs();rActivity(hr.data||[])
 }
 function rStock(){
@@ -837,12 +839,24 @@ window.openAddBom = function() {
   $('bomName').focus()
 }
 
+window.onBomMaterialChange = function() {
+  const s = $('bomName'), o = s.options[s.selectedIndex]
+  if (!o) return
+  const u = o.dataset.unit, c = o.dataset.category
+  if (u && !$('bomUnit').value.trim()) $('bomUnit').value = u
+  if (c && ['Film','Resin','Packaging','Cleaning','Other'].includes(c)) $('bomCategory').value = c
+}
+
 window.editBom = function(id) {
   const b = allBom.find(x=>x.id===id)
   if (!b) return
   $('bomEditId').value = b.id
   $('bomFormTitle').textContent = '✏️ Edit BOM Entry'
-  $('bomName').value = b.material_name || ''
+  const bn = $('bomName'), mn = b.material_name || ''
+  if (mn && ![...bn.options].some(o=>o.value===mn)) {
+    const o = document.createElement('option'); o.value = mn; o.textContent = mn + ' (not in inventory)'; bn.appendChild(o)
+  }
+  bn.value = mn
   $('bomCategory').value = b.category || 'Film'
   $('bomUnit').value = b.unit || ''
   $('bomQtyPerAligner').value = b.qty_per_aligner || ''
