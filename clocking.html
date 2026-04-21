@@ -973,6 +973,20 @@ async function _finalizeSession(alignersDone,upperDone,lowerDone,isPartial){
     lower_count:lowerDone||null
   }).eq('id',sess.id)
 
+  // 1b. Mark the corresponding order_step_tracking row as complete.
+  // Without this the step stays 'in_progress' forever and the case
+  // appears open even after the employee finished the last step.
+  if(sess.order && sess.step){
+    try{
+      await sb.from('order_step_tracking').update({
+        status:'complete',
+        completed_at:now.toISOString(),
+        completed_by:emp,
+        machine_ended_at:now.toISOString()
+      }).eq('order_no',sess.order).eq('step',sess.step).eq('status','in_progress')
+    }catch(e){console.warn('order_step_tracking complete:',e)}
+  }
+
   // 2. If aligners produced → create production_entry + deduct materials
   if(alignersDone>0){
     const d=_packagingBloomData||{}
