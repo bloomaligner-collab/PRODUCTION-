@@ -127,22 +127,9 @@ function getHomePage(pageAccess, customRole){
 
 document.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()})
 
-// Show role preview on username blur
-document.getElementById("username").addEventListener("blur",async()=>{
-  const u=document.getElementById("username").value.trim()
-  if(!u)return
-  const{data}=await sb.from("employees").select("role,is_active").ilike("username",u).limit(1)
-  if(!data?.length)return
-  const emp=data[0]
-  if(!emp.is_active){showRolePill("#fee2e2","#991b1b","🚫","Account blocked");return}
-  const roleLabels={manager:"Manager — Full Access",quality_control:"Quality Control",inventory_manager:"Inventory Manager",production_supervisor:"Production Supervisor",hr_manager:"HR Manager",employee:"Employee"}
-  const colors={manager:"#eef2ff",quality_control:"#f0fdf4",inventory_manager:"#fffbeb",production_supervisor:"#f5f3ff",hr_manager:"#fdf2f8",employee:"#f8fafc"}
-  const textColors={manager:"#1d4ed8",quality_control:"#15803d",inventory_manager:"#92400e",production_supervisor:"#5b21b6",hr_manager:"#be185d",employee:"#475569"}
-  const cr=emp.role
-  const label=roleLabels[cr]||cr||"User"
-  const bg=colors[cr]||"#f8fafc",tc=textColors[cr]||"#475569"
-  showRolePill(bg,tc,"👤",label)
-})
+// Auth domain — synthetic emails so users type their username, not an email
+const AUTH_DOMAIN="cedarwings.local"
+const toEmail=u=>u.includes("@")?u.toLowerCase():`${u.toLowerCase()}@${AUTH_DOMAIN}`
 
 function showRolePill(bg,color,icon,text){
   const p=document.getElementById("rolePill")
@@ -164,15 +151,29 @@ window.doLogin=async()=>{
   if(!username||!password){showErr("Please enter your username and password.");return}
   const btn=document.getElementById("loginBtn");btn.disabled=true;btn.textContent="Signing in…"
   try{
-    const{data,error}=await sb.from("employees")
+    // 1. Authenticate via Supabase Auth (bcrypt-verified server-side)
+    const{data:authData,error:authErr}=await sb.auth.signInWithPassword({
+      email:toEmail(username),password
+    })
+    if(authErr){
+      showErr("Incorrect username or password.")
+      btn.disabled=false;btn.textContent="Sign In →";return
+    }
+    // 2. Fetch the linked employee profile (role, page access, etc.)
+    const{data:user,error:profileErr}=await sb.from("employees")
       .select("id,name,role,is_active,page_access,custom_role")
-      .ilike("username",username).eq("password",password).limit(1)
-    if(error)throw error
-    if(!data?.length){showErr("Incorrect username or password.");btn.disabled=false;btn.textContent="Sign In →";return}
-    const user=data[0]
-    if(!user.is_active){showErr("Your account is blocked. Contact your administrator.");btn.disabled=false;btn.textContent="Sign In →";return}
-    // Save identity to session
-    // Use page_access from DB, fallback to role-based
+      .eq("auth_user_id",authData.user.id).single()
+    if(profileErr||!user){
+      await sb.auth.signOut()
+      showErr("No employee profile linked to this account. Contact your administrator.")
+      btn.disabled=false;btn.textContent="Sign In →";return
+    }
+    if(!user.is_active){
+      await sb.auth.signOut()
+      showErr("Your account is blocked. Contact your administrator.")
+      btn.disabled=false;btn.textContent="Sign In →";return
+    }
+    // 3. Populate sessionStorage so the other pages keep working unchanged
     const pageAccess=user.page_access||(user.role==="manager"?["all"]:["clocking","employee_profile"])
     const customRole=user.custom_role||user.role
     sessionStorage.setItem(EK,user.name)
@@ -181,7 +182,7 @@ window.doLogin=async()=>{
     sessionStorage.setItem(NK,user.name)
     sessionStorage.setItem(CRK,customRole)
     localStorage.setItem(EK,user.name)
-    // Navigate to appropriate home page
+    // 4. Navigate to home
     const homePage=getHomePage(pageAccess,customRole)
     window.location.href=homePage
   }catch(err){showErr("Error: "+err.message);btn.disabled=false;btn.textContent="Sign In →"}
