@@ -131,7 +131,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()})
 document.getElementById("username").addEventListener("blur",async()=>{
   const u=document.getElementById("username").value.trim()
   if(!u)return
-  const{data}=await sb.from("employees").select("role,is_active").eq("username",u).limit(1)
+  const{data}=await sb.from("employees").select("role,is_active").eq("name",u).limit(1)
   if(!data?.length)return
   const emp=data[0]
   if(!emp.is_active){showRolePill("#fee2e2","#991b1b","🚫","Account blocked");return}
@@ -166,7 +166,7 @@ window.doLogin=async()=>{
   try{
     const{data,error}=await sb.from("employees")
       .select("id,name,role,is_active,page_access,custom_role")
-      .eq("username",username).eq("password",password).limit(1)
+      .eq("name",username).eq("pin",password).limit(1)
     if(error)throw error
     if(!data?.length){showErr("Incorrect username or password.");btn.disabled=false;btn.textContent="Sign In →";return}
     const user=data[0]
