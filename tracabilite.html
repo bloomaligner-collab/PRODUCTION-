@@ -402,8 +402,58 @@ async function load(){
       })
     }
   }catch(e){console.warn('Fallback sessions load:',e)}
+
+  // BLOOM PIPELINE: also load Bloom cases whose status is in the
+  // allowed list configured in Settings → Bloom Active Production.
+  // The setting is stored as 'bloom_excluded_statuses' (comma-separated).
+  // Show every status NOT in that exclusion list. Re-uses the same
+  // config the requisition / KPI system already uses, so the user
+  // doesn't have to maintain two lists.
+  try{
+    const{data:cfg}=await sb.from('system_settings')
+      .select('value').eq('key','bloom_excluded_statuses').maybeSingle()
+    const excluded=new Set((cfg?.value||'').split(',').map(s=>s.trim()).filter(Boolean))
+    // Page through bloom_cases to bypass PostgREST's 1000-row cap
+    const PAGE=1000
+    let from=0
+    const bloomOrders=[]
+    while(true){
+      const{data:bs,error}=await sb.from('bloom_cases')
+        .select('case_id,patient_name,doctor,current_status,status_change_date,last_synced_at')
+        .order('status_change_date',{ascending:false,nullsFirst:false})
+        .range(from,from+PAGE-1)
+      if(error)throw error
+      if(!bs?.length)break
+      bloomOrders.push(...bs)
+      if(bs.length<PAGE)break
+      from+=PAGE
+    }
+    bloomOrders.forEach(b=>{
+      const st=b.current_status||''
+      if(excluded.has(st))return
+      const k=String(b.case_id)
+      if(byOrder[k])return // already in pipeline — don't overwrite
+      byOrder[k]={
+        order_no:k,
+        steps:{}, sessions:[], consumption:[], entries:[],
+        first_started:null, last_completed:null,
+        patient_name:b.patient_name||null,
+        doctor:b.doctor||null,
+        bloom_status:st,
+        is_bloom_only:true,
+        last_synced_at:b.last_synced_at||null
+      }
+    })
+    console.log('[trac] bloom orders added:',bloomOrders.filter(b=>!excluded.has(b.current_status||'')).length)
+  }catch(e){console.warn('Bloom-status load:',e)}
   
-  orders=Object.values(byOrder).sort((a,b)=>(b.first_started||'')>(a.first_started||'')?1:-1)
+  // Bloom-only orders inherit their sort key from last_synced_at so the
+  // most recently updated cases bubble up first.
+  orders=Object.values(byOrder).sort((a,b)=>{
+    const ka=a.first_started||a.last_synced_at||''
+    const kb=b.first_started||b.last_synced_at||''
+    return kb>ka?1:-1
+  })
   renderList()
 
   // Auto-select from URL param
