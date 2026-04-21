@@ -556,7 +556,7 @@ function renderConsumptionTable(){
 
 
 /* ─── PRODUCTION ENTRY MODAL ─── */
-document.getElementById('btnEntry').addEventListener('click',()=>{
+document.getElementById('btnEntry')?.addEventListener('click',()=>{
   document.getElementById('enErr').textContent=''
   document.getElementById('enOrder').value=''
   document.getElementById('enTotal').value=''
