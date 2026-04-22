@@ -329,7 +329,7 @@ async function load(){
     const[cRes,eRes,qcRes]=await Promise.all([
       sb.from('material_consumption_log').select('*').in('order_no',orderNos).order('recorded_at'),
       sb.from('bloom_aligner_details').select('case_number,aligner_upper,aligner_lower,number_of_aligners,order_type').in('case_number',orderNos),
-      sb.from('quality_controls').select('id,lot_id,order_no,lot_number,performed_at').order('performed_at',{ascending:false})
+      sb.from('quality_controls').select('id,lot_id,order_no,lot_number,performed_at,performed_by,overall_result,result').order('performed_at',{ascending:false})
     ])
     consumption=cRes.data||[]
     prodEntries=eRes.data||[]
@@ -638,6 +638,13 @@ function renderDetail(o){
       </div>
 
       <div class="fiche-body">
+        ${o.is_bloom_only?`<div style="background:var(--b50);border:1px solid var(--b100);border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px">
+          <div style="font-size:22px;line-height:1">⏳</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--blue)">En file d'attente — production non commencée</div>
+            <div style="font-size:12px;color:var(--mu);margin-top:3px">Ce cas est actif chez Bloom (${o.bloom_status||'—'}) mais aucun pointage n'a encore été enregistré. Les étapes ci-dessous s'activeront dès que la première session de pointage sera démarrée depuis la page <strong>Clocking</strong>.</div>
+          </div>
+        </div>`:''}
         <!-- SUMMARY -->
         <div class="sec-title">📋 Case Information</div>
         <div class="info-grid">
@@ -683,28 +690,54 @@ function renderDetail(o){
           <div style="color:var(--dim);font-size:12px;padding:10px 0">Chargement…</div>
         </div>
 
-        <!-- SIGNATURES -->
+        <!-- SIGNATURES — captured authoritatively at the moment each
+             action happens: the Packaging step's completed_by IS the
+             operator's signature (clocking writes it when the step
+             is marked complete), and the QC record's performed_by
+             IS the controller's signature (qualite.html writes it
+             when the 16-point check is submitted). We just read the
+             real values here; no retroactive re-signing. -->
+        ${(()=>{
+          const packagingRow=o.steps&&o.steps['Packaging']
+          const operatorSigner=packagingRow&&packagingRow.completed_by||null
+          const operatorSignedAt=packagingRow&&packagingRow.completed_at||null
+          const orderQCs=qcRecords.filter(q=>String(q.order_no||'')===String(o.order_no)||String(q.lot_number||'')===String(lotNum))
+          const latestQC=orderQCs[0]||null
+          const qcSigner=latestQC?.performed_by||null
+          const qcSignedAt=latestQC?.performed_at||null
+          const qcVerdict=latestQC?.overall_result||latestQC?.result||null
+          const verdictPill=qcVerdict==='approved'||qcVerdict==='pass'
+            ?'<span class="pill p-ok" style="margin-left:6px">✅ Approuvé</span>'
+            :qcVerdict==='rejected'||qcVerdict==='fail'
+              ?'<span class="pill p-rej" style="margin-left:6px">❌ Rejeté</span>'
+              :qcVerdict?'<span class="pill p-pend" style="margin-left:6px">⏸ '+qcVerdict+'</span>':''
+          const dash='………………………'
+          const opDropdown=operatorSigner?'':`<select id="sigOp-${safeId}" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-family:var(--f);font-size:12px;background:var(--card);color:var(--txt);margin-bottom:4px">
+            ${(window._cwEmployees||[...new Set([...allOperators,(allOperators[0]||'')])].filter(Boolean)).map(n=>`<option value="${n}" ${n===allOperators[0]?'selected':''}>${n}</option>`).join('')}
+            <option value="">— Sélectionner —</option>
+          </select>`
+          return `
         <div class="sec-title">✍ Signatures & Validation</div>
         <div class="sig-row">
           <div class="sig-box">
             <div class="sig-lbl">Opérateur principal</div>
-            <select id="sigOp-${safeId}" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-family:var(--f);font-size:12px;background:var(--card);color:var(--txt);margin-bottom:4px">
-              ${(window._cwEmployees||[...new Set([...allOperators,(allOperators[0]||'')])].filter(Boolean)).map(n=>`<option value="${n}" ${n===allOperators[0]?'selected':''}>${n}</option>`).join('')}
-              <option value="">— Sélectionner —</option>
-            </select>
+            <div class="sig-val">${operatorSigner||opDropdown||dash}</div>
+            ${operatorSignedAt?`<div style="font-size:10px;color:var(--mu);margin-top:4px">Signé ${fdt(operatorSignedAt)}</div>`:''}
             <div class="sig-line"></div>
           </div>
           <div class="sig-box">
-            <div class="sig-lbl">Responsable qualité</div>
-            <div class="sig-val">………………………</div>
+            <div class="sig-lbl">Responsable qualité${verdictPill}</div>
+            <div class="sig-val">${qcSigner||dash}</div>
+            ${qcSignedAt?`<div style="font-size:10px;color:var(--mu);margin-top:4px">Signé ${fdt(qcSignedAt)}</div>`:''}
             <div class="sig-line"></div>
           </div>
           <div class="sig-box">
             <div class="sig-lbl">Date & Visa</div>
-            <div class="sig-val">${done?fd(endDate):'………………………'}</div>
+            <div class="sig-val">${qcSignedAt?fd(qcSignedAt):(operatorSignedAt?fd(operatorSignedAt):(done?fd(endDate):dash))}</div>
             <div class="sig-line"></div>
           </div>
-        </div>
+        </div>`
+        })()}
 
         <!-- ACTIONS -->
         <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap" class="no-print">

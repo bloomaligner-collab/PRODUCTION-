@@ -352,6 +352,31 @@ const fT=v=>v?new Date(v).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"
 const mins=(a,b)=>Math.max(0,Math.round((b-a)/60000))
 const gB=()=>"B-"+new Date().toISOString().replace(/[-:TZ.]/g,"").slice(2,14)
 
+// Canonical batch-lot identifier for an order (ISO 13485 §7.5.9).
+// Written once into order_step_tracking.lot_number on the first step;
+// every subsequent step inherits it. If any tracking row for this order
+// already has a lot_number, reuse it — never regenerate mid-flow.
+// The anchor is the earliest first_started_at for the order so the
+// string is stable even if the user re-enters the order out of order.
+async function cwEnsureLotNumber(ord,nowIso){
+  if(!ord)return null
+  try{
+    const{data:rows}=await sb.from('order_step_tracking')
+      .select('lot_number,first_started_at').eq('order_no',ord)
+    const hit=(rows||[]).find(r=>r.lot_number)
+    if(hit)return hit.lot_number
+    const earliest=(rows||[])
+      .map(r=>r.first_started_at).filter(Boolean).sort()[0]
+    const d=new Date(earliest||nowIso||new Date().toISOString())
+    const pad=n=>String(n).padStart(2,'0')
+    const shortOrd=String(ord).replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,6)
+    return `LOT-${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}-${shortOrd}`
+  }catch(e){
+    console.warn('cwEnsureLotNumber:',e)
+    return null
+  }
+}
+
 let emp="",activeSession=null,timerInt=null,todaySessions=[]
 
 /* ===================== W9 AUTO GAP FILL ===================== */
@@ -722,19 +747,23 @@ async function doClockIn(step,ord,machName,machId){
   }]).select().single()
   if(error){setSt("Error",error.message,"err");return}
 
-  // Create or update step tracking
+  // Create or update step tracking. Persist the canonical lot_number
+  // on the insert so downstream pages (Traceability, QC) can read a
+  // stable batch identifier instead of reconstructing it from
+  // timestamps on every render.
+  const lotNumber=await cwEnsureLotNumber(ord,now.toISOString())
   const{data:existing}=await sb.from("order_step_tracking")
-    .select("id,first_started_at").eq("order_no",ord).eq("step",step).limit(1)
+    .select("id,first_started_at,lot_number").eq("order_no",ord).eq("step",step).limit(1)
   if(existing&&existing.length){
-    await sb.from("order_step_tracking").update({
-      status:"in_progress",
-      last_resumed_at:now.toISOString()
-    }).eq("id",existing[0].id)
+    const upd={status:"in_progress",last_resumed_at:now.toISOString()}
+    if(!existing[0].lot_number&&lotNumber)upd.lot_number=lotNumber
+    await sb.from("order_step_tracking").update(upd).eq("id",existing[0].id)
   }else{
     await sb.from("order_step_tracking").insert([{
       order_no:ord,step,status:"in_progress",
       first_started_at:now.toISOString(),
-      machine_started_at:now.toISOString()  // Machine starts when first technician clocks in
+      machine_started_at:now.toISOString(),  // Machine starts when first technician clocks in
+      lot_number:lotNumber
     }])
   }
 
@@ -835,12 +864,13 @@ window.confirmPause=async(reason)=>{
   // RULE: Step stays in_progress (NOT complete, NOT paused)
   // So any employee can resume and continue — total hours = sum of all sessions
   // Only exception: machine_running = machine still running autonomously
-  const{data:existing}=await sb.from("order_step_tracking").select("id").eq("order_no",ord).eq("step",step).limit(1)
+  const{data:existing}=await sb.from("order_step_tracking").select("id,lot_number").eq("order_no",ord).eq("step",step).limit(1)
   const newStatus=reason==="machine_running"?"machine_running":"in_progress"
   if(existing&&existing.length){
     await sb.from("order_step_tracking").update({status:newStatus}).eq("id",existing[0].id)
   }else{
-    await sb.from("order_step_tracking").insert([{order_no:ord,step,status:newStatus,first_started_at:now.toISOString()}])
+    const lotNumber=await cwEnsureLotNumber(ord,now.toISOString())
+    await sb.from("order_step_tracking").insert([{order_no:ord,step,status:newStatus,first_started_at:now.toISOString(),lot_number:lotNumber}])
   }
 
   clearInterval(timerInt);activeSession=null
