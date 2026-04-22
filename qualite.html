@@ -682,9 +682,12 @@ async function load(){
   }
 
   // ── Incomplete Production Flags (from quality_controls pending status) ──
+  // The legacy `result` column is a CHECK-constrained enum (pass/fail/
+  // conditional) — it can't hold 'pending'. Pending QCs live on the
+  // new `overall_result` column instead.
   try {
     const {data:incFlags} = await sb.from('quality_controls')
-      .select('*').eq('result','pending')
+      .select('*').eq('overall_result','pending')
       .order('created_at',{ascending:false}).limit(20)
     const flagBanner = document.getElementById('incProductionBanner')
     if(flagBanner && incFlags && incFlags.length > 0) {
@@ -879,10 +882,18 @@ window.submitQC=async(result)=>{
   const lotNum=opt?.dataset?.num||currentLotId
   const orderNo=opt?.dataset?.order||""
 
+  // Mirror overall_result into the legacy `result` column with its
+  // own vocabulary (pass/fail/conditional — enforced by a CHECK
+  // constraint that pre-dates overall_result). Keeping both columns
+  // in sync means the "pending flags" banner and any other legacy
+  // caller don't drift from the new UI.
+  const legacyResult={approved:'pass',rejected:'fail',on_hold:'conditional'}[result]||null
   const{error}=await sb.from("quality_controls").insert([{
     lot_id:isUUID(currentLotId)?currentLotId:null,
     lot_number:lotNum,
     order_no:orderNo,
+    case_id:orderNo||null,
+    result:legacyResult,
     check_type:document.getElementById("qcType").value,
     performed_by:controller,
     performed_at:new Date().toISOString(),

@@ -239,7 +239,21 @@ const STEP_DESC={
 const fdt=v=>v?new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'
 const fd=v=>v?new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'
 const dur=ms=>{if(!ms||ms<0)return'—';const m=Math.floor(ms/60000);const h=Math.floor(m/60);return h>0?`${h}h${String(m%60).padStart(2,'0')}`:`${m}min`}
-const genLot=(ord,date)=>{const d=new Date(date||Date.now());return`LOT-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${(ord||'ORD').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,6)}`}
+// Deterministic LOT generator. ISO 13485 §7.5.9 requires the batch
+// identifier to be unique AND stable — so we NEVER fall back to
+// Date.now() (that would reissue a new LOT on every render and break
+// trace-back). Preference order:
+//   1. An already-persisted lot_number from order_step_tracking (gold).
+//   2. An anchor timestamp tied to the case itself — first_started,
+//      then the Bloom case's status_change_date / last_synced_at.
+//   3. As an absolute last resort, a fixed epoch so the string is
+//      deterministic rather than clock-dependent.
+const genLot=(ord,opts)=>{
+  if(opts&&opts.persistedLot)return opts.persistedLot
+  const anchor=opts&&(opts.first_started||opts.status_change_date||opts.last_synced_at||opts.creation_date)
+  const d=anchor?new Date(anchor):new Date('2026-01-01T00:00:00Z')
+  return`LOT-${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}-${(ord||'ORD').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,6)}`
+}
 
 let orders=[]
 let selOrder=null
@@ -283,7 +297,7 @@ async function load(){
   let bloomCaseMap={}, bloomAlMap={}
   try{
     const[bcRes,baRes]=await Promise.all([
-      sb.from('bloom_cases').select('case_id,patient_name,doctor,current_status').in('case_id',orderNos.slice(0,500)),
+      sb.from('bloom_cases').select('case_id,patient_name,doctor,current_status,status_change_date,last_synced_at,creation_date').in('case_id',orderNos.slice(0,500)),
       sb.from('bloom_aligner_details').select('case_number,aligner_upper,aligner_lower,number_of_aligners').in('case_number',orderNos.slice(0,500))
     ])
     ;(bcRes.data||[]).forEach(b=>{bloomCaseMap[String(b.case_id)]=b})
@@ -294,13 +308,17 @@ async function load(){
       bloomAlMap[k].lower+=Number(a.aligner_lower)||0
       bloomAlMap[k].total+=Number(a.number_of_aligners)||0
     })
-    // Attach bloom data to each order object
+    // Attach bloom data to each order object, including the date
+    // fields we anchor the deterministic LOT generator on.
     orders.forEach(o=>{
       const bc=bloomCaseMap[String(o.order_no)]
       const al=bloomAlMap[String(o.order_no)]
       o.patient_name=bc?.patient_name||null
       o.doctor=bc?.doctor||null
       o.bloom_status=bc?.current_status||null
+      o.status_change_date=bc?.status_change_date||null
+      o.last_synced_at=bc?.last_synced_at||null
+      o.creation_date=bc?.creation_date||null
       o.aligner_upper=al?.upper||0
       o.aligner_lower=al?.lower||0
       o.aligner_total=al?.total||0
@@ -331,8 +349,9 @@ async function load(){
   const byOrder={}
   ;(tracking||[]).forEach(t=>{
     if(!t.order_no)return
-    if(!byOrder[t.order_no])byOrder[t.order_no]={order_no:t.order_no,steps:{},first_started:null,last_completed:null}
+    if(!byOrder[t.order_no])byOrder[t.order_no]={order_no:t.order_no,steps:{},first_started:null,last_completed:null,persistedLot:null}
     byOrder[t.order_no].steps[t.step]=t
+    if(t.lot_number&&!byOrder[t.order_no].persistedLot)byOrder[t.order_no].persistedLot=t.lot_number
     if(t.first_started_at&&(!byOrder[t.order_no].first_started||t.first_started_at<byOrder[t.order_no].first_started))
       byOrder[t.order_no].first_started=t.first_started_at
     if(t.completed_at&&(!byOrder[t.order_no].last_completed||t.completed_at>byOrder[t.order_no].last_completed))
@@ -442,10 +461,12 @@ async function load(){
         order_no:k,
         steps:{}, sessions:[], consumption:[], entries:[],
         first_started:null, last_completed:null,
+        persistedLot:null,
         patient_name:b.patient_name||null,
         doctor:b.doctor||null,
         bloom_status:st,
         is_bloom_only:true,
+        status_change_date:b.status_change_date||null,
         last_synced_at:b.last_synced_at||null
       }
     })
@@ -480,7 +501,16 @@ function isComplete(o){
 function stepsDone(o){return STEPS.filter(s=>o.steps[s]?.status==='complete').length}
 
 function hasQC(orderNo){
-  return qcRecords.some(q=>String(q.order_no||q.lot_number||'').toLowerCase().includes(String(orderNo).toLowerCase()))
+  // ISO 13485 §7.5.9 — the traceability badge must match an exact QC
+  // record, not a substring. A substring match makes order "1" satisfy
+  // QC rows for 10, 100, 1001… and would mark never-inspected cases as
+  // done. Only count records whose result is approved (rejected QCs
+  // require a re-check before the badge flips).
+  const want=String(orderNo)
+  return qcRecords.some(q=>{
+    if(q.overall_result&&q.overall_result!=='approved')return false
+    return String(q.order_no||'')===want||String(q.lot_number||'')===want
+  })
 }
 function renderList(){
   const term=document.getElementById('srch').value.toLowerCase()
@@ -499,25 +529,37 @@ function renderList(){
     document.getElementById('orderList').innerHTML='<div style="text-align:center;padding:30px;color:var(--dim)">No cases found</div>'
     return
   }
-  document.getElementById('orderList').innerHTML=filtered.map(o=>{
+  const listEl=document.getElementById('orderList')
+  // Stash the rendered slice so the delegated click handler can map
+  // back from data-order to the full object without us minting a
+  // fresh global window.selectOrder_<key> on every keystroke.
+  listEl._cwOrders=filtered
+  listEl.innerHTML=filtered.map(o=>{
     const done=isComplete(o)
     const cnt=stepsDone(o)
     const isSel=selOrder?.order_no===o.order_no
-    return`<div class="order-row${isSel?' sel':''}" onclick="selectOrder_${o.order_no.replace(/[^a-zA-Z0-9]/g,'_')}()">
+    const safe=String(o.order_no).replace(/"/g,'&quot;')
+    return`<div class="order-row${isSel?' sel':''}" data-order="${safe}">
       <div class="or-icon" style="background:${done?'var(--g50)':'var(--b50)'}">${done?'✅':'🔄'}</div>
       <div style="flex:1;min-width:0">
         <div class="or-num">${o.order_no}</div>
         ${o.patient_name?`<div style="font-size:11px;font-weight:600;color:var(--blue);margin-top:1px">${o.patient_name}${o.doctor?' · '+o.doctor:''}</div>`:''}
-        <div class="or-sub">${cnt}/${STEPS.length} steps · ${o.aligner_total?o.aligner_total+' aligners · ':''}${fd(o.first_started)}</div>
+        <div class="or-sub">${cnt}/${STEPS.length} steps · ${o.aligner_total?o.aligner_total+' aligners · ':''}${fd(o.first_started||o.status_change_date||o.last_synced_at)}</div>
       </div>
       <span class="or-badge ${done?'b-ok':'b-prog'}">${done?'Terminé':'En cours'}</span>
     </div>`
   }).join('')
-  // Attach click handlers
-  filtered.forEach(o=>{
-    const key=o.order_no.replace(/[^a-zA-Z0-9]/g,'_')
-    window[`selectOrder_${key}`]=()=>selectOrder(o)
-  })
+  // Attach the delegated click handler exactly once.
+  if(!listEl._cwBound){
+    listEl.addEventListener('click',ev=>{
+      const row=ev.target.closest('.order-row')
+      if(!row)return
+      const ord=row.getAttribute('data-order')
+      const match=(listEl._cwOrders||[]).find(x=>String(x.order_no)===ord)
+      if(match)selectOrder(match)
+    })
+    listEl._cwBound=true
+  }
 }
 
 window.selectOrder=(o)=>{
@@ -528,7 +570,7 @@ window.selectOrder=(o)=>{
 
 function renderDetail(o){
   const done=isComplete(o)
-  const lotNum=genLot(o.order_no,o.first_started)
+  const lotNum=genLot(o.order_no,o)
   const sessions=o.sessions||[]
 
   // Build step rows
@@ -541,7 +583,12 @@ function renderDetail(o){
     // Machine time = first_started_at → completed_at from tracking
     const machMs=(t?.first_started_at&&t?.completed_at)?new Date(t.completed_at)-new Date(t.first_started_at):null
     const operators=[...new Set(stepSess.map(s=>s.employee_name).filter(Boolean))]
-    const machines=[...new Set(stepSess.map(s=>s.machine).filter(Boolean))]
+    // Prefer the authoritative machine from order_step_tracking
+    // (clocking-written), fall back to the time_sessions value. That
+    // way cases without surviving sessions still show the machine.
+    const trackMach=t?.machine_name||t?.machine||null
+    const sessMach=stepSess.map(s=>s.machine).filter(Boolean)
+    const machines=[...new Set([trackMach,...sessMach].filter(Boolean))]
     const status=t?.status||'pending'
     const icon=status==='complete'?'<span class="st-done">✓</span>':status==='in_progress'||status==='machine_running'?'<span class="st-prog">▶</span>':'<span class="st-pend">○</span>'
     return`<tr>
@@ -570,13 +617,18 @@ function renderDetail(o){
   const allMachines=[...new Set(sessions.map(s=>s.machine).filter(Boolean))]
 
   const safeId=o.order_no.replace(/[^a-z0-9]/gi,'_')
+  // For Bloom-only cases (not yet clocked), no first_started/last_completed
+  // exists — fall back to the case's own timeline so the fiche still prints
+  // a real Date début. last_completed stays null until Packaging ends.
+  const startDate=o.first_started||o.status_change_date||o.last_synced_at||o.creation_date||null
+  const endDate=o.last_completed||null
   document.getElementById('detailPanel').innerHTML=`
     <div class="detail-content">
       <div class="fiche-head">
         <div>
           <div class="fh-company">Cedarwings SAS — Traceability Record</div>
           <div class="fh-title">Commande ${o.order_no}</div>
-          <div class="fh-sub">Débuté le ${fdt(o.first_started)} · ${done?'✅ Terminé':'🔄 En cours'}</div>
+          <div class="fh-sub">${startDate?"Débuté le "+fdt(startDate):"En file d'attente"} · ${done?"✅ Terminé":"🔄 En cours"}</div>
         </div>
         <div class="lot-num-box">
           <div class="lot-num">${lotNum}</div>
@@ -590,8 +642,8 @@ function renderDetail(o){
         <div class="sec-title">📋 Case Information</div>
         <div class="info-grid">
           <div class="ib"><div class="ib-l">N° Commande</div><div class="ib-v">${o.order_no}</div></div>
-          <div class="ib"><div class="ib-l">Date début</div><div class="ib-v" style="font-size:11px">${fd(o.first_started)}</div></div>
-          <div class="ib"><div class="ib-l">Date fin</div><div class="ib-v" style="font-size:11px;color:${done?'var(--green)':'var(--dim)'}">${done?fd(o.last_completed):'En cours'}</div></div>
+          <div class="ib"><div class="ib-l">Date début</div><div class="ib-v" style="font-size:11px">${fd(startDate)}</div></div>
+          <div class="ib"><div class="ib-l">Date fin</div><div class="ib-v" style="font-size:11px;color:${done?'var(--green)':'var(--dim)'}">${done?fd(endDate):'En cours'}</div></div>
           <div class="ib"><div class="ib-l">Opérateurs</div><div class="ib-v" style="font-size:11px">${allOperators.join(', ')||'—'}</div></div>
           <div class="ib"><div class="ib-l">Machines utilisées</div><div class="ib-v" style="font-size:11px">${allMachines.join(', ')||'—'}</div></div>
           <div class="ib"><div class="ib-l">Temps technicien total</div><div class="ib-v" style="color:var(--blue)">${dur(totalTechMs)}</div></div>
@@ -649,7 +701,7 @@ function renderDetail(o){
           </div>
           <div class="sig-box">
             <div class="sig-lbl">Date & Visa</div>
-            <div class="sig-val">${done?fd(o.last_completed):'………………………'}</div>
+            <div class="sig-val">${done?fd(endDate):'………………………'}</div>
             <div class="sig-line"></div>
           </div>
         </div>
@@ -659,7 +711,7 @@ function renderDetail(o){
           <button class="btn bgh" onclick="window.print()">🖨 Imprimer fiche</button>
           ${(()=>{
     const qcDone=hasQC(o.order_no)
-    const lotNum=genLot(o.order_no,o.first_started)
+    const lotNum=genLot(o.order_no,o)
     if(qcDone){
       return '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--g50);border:1px solid var(--g100);color:#15803d;border-radius:8px;font-size:13px;font-weight:600">✅ QC Réalisé</span>'
     }else{
