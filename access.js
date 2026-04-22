@@ -133,8 +133,62 @@ const CW_ACCESS = {
   }
 };
 
+// ── Global button hover / focus affordance ───────────────────────
+// Injected once per page. Acts as a baseline: any page-specific
+// :hover rule with higher specificity still wins. Keyboard users
+// get a visible focus ring too (WCAG 2.1 §2.4.7). Nav links (.nl)
+// and the help ? button already have their own treatments and are
+// excluded with :not() so we don't double up.
+CW_ACCESS.injectButtonStyles = function () {
+  if (document.getElementById('cw-btn-hover-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'cw-btn-hover-styles';
+  s.textContent = `
+    button:not(.nl):not(#helpBtn):not(#cw-help-btn),
+    .btn, a.btn, input[type="submit"], input[type="button"] {
+      transition: transform .12s ease, box-shadow .12s ease,
+                  filter .12s ease, background-color .12s ease;
+    }
+    button:not(.nl):not(#helpBtn):not(#cw-help-btn):not(:disabled):hover,
+    .btn:not(:disabled):hover,
+    a.btn:hover,
+    input[type="submit"]:not(:disabled):hover,
+    input[type="button"]:not(:disabled):hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06) saturate(1.05);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, .10);
+      cursor: pointer;
+    }
+    button:not(.nl):not(#helpBtn):not(#cw-help-btn):not(:disabled):active,
+    .btn:not(:disabled):active,
+    a.btn:active,
+    input[type="submit"]:not(:disabled):active,
+    input[type="button"]:not(:disabled):active {
+      transform: translateY(0);
+      filter: brightness(.96);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+    }
+    button:disabled, .btn:disabled,
+    input[type="submit"]:disabled, input[type="button"]:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+      filter: grayscale(.2);
+    }
+    button:focus-visible,
+    .btn:focus-visible,
+    a.btn:focus-visible,
+    input[type="submit"]:focus-visible,
+    input[type="button"]:focus-visible {
+      outline: 2px solid #3b5fe2;
+      outline-offset: 2px;
+    }
+  `;
+  document.head.appendChild(s);
+};
+
 // ── Auto-run ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  CW_ACCESS.injectButtonStyles();
   if (typeof PAGE_KEY !== 'undefined') {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);
