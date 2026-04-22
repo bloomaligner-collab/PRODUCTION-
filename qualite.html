@@ -628,7 +628,7 @@ async function load(){
         const bc=bloomCaseMap[String(o)]
         const al=bloomAlMap[String(o)]
         const label='⏳ '+o+(bc&&bc.patient_name?' — '+bc.patient_name:'')+(al&&al.total?' ('+al.total+' al.)':'')+(lot?' · '+lot.lot_number:'')
-        return '<option value="'+val+'" data-order="'+o+'" data-num="'+num+'" data-pending="true">'+label+'</option>
+        return '<option value="'+val+'" data-order="'+o+'" data-num="'+num+'" data-pending="true">'+label+'</option>'
       }).join("")+
       (lots.length?'<optgroup label="— All lots —">'+lots.map(l=>'<option value="'+l.id+'" data-order="'+l.order_no+'" data-num="'+l.lot_number+'">'+l.lot_number+' — '+l.order_no+' ('+( l.quality_status||'pending')+')</option>').join("")+'</optgroup>':'')
   } else if(lots.length>0){

@@ -223,6 +223,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 import{createClient}from"https://esm.sh/@supabase/supabase-js@2"
 import{SUPABASE_CONFIG}from"./config.js"
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
+window._sb=sb
 
 const STEPS=['Printing','Cleaning','Thermoforming','Line Cut','Laser Marking','Packaging']
 const STEP_FR={'Printing':'🖨 Impression','Cleaning':'🧼 Nettoyage','Thermoforming':'🔄 Thermoformage','Line Cut':'✂ Découpe','Laser Marking':'🔆 Marquage Laser','Packaging':'📦 Emballage'}
@@ -323,9 +324,13 @@ async function load(){
     }
   }
 
-  // Group by order
+  // Group by order. Skip rows with no order_no — they're orphan step-tracking
+  // events (e.g. pre-clocking test rows) that would otherwise become a
+  // byOrder[null] ghost entry and crash renderList when it does
+  // o.order_no.toLowerCase().
   const byOrder={}
   ;(tracking||[]).forEach(t=>{
+    if(!t.order_no)return
     if(!byOrder[t.order_no])byOrder[t.order_no]={order_no:t.order_no,steps:{},first_started:null,last_completed:null}
     byOrder[t.order_no].steps[t.step]=t
     if(t.first_started_at&&(!byOrder[t.order_no].first_started||t.first_started_at<byOrder[t.order_no].first_started))
@@ -482,7 +487,8 @@ function renderList(){
   const flt=document.getElementById('fltStatus').value
   const fltQC=document.getElementById('fltQC').value
   const filtered=orders.filter(o=>{
-    const mT=!term||o.order_no.toLowerCase().includes(term)||(o.patient_name||'').toLowerCase().includes(term)||(o.doctor||'').toLowerCase().includes(term)
+    if(!o.order_no)return false
+    const mT=!term||String(o.order_no).toLowerCase().includes(term)||(o.patient_name||'').toLowerCase().includes(term)||(o.doctor||'').toLowerCase().includes(term)
     const complete=isComplete(o)
     const mS=flt==='all'||(flt==='complete'&&complete)||(flt==='in_progress'&&!complete)
     const qcDone=hasQC(o.order_no)
@@ -752,23 +758,29 @@ function renderMaterials(o){
       const machineInfo=orderMachines.length>0?` (Machine: ${orderMachines.join(', ')})`:''
       matEl.innerHTML='<div style="background:#fffbeb;border:1px solid var(--a100);border-radius:10px;padding:12px;font-size:12px;color:var(--amber)">'+'⚠️ Aucun lot matière trouvé'+machineInfo+'. Vérifiez que le lot est assigné à la machine dans la page <strong>Machines</strong>.</div>'
     } else {
-      // Group by item+lot
+      // Group by item+lot. material_consumption_log rows carry qty_used;
+      // machine_lot_assignments rows don't — coerce so missing values
+      // don't NaN out the total or crash on .toFixed() below.
       const grouped={}
       mats.forEach(m=>{
-        const k=m.item_name+'|'+m.lot_number
+        const k=(m.item_name||'')+'|'+(m.lot_number||'')
         if(!grouped[k])grouped[k]={...m,qty_used:0,aligners_count:0}
-        grouped[k].qty_used+=m.qty_used
-        grouped[k].aligners_count+=(m.aligners_count||0)
+        grouped[k].qty_used+=Number(m.qty_used)||0
+        grouped[k].aligners_count+=Number(m.aligners_count)||0
       })
+      const fmtQty=q=>{const n=Number(q);return isFinite(n)&&n>0?parseFloat(n.toFixed(4)):null}
       matEl.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
-        ${(matSource==='machine'||matSource==='machines_only'?mats:Object.values(grouped)).map(m=>`
+        ${(matSource==='machine'||matSource==='machines_only'||matSource==='all_active'?mats:Object.values(grouped)).map(m=>{
+          const qty=fmtQty(m.qty_used)
+          const rem=fmtQty(m.qty_remaining)
+          return `
         <div style="background:${m.noLot?'var(--a50)':'#f8fafc'};border:1px solid ${m.noLot?'var(--a100)':'var(--bdr)'};border-radius:10px;padding:12px">
           <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">📦 ${m.item_name||'Matière'}${m.machine?' <span style=\"color:var(--blue)\">⚙ '+m.machine+'</span>':''}</div>
           <div style="font-family:var(--mono);font-size:13px;font-weight:${m.noLot?'400':'700'};margin-bottom:2px;color:${m.noLot?'var(--amber)':'inherit'}">${m.lot_number||'—'}</div>
-          <div style="font-size:12px;color:var(--blue);font-weight:700">${parseFloat(m.qty_used.toFixed(4))} ${m.unit||''} utilisés</div>
+          ${qty?`<div style="font-size:12px;color:var(--blue);font-weight:700">${qty} ${m.unit||''} utilisés</div>`:(rem?`<div style="font-size:11px;color:var(--mu)">Reste: <strong>${rem} ${m.unit||''}</strong></div>`:'')}
           ${m.step?`<div style="font-size:10px;color:var(--dim);margin-top:4px">Étape: ${m.step}</div>`:''}
-          ${m.machine_name?`<div style="font-size:10px;color:var(--dim)">Machine: ${m.machine_name}</div>`:''}
-        </div>`).join('')}
+          ${m.machine_name&&m.machine_name!==m.machine?`<div style="font-size:10px;color:var(--dim)">Machine: ${m.machine_name}</div>`:''}
+        </div>`}).join('')}
       </div>`
     }
   }
@@ -779,9 +791,11 @@ function renderMaterials(o){
     if(!entries.length){
       alnEl.innerHTML='<div style="background:#f8fafc;border:1px solid var(--bdr);border-radius:10px;padding:12px;font-size:12px;color:var(--dim)">Aucune production enregistrée. Saisissez via la page Production → + Log Production.</div>'
     } else {
-      const total=entries.filter(e=>e.order_type==='TreatmentPlan').reduce((s,e)=>s+(e.number_of_aligners||0),0)
-      const upper=entries.reduce((s,e)=>s+(e.upper_count||0),0)
-      const lower=entries.reduce((s,e)=>s+(e.lower_count||0),0)
+      // entries come from bloom_aligner_details — the source of truth for
+      // aligner counts. Columns: aligner_upper / aligner_lower / number_of_aligners / order_type.
+      const total=entries.reduce((s,e)=>s+(Number(e.number_of_aligners)||0),0)
+      const upper=entries.reduce((s,e)=>s+(Number(e.aligner_upper)||0),0)
+      const lower=entries.reduce((s,e)=>s+(Number(e.aligner_lower)||0),0)
       alnEl.innerHTML=`
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
           <div style="background:var(--b50);border:1px solid var(--b100);border-radius:10px;padding:12px;text-align:center">
@@ -797,10 +811,10 @@ function renderMaterials(o){
             <div style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;margin-top:3px">Mandibulaire</div>
           </div>
         </div>
-        ${entries.map(e=>`<div style="background:#f8fafc;border:1px solid var(--bdr);border-radius:9px;padding:10px 12px;font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:700">${e.case_type||'—'}</span>
+        ${entries.map(e=>`<div style="background:#f8fafc;border:1px solid var(--bdr);border-radius:9px;padding:10px 12px;font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span style="font-weight:700">${e.order_type||'—'}</span>
           <span style="font-family:var(--mono);color:var(--blue);font-weight:700">${(e.number_of_aligners||0)} aligneurs (${e.aligner_upper||0}U / ${e.aligner_lower||0}L)</span>
-          <span style="color:var(--dim)">${e.entered_by||''} · ${new Date(e.entered_at).toLocaleDateString('fr-FR')}</span>
+          <span style="color:var(--dim);font-family:var(--mono);font-size:11px">${e.case_number||''}</span>
         </div>`).join('')}`
     }
   }
