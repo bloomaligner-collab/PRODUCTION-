@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Cedarwings SAS — Traceability</title>
-<script type="module" src="auth_guard.js"></script>
+<script type="module" src="auth_guard.js?v=20260422c"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;--blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;--green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;--amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;--red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;--f:"DM Sans",sans-serif;--mono:"JetBrains Mono",monospace;--sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);--sh2:0 8px 30px rgba(0,0,0,.1)}
@@ -122,9 +122,9 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 @media(max-width:900px){.layout{grid-template-columns:1fr}.list-panel{display:none}}
 </style>
 <script>const PAGE_KEY='tracabilite'</script>
-<script src="access.js"></script>
-<script src="lang.js"></script>
-<script src="orders.js"></script>
+<script src="access.js?v=20260422c"></script>
+<script src="lang.js?v=20260422c"></script>
+<script src="orders.js?v=20260422c"></script>
 </head>
 <body>
 <aside class="sb">
@@ -221,7 +221,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 
 <script type="module">
 import{createClient}from"https://esm.sh/@supabase/supabase-js@2"
-import{SUPABASE_CONFIG,CW_DOC_REF}from"./config.js"
+import{SUPABASE_CONFIG,CW_DOC_REF}from"./config.js?v=20260422c"
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
 window._sb=sb
 
