@@ -316,6 +316,21 @@ tbody tr:last-child td{border:none}
     </div>
   </div>
 
+  <!-- ═══ COMPLAINT ROUTING RULES ═══ -->
+  <div style="margin:0 28px 20px">
+    <div class="card" style="border-left:3px solid var(--purple,#7c3aed)">
+      <div class="card-title">📮 Complaint Routing Rules</div>
+      <div class="card-sub">When a complaint is logged and no assignee is picked, auto-assign based on the complaint's category. Pick the role that handles each category. Everyone holding that role gets a 🔔 banner on their next page load.</div>
+      <div id="routingGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-top:14px">
+        <div style="color:var(--dim);font-size:13px;padding:10px">Loading rules…</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button onclick="saveRoutingRules()" style="padding:8px 20px;background:var(--purple,#7c3aed);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--f)">💾 Save Routing Rules</button>
+      </div>
+      <div id="routingSaveStatus" style="margin-top:8px;font-size:12px;min-height:16px"></div>
+    </div>
+  </div>
+
   </div>
 </div>
 
@@ -629,6 +644,56 @@ window.saveBloomStatusConfig=async()=>{
   setTimeout(()=>{if(el)el.innerHTML=''},5000)
   ntf(msg)
 }
+
+// ── Complaint Routing Rules ─────────────────────────────────────────
+const COMPLAINT_CATEGORIES=[
+  {key:'product_quality',label:'Product Quality (defect, fit)'},
+  {key:'delivery',label:'Delivery / Shipping'},
+  {key:'fitting',label:'Aligner Fitting'},
+  {key:'packaging',label:'Packaging Damage'},
+  {key:'communication',label:'Communication'},
+  {key:'documentation',label:'Documentation / Label'},
+  {key:'billing',label:'Billing'},
+  {key:'other',label:'Other / Uncategorized'}
+]
+
+async function loadRoutingRules(){
+  const grid=document.getElementById('routingGrid')
+  if(!grid)return
+  // Read the current rule set
+  const{data:ss}=await sb.from('system_settings').select('value').eq('key','complaint_routing').maybeSingle()
+  let rules={}
+  try{ rules=ss?.value?JSON.parse(ss.value):{} }catch{ rules={} }
+  // Read the role_templates so the role dropdown is live (not hardcoded)
+  const{data:rt}=await sb.from('role_templates').select('name,label,icon,color').order('is_default',{ascending:false}).order('name')
+  const roles=rt||[]
+  grid.innerHTML=COMPLAINT_CATEGORIES.map(c=>{
+    const chosen=rules[c.key]||''
+    const options=['<option value="">— Keep manual assignment —</option>']
+      .concat(roles.map(r=>`<option value="${r.name}"${r.name===chosen?' selected':''}>${r.icon||'👤'} ${r.label||r.name}</option>`))
+      .join('')
+    return `<div style="border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;background:var(--bg)">
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">${c.label}</div>
+      <select class="fi" data-category="${c.key}" style="width:100%">${options}</select>
+    </div>`
+  }).join('')
+}
+
+window.saveRoutingRules=async()=>{
+  const grid=document.getElementById('routingGrid')
+  const sel=grid.querySelectorAll('select[data-category]')
+  const rules={}
+  sel.forEach(s=>{ const k=s.dataset.category; const v=s.value; if(k && v) rules[k]=v })
+  const{error}=await sb.from('system_settings').upsert({key:'complaint_routing',value:JSON.stringify(rules),updated_at:new Date().toISOString()},{onConflict:'key'})
+  const el=document.getElementById('routingSaveStatus')
+  if(error){if(el)el.innerHTML=`<span style="color:var(--red);font-weight:600">❌ ${error.message}</span>`;return}
+  const msg=`✅ Saved — ${Object.keys(rules).length} category rule${Object.keys(rules).length===1?'':'s'} active`
+  if(el)el.innerHTML=`<span style="color:var(--green);font-weight:600">${msg}</span>`
+  setTimeout(()=>{if(el)el.innerHTML=''},5000)
+  ntf(msg)
+}
+
+loadRoutingRules()
 </script>
 
 <!-- COPYRIGHT FOOTER -->

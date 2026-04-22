@@ -392,11 +392,32 @@ import{createClient}from'https://esm.sh/@supabase/supabase-js@2';
 import{SUPABASE_CONFIG}from'./config.js';
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
 const PAGE=20
-let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[]
+let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[],roles=[]
+let routingRules={}
+let userPrimaryRole='', userExtraRoles=[]
 const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
 const userRole=(sessionStorage.getItem('cw_role')||'').toLowerCase()
 const CATEGORY_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',billing:'Billing',other:'Other'}
 const TYPE_LABELS={complaint:'🚫 Complaint',feedback:'👍 Feedback',suggestion:'💡 Suggestion',warranty:'🛡️ Warranty',inquiry:'❓ Inquiry',return:'📦 Return',service_request:'🛠️ Service'}
+
+// An assignee can be either a person ('Bastien') or a role ('role:quality_control').
+function roleKeyFor(r){ return 'role:'+r }
+function isRoleAssignee(v){ return typeof v==='string' && v.startsWith('role:') }
+function prettyAssignee(v){
+  if(!v) return '—'
+  if(isRoleAssignee(v)){
+    const n=v.slice(5)
+    const r=roles.find(x=>x.name===n)
+    return (r?.icon||'👥')+' '+(r?.label||n)+' (role)'
+  }
+  return v
+}
+function assignedToMe(v){
+  if(!v) return false
+  if(!isRoleAssignee(v)) return v===currentUser
+  const rn=v.slice(5)
+  return rn===userPrimaryRole || userExtraRoles.includes(rn)
+}
 
 function ntf(t,tp){const el=document.getElementById('notif');el.textContent=t;el.className='notif on '+(tp==='ok'?'ok':'err');setTimeout(()=>el.className='notif',3500)}
 function fdt(v){if(!v)return'—';const d=new Date(v);return isNaN(d.getTime())?v:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
@@ -408,14 +429,37 @@ window.onTypeChange=()=>{
 }
 
 async function loadDropdowns(){
-  // Employees → assignable list
-  const{data:emps}=await sb.from('employees').select('name').eq('is_active',true).order('name')
-  employees=(emps||[]).map(e=>e.name).filter(Boolean)
+  // Employees + roles — Assigned To dropdown will group them.
+  const[eRes,rRes,csRes,meRes]=await Promise.all([
+    sb.from('employees').select('name,custom_role,extra_roles').eq('is_active',true).order('name'),
+    sb.from('role_templates').select('name,label,icon,color').order('is_default',{ascending:false}).order('name'),
+    sb.from('system_settings').select('value').eq('key','complaint_routing').maybeSingle(),
+    currentUser
+      ? sb.from('employees').select('custom_role,extra_roles,role').ilike('name',currentUser).maybeSingle()
+      : Promise.resolve({data:null})
+  ])
+  employees=(eRes.data||[]).map(e=>e.name).filter(Boolean)
+  roles=rRes.data||[]
+  try{ routingRules = csRes.data?.value ? JSON.parse(csRes.data.value) : {} }catch{ routingRules={} }
+  // Current user's role memberships (used for the 'assigned to me' filter)
+  const me=meRes.data
+  userPrimaryRole = me?.custom_role || me?.role || ''
+  try{
+    const raw=me?.extra_roles
+    userExtraRoles = Array.isArray(raw) ? raw : (typeof raw==='string' ? JSON.parse(raw||'[]') : [])
+  }catch{ userExtraRoles=[] }
+
+  const roleOpts=roles.map(r=>`<option value="${roleKeyFor(r.name)}">${r.icon||'👥'} ${r.label||r.name} (role)</option>`).join('')
+  const empOpts=employees.map(n=>`<option value="${n}">👤 ${n}</option>`).join('')
   const sel=document.getElementById('fAssigned')
-  sel.innerHTML='<option value="">— Unassigned —</option>'+employees.map(n=>`<option value="${n}">${n}</option>`).join('')
-  // Assignee filter — also populate with employees
+  sel.innerHTML = '<option value="">— Unassigned —</option>'
+    + (roleOpts?`<optgroup label="— Roles (any holder gets notified) —">${roleOpts}</optgroup>`:'')
+    + (empOpts?`<optgroup label="— Individuals —">${empOpts}</optgroup>`:'')
+  // Assignee filter — roles + individuals
   const af=document.getElementById('assignedFilter')
-  af.insertAdjacentHTML('beforeend',employees.map(n=>`<option value="${n}">${n}</option>`).join(''))
+  af.insertAdjacentHTML('beforeend',
+    (roleOpts?`<optgroup label="— Roles —">${roleOpts}</optgroup>`:'')
+    + (empOpts?`<optgroup label="— Individuals —">${empOpts}</optgroup>`:''))
   // Bloom cases for datalist (paginated past 1000)
   try{
     const PAGEn=1000
@@ -443,11 +487,11 @@ async function load(){
   document.getElementById('kResolved').textContent=all.filter(x=>x.status==='resolved'||x.status==='closed').length
   document.getElementById('kFeedback').textContent=all.filter(x=>x.type==='feedback').length
   document.getElementById('kTotal').textContent=all.length
-  // Unseen assignments for current user → toast
+  // Unseen assignments for current user OR their role → toast
   if(currentUser){
-    const unseen=all.filter(r=>r.assigned_to===currentUser && !r.notification_seen_at && (r.status==='open'||r.status==='in_progress'))
+    const unseen=all.filter(r=>assignedToMe(r.assigned_to) && !r.notification_seen_at && (r.status==='open'||r.status==='in_progress'))
     if(unseen.length){
-      ntf(`🔔 You have ${unseen.length} case${unseen.length>1?'s':''} assigned to you. Mark as seen by opening them.`,'ok')
+      ntf(`🔔 You have ${unseen.length} case${unseen.length>1?'s':''} assigned to you. Open them to mark as seen.`,'ok')
     }
   }
   applyFilter()
@@ -460,7 +504,7 @@ function applyFilter(){
   filtered=all.filter(r=>{
     if(tf&&r.type!==tf)return false
     if(sf&&r.status!==sf)return false
-    if(af==='__mine__' && r.assigned_to!==currentUser)return false
+    if(af==='__mine__' && !assignedToMe(r.assigned_to))return false
     if(af==='__unassigned__' && r.assigned_to)return false
     if(af && af!=='__mine__' && af!=='__unassigned__' && r.assigned_to!==af)return false
     if(term){
@@ -477,7 +521,12 @@ function render(){
     const tc=r.type==='complaint'?'b-r':r.type==='feedback'?'b-g':r.type==='warranty'?'b-p':r.type==='return'?'b-a':r.type==='service_request'?'b-b':'b-gray'
     const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray'
     const pc=r.severity==='critical'?'b-r':r.severity==='high'?'b-a':r.severity==='medium'?'b-b':'b-gray'
-    const mine=r.assigned_to===currentUser
+    const mine=assignedToMe(r.assigned_to)
+    const assigneeCell = r.assigned_to
+      ? (mine
+          ? `<strong style="color:var(--blue)">${prettyAssignee(r.assigned_to)}${!isRoleAssignee(r.assigned_to)?' (you)':' — you'}</strong>`
+          : prettyAssignee(r.assigned_to))
+      : '<span style="color:var(--dim)">—</span>'
     return `<tr${mine?' style="background:#eef6ff"':''}>
       <td class="mono" style="font-weight:700">${r.feedback_no||'—'}</td>
       <td class="mono">${fdt(r.received_date)}</td>
@@ -487,7 +536,7 @@ function render(){
       <td class="mono">${r.case_id||r.order_no||'—'}</td>
       <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
       <td><span class="badge ${pc}">${r.severity||'—'}</span></td>
-      <td style="font-size:12px">${mine?'<strong style="color:var(--blue)">'+r.assigned_to+' (you)</strong>':(r.assigned_to||'<span style="color:var(--dim)">—</span>')}</td>
+      <td style="font-size:12px">${assigneeCell}</td>
       <td><span class="badge ${sc}">${(r.status||'open').replace(/_/g,' ')}</span></td>
       <td style="white-space:nowrap">
         <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="viewRec('${r.id}')">👁</button>
@@ -559,7 +608,7 @@ window.viewRec=async(id)=>{
       <span class="badge b-gray">${r.severity||'—'} priority</span>
     </div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
-    ${[['Date',fdt(r.received_date)],['Customer',r.customer_name],['Doctor',r.doctor],['Case #',case_ref],['Assigned To',r.assigned_to]]
+    ${[['Date',fdt(r.received_date)],['Customer',r.customer_name],['Doctor',r.doctor],['Case #',case_ref],['Assigned To',prettyAssignee(r.assigned_to)]]
       .map(([k,v])=>`<tr><td style="padding:7px 10px;color:var(--mu);font-weight:600;width:35%;border-bottom:1px solid var(--bdr)">${k}</td><td style="padding:7px 10px;border-bottom:1px solid var(--bdr)">${v||'—'}</td></tr>`).join('')}
     </table>
     <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">DESCRIPTION</div><div style="background:var(--r50);border-radius:8px;padding:12px;font-size:13px">${r.description||'—'}</div></div>
@@ -576,12 +625,22 @@ window.save=async()=>{
   if(!date||!cust||!desc){ntf('Fill required fields (*)','err');return}
   const rawCase=document.getElementById('fCase').value.trim()
   const prev=editId?all.find(x=>String(x.id)===String(editId)):null
-  const newAssignee=document.getElementById('fAssigned').value||null
+  const chosenAssignee=document.getElementById('fAssigned').value||null
+  const category=document.getElementById('fCategory').value||null
+  // Auto-routing: if no assignee was picked but the category has a role
+  // rule in Settings, auto-assign to role:<name> so every holder of that
+  // role gets notified.
+  let autoRouted=false
+  let newAssignee=chosenAssignee
+  if(!newAssignee && category && routingRules[category]){
+    newAssignee = roleKeyFor(routingRules[category])
+    autoRouted = true
+  }
   const assigneeChanged=prev?prev.assigned_to!==newAssignee:!!newAssignee
   const rec={
     received_date:date,
     type:document.getElementById('fType').value,
-    category:document.getElementById('fCategory').value||null,
+    category,
     customer_name:cust,
     doctor:document.getElementById('fDoctor').value.trim()||null,
     case_id:rawCase||null,
@@ -602,7 +661,8 @@ window.save=async()=>{
   if(error){ntf('Error: '+error.message,'err');return}
   ntf(editId?'Updated!':'Record logged!','ok')
   if(assigneeChanged && newAssignee && newAssignee!==currentUser){
-    ntf(`📩 ${newAssignee} has been notified of this assignment.`,'ok')
+    const suffix=autoRouted?' (auto-routed by category)':''
+    ntf(`📩 ${prettyAssignee(newAssignee)} has been notified of this assignment.${suffix}`,'ok')
   }
 
   // If complaint type or critical/high priority — show NC creation prompt
@@ -635,7 +695,22 @@ document.getElementById('searchInput').addEventListener('input',applyFilter)
 document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render()}})
 document.getElementById('btnNext').addEventListener('click',()=>{pg++;render()})
 
-;(async()=>{await loadDropdowns();await load()})()
+;(async()=>{
+  await loadDropdowns()
+  await load()
+  // ?open=<id> support — lets the 🔔 login banner jump straight to a complaint.
+  const openId=new URLSearchParams(location.search).get('open')
+  if(openId){
+    // Scroll to the record row, then open its view modal (which also marks it seen)
+    const match=all.find(x=>String(x.id)===String(openId))
+    if(match){
+      // If on a later page, jump to the page containing it
+      const idx=filtered.findIndex(x=>String(x.id)===String(openId))
+      if(idx>=0){pg=Math.floor(idx/PAGE);render()}
+      if(typeof viewRec==='function')viewRec(openId)
+    }
+  }
+})()
 </script>
 
 

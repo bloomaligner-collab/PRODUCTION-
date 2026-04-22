@@ -212,11 +212,80 @@ CW_ACCESS.injectButtonStyles = function () {
   document.head.appendChild(s);
 };
 
+// ══════════════════════════════════════════════════════════════════
+// Complaint-assignment notification banner.
+// Renders at the top of every authenticated page when the current user
+// has open customer_feedback rows assigned to them personally OR via
+// a role they hold. "View now" opens the complaint detail directly.
+// "Later" hides the banner for the current tab session only.
+// ══════════════════════════════════════════════════════════════════
+CW_ACCESS.injectFeedbackBanner = async function () {
+  if (window.__cwFeedbackBannerRan) return;
+  window.__cwFeedbackBannerRan = true;
+  if (typeof PAGE_KEY === 'undefined') return;                      // login / unauth pages
+  if (PAGE_KEY === 'customer_feedback') return;                     // already on the page
+  if (sessionStorage.getItem('cw_feedback_banner_dismissed') === '1') return;
+
+  const name = this.getName();
+  if (!name || name === 'User') return;
+
+  // Defer until DOM is ready and config.js / supabase-js can be imported
+  try {
+    const cfgMod = await import('./config.js');
+    const sbMod  = await import('https://esm.sh/@supabase/supabase-js@2');
+    const sb     = sbMod.createClient(cfgMod.SUPABASE_CONFIG.url, cfgMod.SUPABASE_CONFIG.anonKey);
+
+    // Figure out this user's role memberships
+    const { data: meRow } = await sb.from('employees')
+      .select('custom_role,role,extra_roles')
+      .ilike('name', name).maybeSingle();
+    const primaryRole = meRow?.custom_role || meRow?.role || '';
+    let extra = [];
+    try { extra = Array.isArray(meRow?.extra_roles) ? meRow.extra_roles
+           : JSON.parse(meRow?.extra_roles || '[]'); } catch {}
+    const myRoles = new Set([primaryRole, ...extra].filter(Boolean));
+    const directValues = [name];
+    const roleValues = [...myRoles].map(r => 'role:' + r);
+
+    // Pull open assignments that match
+    const { data: rows } = await sb.from('customer_feedback')
+      .select('id,feedback_no,customer_name,description,type,severity,category,assigned_to,status,notification_seen_at')
+      .in('status', ['open', 'in_progress'])
+      .in('assigned_to', [...directValues, ...roleValues]);
+    const unseen = (rows || []).filter(r => !r.notification_seen_at);
+    if (!unseen.length) return;
+
+    const first = unseen[0];
+    const link = 'customer_feedback.html?open=' + encodeURIComponent(first.id);
+    const bar = document.createElement('div');
+    bar.id = 'cw-feedback-banner';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2000;background:linear-gradient(135deg,#1d4ed8,#3b5fe2);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;font-family:"DM Sans",sans-serif;font-size:13px;box-shadow:0 2px 10px rgba(15,23,42,.25)';
+    bar.innerHTML = `
+      <span style="font-size:18px">🔔</span>
+      <div style="flex:1;min-width:0">
+        <strong>You have ${unseen.length} complaint${unseen.length>1?'s':''} to handle.</strong>
+        <span style="opacity:.85;margin-left:8px">Next up: <em>${(first.customer_name||'—')}</em> — ${(first.description||'').slice(0,90)}${(first.description||'').length>90?'…':''}</span>
+      </div>
+      <a href="${link}" style="background:#fff;color:#1d4ed8;padding:6px 14px;border-radius:8px;font-weight:700;text-decoration:none;white-space:nowrap">View now →</a>
+      <button id="cw-fb-later" style="background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;padding:6px 12px;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit">Later</button>
+    `;
+    document.body.prepend(bar);
+    // Push the rest of the page down so the banner isn't covering the top bar
+    document.body.style.paddingTop = (bar.offsetHeight || 48) + 'px';
+    document.getElementById('cw-fb-later').addEventListener('click', () => {
+      sessionStorage.setItem('cw_feedback_banner_dismissed', '1');
+      bar.remove();
+      document.body.style.paddingTop = '';
+    });
+  } catch (e) { /* best-effort — never block the page */ }
+};
+
 // ── Auto-run ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   CW_ACCESS.injectButtonStyles();
   if (typeof PAGE_KEY !== 'undefined') {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);
+    CW_ACCESS.injectFeedbackBanner();
   }
 });
