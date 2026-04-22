@@ -28,6 +28,7 @@ const CW_ACCESS = {
     { key: 'suppliers',            label: 'Suppliers',           icon: '🏭', file: 'suppliers.html' },
     { section: 'Integrations' },
     { key: 'bloom_import',         label: 'Bloom Import',        icon: '🌸', file: 'bloom_import.html' },
+    { key: 'outsourcing',          label: 'Outsourcing',         icon: '🚚', file: 'outsourcing.html' },
     { section: 'System' },
     { key: 'settings',             label: 'Settings',            icon: '⚙',  file: 'settings.html' },
     { key: 'roles',                label: 'Roles',               icon: '🔑', file: 'roles.html' },
@@ -71,7 +72,7 @@ const CW_ACCESS = {
       time_report: 'time_report.html',
       settings: 'settings.html', roles: 'roles.html',
       changelog: 'changelog.html', iso_compliance: 'iso_compliance.html',
-      bloom_import: 'bloom_import.html', clocking: 'clocking.html'
+      bloom_import: 'bloom_import.html', outsourcing: 'outsourcing.html', clocking: 'clocking.html'
     };
     for (const key of a) if (map[key]) return map[key];
     return 'employee_profile.html';
