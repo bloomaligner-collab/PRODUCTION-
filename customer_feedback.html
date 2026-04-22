@@ -226,12 +226,15 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div style="font-size:11px;color:var(--mu)">ISO 13485 Clause 8.2.1 — Customer Complaints & Feedback Register</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <select class="fi" id="typeFilter" style="width:140px">
+      <select class="fi" id="typeFilter" style="width:150px">
         <option value="">All Types</option>
         <option value="complaint">Complaint</option>
         <option value="feedback">Positive Feedback</option>
         <option value="suggestion">Suggestion</option>
         <option value="warranty">Warranty Claim</option>
+        <option value="inquiry">Inquiry</option>
+        <option value="return">Return Request</option>
+        <option value="service_request">Service Request</option>
       </select>
       <select class="fi" id="statusFilter" style="width:130px">
         <option value="">All Status</option>
@@ -240,10 +243,16 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <option value="resolved">Resolved</option>
         <option value="closed">Closed</option>
       </select>
+      <select class="fi" id="assignedFilter" style="width:150px">
+        <option value="">All Assignees</option>
+        <option value="__mine__">🙋 Assigned to me</option>
+        <option value="__unassigned__">⏳ Unassigned</option>
+      </select>
       <button class="btn bb" onclick="openNew()">+ Log Feedback</button>
     </div>
   </div>
   <div class="body">
+    <div id="ncPromptBanner" style="display:none;margin-bottom:16px"></div>
     <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
       <div class="kpi" style="border-top-color:var(--red)"><div class="kpi-val" id="kComplaints" style="color:var(--red)">—</div><div class="kpi-lbl">Complaints</div></div>
       <div class="kpi" style="border-top-color:var(--amber)"><div class="kpi-val" id="kOpen" style="color:var(--amber)">—</div><div class="kpi-lbl">Open</div></div>
@@ -257,8 +266,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <input class="fi" id="searchInput" placeholder="Search customer, order, description..." style="width:280px"/>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Ref #</th><th>Date</th><th>Customer / Distributor</th><th>Type</th><th>Order / Case</th><th>Description</th><th>Priority</th><th>Status</th><th>Closed</th><th></th></tr></thead>
-        <tbody id="tBody"><tr><td colspan="10" class="ec">Loading...</td></tr></tbody>
+        <thead><tr><th>Ref #</th><th>Date</th><th>Customer / Distributor</th><th>Type</th><th>Category</th><th>Case #</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tBody"><tr><td colspan="11" class="ec">Loading...</td></tr></tbody>
       </table></div>
       <div class="pager"><span id="pInfo"></span>
         <div style="display:flex;gap:6px">
@@ -280,13 +289,35 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       <div><label class="form-label">Date *</label><input type="date" class="fi" id="fDate"/></div>
       <div><label class="form-label">Type *</label>
-        <select class="fi" id="fType">
-          <option value="complaint">Complaint</option><option value="feedback">Positive Feedback</option>
-          <option value="suggestion">Suggestion</option><option value="warranty">Warranty Claim</option>
+        <select class="fi" id="fType" onchange="onTypeChange()">
+          <option value="complaint">🚫 Complaint</option>
+          <option value="feedback">👍 Positive Feedback</option>
+          <option value="suggestion">💡 Suggestion</option>
+          <option value="warranty">🛡️ Warranty Claim</option>
+          <option value="inquiry">❓ Inquiry</option>
+          <option value="return">📦 Return Request</option>
+          <option value="service_request">🛠️ Service Request</option>
+        </select>
+      </div>
+      <div id="fCategoryWrap"><label class="form-label">Complaint Category</label>
+        <select class="fi" id="fCategory">
+          <option value="">— Select category —</option>
+          <option value="product_quality">Product Quality (defect, fit)</option>
+          <option value="delivery">Delivery / Shipping</option>
+          <option value="fitting">Aligner Fitting</option>
+          <option value="packaging">Packaging Damage</option>
+          <option value="communication">Communication</option>
+          <option value="documentation">Documentation / Label</option>
+          <option value="billing">Billing</option>
+          <option value="other">Other</option>
         </select>
       </div>
       <div><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
-      <div><label class="form-label">Order / Case #</label><input type="text" class="fi" id="fOrder" placeholder="e.g. 5234"/></div>
+      <div><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
+      <div style="grid-column:1/-1"><label class="form-label">Bloom Case #</label>
+        <input type="text" class="fi" id="fCase" list="bloomCases" placeholder="Type to search — e.g. 5234 or patient name" autocomplete="off"/>
+        <datalist id="bloomCases"></datalist>
+      </div>
       <div><label class="form-label">Priority</label>
         <select class="fi" id="fPriority">
           <option value="low">Low</option><option value="medium">Medium</option>
@@ -301,9 +332,13 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
       <div style="grid-column:1/-1"><label class="form-label">Description *</label><textarea class="fi" id="fDesc" rows="3" placeholder="Describe the feedback or complaint..."></textarea></div>
       <div style="grid-column:1/-1"><label class="form-label">Root Cause</label><textarea class="fi" id="fRoot" rows="2" placeholder="Why did this happen?"></textarea></div>
-      <div style="grid-column:1/-1"><label class="form-label">Corrective Action / Response</label><textarea class="fi" id="fAction" rows="2" placeholder="What was done to address this?"></textarea></div>
-      <div><label class="form-label">Assigned To</label><input type="text" class="fi" id="fAssigned" placeholder="Employee name"/></div>
-      <div><label class="form-label">Closed Date</label><input type="date" class="fi" id="fClosed"/></div>
+      <div style="grid-column:1/-1"><label class="form-label">Resolution / Response</label><textarea class="fi" id="fAction" rows="2" placeholder="What was done to address this?"></textarea></div>
+      <div><label class="form-label">Assigned To</label>
+        <select class="fi" id="fAssigned">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+      <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
       <button class="btn bgh" onclick="closeModal()">Cancel</button>
@@ -337,141 +372,251 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 import{createClient}from'https://esm.sh/@supabase/supabase-js@2';
 import{SUPABASE_CONFIG}from'./config.js';
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
-const PAGE=20;let all=[],filtered=[],pg=0,editId=null,refCounter=1;
-function ntf(t,tp){const el=document.getElementById('notif');el.textContent=t;el.className='notif on '+(tp==='ok'?'ok':'err');setTimeout(()=>el.className='notif',3500);}
-function fdt(v){if(!v)return'—';const d=new Date(v);return isNaN(d.getTime())?v:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}
-function refNum(){const n=new Date();return`FB-${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(Math.floor(Math.random()*900)+100)}`;}
+const PAGE=20
+let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[]
+const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
+const userRole=(sessionStorage.getItem('cw_role')||'').toLowerCase()
+const CATEGORY_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',billing:'Billing',other:'Other'}
+const TYPE_LABELS={complaint:'🚫 Complaint',feedback:'👍 Feedback',suggestion:'💡 Suggestion',warranty:'🛡️ Warranty',inquiry:'❓ Inquiry',return:'📦 Return',service_request:'🛠️ Service'}
+
+function ntf(t,tp){const el=document.getElementById('notif');el.textContent=t;el.className='notif on '+(tp==='ok'?'ok':'err');setTimeout(()=>el.className='notif',3500)}
+function fdt(v){if(!v)return'—';const d=new Date(v);return isNaN(d.getTime())?v:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+function refNum(){const n=new Date();return`FB-${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(Math.floor(Math.random()*900)+100)}`}
+
+window.onTypeChange=()=>{
+  const t=document.getElementById('fType').value
+  document.getElementById('fCategoryWrap').style.display=(t==='complaint'||t==='warranty'||t==='return')?'':'none'
+}
+
+async function loadDropdowns(){
+  // Employees → assignable list
+  const{data:emps}=await sb.from('employees').select('name').eq('is_active',true).order('name')
+  employees=(emps||[]).map(e=>e.name).filter(Boolean)
+  const sel=document.getElementById('fAssigned')
+  sel.innerHTML='<option value="">— Unassigned —</option>'+employees.map(n=>`<option value="${n}">${n}</option>`).join('')
+  // Assignee filter — also populate with employees
+  const af=document.getElementById('assignedFilter')
+  af.insertAdjacentHTML('beforeend',employees.map(n=>`<option value="${n}">${n}</option>`).join(''))
+  // Bloom cases for datalist (paginated past 1000)
+  try{
+    const PAGEn=1000
+    let from=0
+    bloomCases=[]
+    while(true){
+      const{data:bs,error}=await sb.from('bloom_cases')
+        .select('case_id,patient_name,doctor')
+        .order('case_id',{ascending:false}).range(from,from+PAGEn-1)
+      if(error||!bs?.length)break
+      bloomCases.push(...bs)
+      if(bs.length<PAGEn)break
+      from+=PAGEn
+    }
+    const dl=document.getElementById('bloomCases')
+    dl.innerHTML=bloomCases.slice(0,5000).map(b=>`<option value="${b.case_id}">${b.patient_name||''}${b.doctor?' · '+b.doctor:''}</option>`).join('')
+  }catch(e){console.warn('bloom load',e)}
+}
+
 async function load(){
-  const r=await sb.from('customer_feedback').select('*').order('feedback_date',{ascending:false});
-  all=r.data||[];
-  document.getElementById('kComplaints').textContent=all.filter(x=>x.feedback_type==='complaint').length;
-  document.getElementById('kOpen').textContent=all.filter(x=>x.status==='open'||x.status==='in_progress').length;
-  document.getElementById('kResolved').textContent=all.filter(x=>x.status==='resolved'||x.status==='closed').length;
-  document.getElementById('kFeedback').textContent=all.filter(x=>x.feedback_type==='feedback').length;
-  document.getElementById('kTotal').textContent=all.length;
-  applyFilter();
+  const r=await sb.from('customer_feedback').select('*').order('received_date',{ascending:false})
+  all=r.data||[]
+  document.getElementById('kComplaints').textContent=all.filter(x=>x.type==='complaint').length
+  document.getElementById('kOpen').textContent=all.filter(x=>x.status==='open'||x.status==='in_progress').length
+  document.getElementById('kResolved').textContent=all.filter(x=>x.status==='resolved'||x.status==='closed').length
+  document.getElementById('kFeedback').textContent=all.filter(x=>x.type==='feedback').length
+  document.getElementById('kTotal').textContent=all.length
+  // Unseen assignments for current user → toast
+  if(currentUser){
+    const unseen=all.filter(r=>r.assigned_to===currentUser && !r.notification_seen_at && (r.status==='open'||r.status==='in_progress'))
+    if(unseen.length){
+      ntf(`🔔 You have ${unseen.length} case${unseen.length>1?'s':''} assigned to you. Mark as seen by opening them.`,'ok')
+    }
+  }
+  applyFilter()
 }
 function applyFilter(){
-  const tf=document.getElementById('typeFilter').value;
-  const sf=document.getElementById('statusFilter').value;
-  const term=(document.getElementById('searchInput').value||'').toLowerCase();
+  const tf=document.getElementById('typeFilter').value
+  const sf=document.getElementById('statusFilter').value
+  const af=document.getElementById('assignedFilter').value
+  const term=(document.getElementById('searchInput').value||'').toLowerCase()
   filtered=all.filter(r=>{
-    if(tf&&r.feedback_type!==tf)return false;
-    if(sf&&r.status!==sf)return false;
-    if(term&&!((r.customer_name||'').toLowerCase().includes(term)||(r.description||'').toLowerCase().includes(term)||(r.order_ref||'').toLowerCase().includes(term)))return false;
-    return true;
-  });
-  pg=0;render();
+    if(tf&&r.type!==tf)return false
+    if(sf&&r.status!==sf)return false
+    if(af==='__mine__' && r.assigned_to!==currentUser)return false
+    if(af==='__unassigned__' && r.assigned_to)return false
+    if(af && af!=='__mine__' && af!=='__unassigned__' && r.assigned_to!==af)return false
+    if(term){
+      const hay=`${r.customer_name||''} ${r.description||''} ${r.case_id||''} ${r.order_no||''} ${r.doctor||''}`.toLowerCase()
+      if(!hay.includes(term))return false
+    }
+    return true
+  })
+  pg=0;render()
 }
 function render(){
-  const start=pg*PAGE,slice=filtered.slice(start,start+PAGE);
+  const start=pg*PAGE,slice=filtered.slice(start,start+PAGE)
   document.getElementById('tBody').innerHTML=slice.length?slice.map(r=>{
-    const tc=r.feedback_type==='complaint'?'b-r':r.feedback_type==='feedback'?'b-g':r.feedback_type==='warranty'?'b-p':'b-b';
-    const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray';
-    const pc=r.priority==='critical'?'b-r':r.priority==='high'?'b-a':r.priority==='medium'?'b-b':'b-gray';
-    return `<tr>
-      <td class="mono" style="font-weight:700">${r.ref_number||'—'}</td>
-      <td class="mono">${fdt(r.feedback_date)}</td>
+    const tc=r.type==='complaint'?'b-r':r.type==='feedback'?'b-g':r.type==='warranty'?'b-p':r.type==='return'?'b-a':r.type==='service_request'?'b-b':'b-gray'
+    const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray'
+    const pc=r.severity==='critical'?'b-r':r.severity==='high'?'b-a':r.severity==='medium'?'b-b':'b-gray'
+    const mine=r.assigned_to===currentUser
+    return `<tr${mine?' style="background:#eef6ff"':''}>
+      <td class="mono" style="font-weight:700">${r.feedback_no||'—'}</td>
+      <td class="mono">${fdt(r.received_date)}</td>
       <td style="font-weight:600">${r.customer_name||'—'}</td>
-      <td><span class="badge ${tc}">${(r.feedback_type||'—').replace(/_/g,' ')}</span></td>
-      <td class="mono">${r.order_ref||'—'}</td>
-      <td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
-      <td><span class="badge ${pc}">${r.priority||'—'}</span></td>
+      <td><span class="badge ${tc}">${TYPE_LABELS[r.type]||r.type||'—'}</span></td>
+      <td>${CATEGORY_LABELS[r.category]||'—'}</td>
+      <td class="mono">${r.case_id||r.order_no||'—'}</td>
+      <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
+      <td><span class="badge ${pc}">${r.severity||'—'}</span></td>
+      <td style="font-size:12px">${mine?'<strong style="color:var(--blue)">'+r.assigned_to+' (you)</strong>':(r.assigned_to||'<span style="color:var(--dim)">—</span>')}</td>
       <td><span class="badge ${sc}">${(r.status||'open').replace(/_/g,' ')}</span></td>
-      <td class="mono">${fdt(r.closed_date)}</td>
       <td style="white-space:nowrap">
         <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="viewRec('${r.id}')">👁</button>
         <button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="editRec('${r.id}')">✏️</button>
       </td>
-    </tr>`;
-  }).join(''):'<tr><td colspan="10" class="ec">No feedback records. Log the first one.</td></tr>';
-  const tot=filtered.length,tp=Math.ceil(tot/PAGE)||1;
-  document.getElementById('pInfo').textContent=`${tot} records (page ${pg+1}/${tp})`;
-  document.getElementById('btnPrev').disabled=pg===0;
-  document.getElementById('btnNext').disabled=pg>=tp-1;
+    </tr>`
+  }).join(''):'<tr><td colspan="11" class="ec">No feedback records. Log the first one.</td></tr>'
+  const tot=filtered.length,tp=Math.ceil(tot/PAGE)||1
+  document.getElementById('pInfo').textContent=`${tot} records (page ${pg+1}/${tp})`
+  document.getElementById('btnPrev').disabled=pg===0
+  document.getElementById('btnNext').disabled=pg>=tp-1
 }
-window.openNew=()=>{editId=null;document.getElementById('mTitle').textContent='💬 Log Feedback';
-  document.getElementById('fDate').value=new Date().toISOString().slice(0,10);
-  ['fCustomer','fOrder','fDesc','fRoot','fAction','fAssigned','fClosed'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('fType').value='complaint';document.getElementById('fPriority').value='medium';document.getElementById('fStatus').value='open';
-  document.getElementById('modal').classList.add('on');};
-window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null;};
-window.closeView=()=>document.getElementById('viewModal').classList.remove('on');
+
+window.openNew=()=>{
+  editId=null
+  document.getElementById('mTitle').textContent='💬 Log Feedback'
+  document.getElementById('fDate').value=new Date().toISOString().slice(0,10)
+  ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed'].forEach(id=>document.getElementById(id).value='')
+  document.getElementById('fType').value='complaint'
+  document.getElementById('fCategory').value=''
+  document.getElementById('fPriority').value='medium'
+  document.getElementById('fStatus').value='open'
+  document.getElementById('fAssigned').value=''
+  onTypeChange()
+  document.getElementById('modal').classList.add('on')
+}
+window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null}
+window.closeView=()=>document.getElementById('viewModal').classList.remove('on')
+
 window.editRec=(id)=>{
-  const r=all.find(x=>String(x.id)===String(id));if(!r)return;editId=id;
-  document.getElementById('mTitle').textContent='✏️ Edit — '+(r.ref_number||'Feedback');
-  document.getElementById('fDate').value=r.feedback_date||'';document.getElementById('fType').value=r.feedback_type||'complaint';
-  document.getElementById('fCustomer').value=r.customer_name||'';document.getElementById('fOrder').value=r.order_ref||'';
-  document.getElementById('fPriority').value=r.priority||'medium';document.getElementById('fStatus').value=r.status||'open';
-  document.getElementById('fDesc').value=r.description||'';document.getElementById('fRoot').value=r.root_cause||'';
-  document.getElementById('fAction').value=r.corrective_action||'';document.getElementById('fAssigned').value=r.assigned_to||'';
-  document.getElementById('fClosed').value=r.closed_date||'';
-  document.getElementById('modal').classList.add('on');
-};
-window.viewRec=(id)=>{
-  const r=all.find(x=>String(x.id)===String(id));if(!r)return;
-  const tc=r.feedback_type==='complaint'?'b-r':r.feedback_type==='feedback'?'b-g':'b-b';
-  const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray';
-  document.getElementById('vTitle').textContent='💬 '+r.ref_number;
+  const r=all.find(x=>String(x.id)===String(id));if(!r)return
+  editId=id
+  document.getElementById('mTitle').textContent='✏️ Edit — '+(r.feedback_no||'Feedback')
+  document.getElementById('fDate').value=r.received_date||''
+  document.getElementById('fType').value=r.type||'complaint'
+  document.getElementById('fCategory').value=r.category||''
+  document.getElementById('fCustomer').value=r.customer_name||''
+  document.getElementById('fDoctor').value=r.doctor||''
+  document.getElementById('fCase').value=r.case_id||r.order_no||''
+  document.getElementById('fPriority').value=r.severity||'medium'
+  document.getElementById('fStatus').value=r.status||'open'
+  document.getElementById('fDesc').value=r.description||''
+  document.getElementById('fRoot').value=r.notes||''
+  document.getElementById('fAction').value=r.resolution||''
+  document.getElementById('fAssigned').value=r.assigned_to||''
+  document.getElementById('fClosed').value=r.resolved_at?String(r.resolved_at).slice(0,10):''
+  onTypeChange()
+  document.getElementById('modal').classList.add('on')
+}
+
+window.viewRec=async(id)=>{
+  const r=all.find(x=>String(x.id)===String(id));if(!r)return
+  // If this record is assigned to current user and unseen → mark as seen
+  if(r.assigned_to===currentUser && !r.notification_seen_at){
+    try{
+      await sb.from('customer_feedback').update({notification_seen_at:new Date().toISOString()}).eq('id',id)
+      r.notification_seen_at=new Date().toISOString()
+    }catch{}
+  }
+  const tc=r.type==='complaint'?'b-r':r.type==='feedback'?'b-g':'b-b'
+  const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray'
+  document.getElementById('vTitle').textContent='💬 '+(r.feedback_no||'Feedback')
+  const case_ref=r.case_id||r.order_no||''
   document.getElementById('vBody').innerHTML=`
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <span class="badge ${tc}">${(r.feedback_type||'').replace(/_/g,' ')}</span>
+      <span class="badge ${tc}">${TYPE_LABELS[r.type]||r.type}</span>
+      ${r.category?`<span class="badge b-gray">${CATEGORY_LABELS[r.category]||r.category}</span>`:''}
       <span class="badge ${sc}">${(r.status||'').replace(/_/g,' ')}</span>
-      <span class="badge b-gray">${r.priority} priority</span>
+      <span class="badge b-gray">${r.severity||'—'} priority</span>
     </div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
-    ${[['Date',fdt(r.feedback_date)],['Customer',r.customer_name],['Order / Case',r.order_ref],['Assigned To',r.assigned_to]]
+    ${[['Date',fdt(r.received_date)],['Customer',r.customer_name],['Doctor',r.doctor],['Case #',case_ref],['Assigned To',r.assigned_to]]
       .map(([k,v])=>`<tr><td style="padding:7px 10px;color:var(--mu);font-weight:600;width:35%;border-bottom:1px solid var(--bdr)">${k}</td><td style="padding:7px 10px;border-bottom:1px solid var(--bdr)">${v||'—'}</td></tr>`).join('')}
     </table>
     <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">DESCRIPTION</div><div style="background:var(--r50);border-radius:8px;padding:12px;font-size:13px">${r.description||'—'}</div></div>
-    ${r.root_cause?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">ROOT CAUSE</div><div style="background:var(--a50);border-radius:8px;padding:12px;font-size:13px">${r.root_cause}</div></div>`:''}
-    ${r.corrective_action?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">ACTION TAKEN</div><div style="background:var(--g50);border-radius:8px;padding:12px;font-size:13px">${r.corrective_action}</div></div>`:''}
-    ${r.closed_date?`<div style="font-size:12px;color:var(--green);font-weight:700">✅ Closed: ${fdt(r.closed_date)}</div>`:''}`;
-  document.getElementById('viewModal').classList.add('on');
-};
+    ${r.notes?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">ROOT CAUSE / NOTES</div><div style="background:var(--a50);border-radius:8px;padding:12px;font-size:13px">${r.notes}</div></div>`:''}
+    ${r.resolution?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">RESOLUTION</div><div style="background:var(--g50);border-radius:8px;padding:12px;font-size:13px">${r.resolution}</div></div>`:''}
+    ${r.resolved_at?`<div style="font-size:12px;color:var(--green);font-weight:700">✅ Resolved: ${fdt(r.resolved_at)}</div>`:''}`
+  document.getElementById('viewModal').classList.add('on')
+}
+
 window.save=async()=>{
-  const date=document.getElementById('fDate').value,cust=document.getElementById('fCustomer').value.trim(),desc=document.getElementById('fDesc').value.trim();
-  if(!date||!cust||!desc){ntf('Fill required fields (*)','err');return;}
-  const rec={feedback_date:date,feedback_type:document.getElementById('fType').value,customer_name:cust,
-    order_ref:document.getElementById('fOrder').value.trim()||null,priority:document.getElementById('fPriority').value,
-    status:document.getElementById('fStatus').value,description:desc,root_cause:document.getElementById('fRoot').value.trim()||null,
-    corrective_action:document.getElementById('fAction').value.trim()||null,assigned_to:document.getElementById('fAssigned').value.trim()||null,
-    closed_date:document.getElementById('fClosed').value||null};
-  if(!editId)rec.ref_number=refNum();
-  const{error}=editId?await sb.from('customer_feedback').update(rec).eq('id',editId):await sb.from('customer_feedback').insert([rec]);
-  if(error){ntf('Error: '+error.message,'err');return;}
-  ntf(editId?'Updated!':'Record logged!','ok');
+  const date=document.getElementById('fDate').value
+  const cust=document.getElementById('fCustomer').value.trim()
+  const desc=document.getElementById('fDesc').value.trim()
+  if(!date||!cust||!desc){ntf('Fill required fields (*)','err');return}
+  const rawCase=document.getElementById('fCase').value.trim()
+  const prev=editId?all.find(x=>String(x.id)===String(editId)):null
+  const newAssignee=document.getElementById('fAssigned').value||null
+  const assigneeChanged=prev?prev.assigned_to!==newAssignee:!!newAssignee
+  const rec={
+    received_date:date,
+    type:document.getElementById('fType').value,
+    category:document.getElementById('fCategory').value||null,
+    customer_name:cust,
+    doctor:document.getElementById('fDoctor').value.trim()||null,
+    case_id:rawCase||null,
+    order_no:rawCase||null,
+    severity:document.getElementById('fPriority').value,
+    status:document.getElementById('fStatus').value,
+    description:desc,
+    notes:document.getElementById('fRoot').value.trim()||null,
+    resolution:document.getElementById('fAction').value.trim()||null,
+    assigned_to:newAssignee,
+    resolved_at:document.getElementById('fClosed').value||null,
+    received_by:currentUser||null
+  }
+  // Reset the "seen" flag when assignment changes so the assignee gets a fresh toast
+  if(assigneeChanged)rec.notification_seen_at=null
+  if(!editId)rec.feedback_no=refNum()
+  const{error}=editId?await sb.from('customer_feedback').update(rec).eq('id',editId):await sb.from('customer_feedback').insert([rec])
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf(editId?'Updated!':'Record logged!','ok')
+  if(assigneeChanged && newAssignee && newAssignee!==currentUser){
+    ntf(`📩 ${newAssignee} has been notified of this assignment.`,'ok')
+  }
 
   // If complaint type or critical/high priority — show NC creation prompt
   if(!editId){
-    const isComplaint=rec.feedback_type==='complaint'||rec.priority==='critical'||rec.priority==='high';
+    const isComplaint=rec.type==='complaint'||rec.severity==='critical'||rec.severity==='high'
     if(isComplaint){
-      const banner=document.getElementById('ncPromptBanner');
+      const banner=document.getElementById('ncPromptBanner')
       if(banner){
-        banner.style.display='block';
-        const caseRef=rec.order_ref||rec.customer_name||'—';
+        banner.style.display='block'
+        const caseRef=rec.case_id||rec.order_no||rec.customer_name||'—'
         banner.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;background:var(--r50);border:1.5px solid var(--r100);border-radius:12px">
           <div>
             <div style="font-size:14px;font-weight:800;color:var(--red)">⚠️ Complaint Logged — Non-Conformity Recommended</div>
-            <div style="font-size:12px;color:var(--mu);margin-top:3px">Customer: <strong>${rec.customer_name}</strong> · Priority: <strong>${rec.priority}</strong></div>
+            <div style="font-size:12px;color:var(--mu);margin-top:3px">Customer: <strong>${rec.customer_name}</strong> · Category: <strong>${CATEGORY_LABELS[rec.category]||'—'}</strong> · Priority: <strong>${rec.severity}</strong></div>
           </div>
           <a href="non_conformity.html?source=feedback&case=${encodeURIComponent(caseRef)}&desc=${encodeURIComponent(rec.description||'Customer complaint')}&det=${encodeURIComponent(rec.customer_name||'')}"
              style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--red);color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
             ⚠️ Create NC Report →
           </a>
-        </div>`;
-        banner.scrollIntoView({behavior:'smooth',block:'center'});
+        </div>`
+        banner.scrollIntoView({behavior:'smooth',block:'center'})
       }
     }
   }
+  window.closeModal();load()
+}
 
-  window.closeModal();load();
-};
-['typeFilter','statusFilter'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilter));
-document.getElementById('searchInput').addEventListener('input',applyFilter);
-document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
-document.getElementById('btnNext').addEventListener('click',()=>{pg++;render();});
-load();
+;['typeFilter','statusFilter','assignedFilter'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilter))
+document.getElementById('searchInput').addEventListener('input',applyFilter)
+document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render()}})
+document.getElementById('btnNext').addEventListener('click',()=>{pg++;render()})
+
+;(async()=>{await loadDropdowns();await load()})()
 </script>
 
 
