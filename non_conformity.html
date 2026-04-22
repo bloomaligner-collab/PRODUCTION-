@@ -473,15 +473,28 @@ function render(){
   $('pgPrev').disabled=pg===0;$('pgNext').disabled=pg>=tp-1;
 }
 
-window.openNew=(prefill={})=>{
+window.openNew=async(prefill={})=>{
   editId=null;$('ncTitle').textContent='⚠️ New Non-Conformity Report';
   $('nDate').value=new Date().toISOString().slice(0,10);
-  $('nOrder').value=prefill.case||'';
   ['nDet','nDesc','nRoot','nAction','nClosed','nAssigned','nDue','nVerified'].forEach(id=>$(id).value='');
   if(prefill.desc) $('nDesc').value=prefill.desc;
   if(prefill.det)  $('nDet').value=prefill.det;
   $('nCat').value='material';$('nSev').value='medium';$('nSt').value='open';$('nStep').value='';
-  loadOrderOptions();
+  // Build the order dropdown FIRST, then apply the prefill.case — otherwise
+  // setting .value on a <select> that hasn't been populated yet does nothing.
+  await loadOrderOptions();
+  const sel=$('nOrder')
+  if(prefill.case){
+    const exists=[...sel.options].some(o=>o.value===prefill.case)
+    if(!exists){
+      const opt=document.createElement('option');
+      opt.value=prefill.case;opt.textContent=prefill.case+' (from source)';
+      sel.appendChild(opt);
+    }
+    sel.value=prefill.case;
+  } else {
+    sel.value='';
+  }
   $('ncModal').classList.add('on');
 };
 window.editNC=(id)=>{
