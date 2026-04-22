@@ -269,6 +269,13 @@ tbody tr:hover{background:#f8fafc}
         <div class="kpi-lbl">Open Non-Conformities</div>
         <div class="kpi-sub" id="kOpenNCSub">Awaiting resolution</div>
       </a>
+      <a href="qualite.html" class="kpi">
+        <div class="kpi-stripe" style="background:linear-gradient(90deg,#d97706,#f59e0b)"></div>
+        <div class="kpi-ico" style="background:var(--a50)">⏳</div>
+        <div class="kpi-val" id="kPendingQC">—</div>
+        <div class="kpi-lbl">En Attente QC</div>
+        <div class="kpi-sub" id="kPendingQCSub">Packaging terminé, QC non fait</div>
+      </a>
       <a href="customer_feedback.html" class="kpi">
         <div class="kpi-stripe" style="background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div>
         <div class="kpi-ico" style="background:var(--a50)">⭐</div>
@@ -697,6 +704,22 @@ async function load(){
     const mdEl=document.getElementById('kMaintDue'),mdSub=document.getElementById('kMaintDueSub')
     if(mdEl){mdEl.textContent=due;mdEl.style.color=due>0?'var(--purple)':'var(--green)'}
     if(mdSub){mdSub.textContent=due>0?`${due} machine${due!==1?'s':''} overdue for service`:'All machines serviced ✓';mdSub.style.color=due>0?'var(--purple)':'var(--green)'}
+  }).catch(()=>{})
+
+  // ── KPI: Pending QC ───────────────────────────────────────────
+  // Count of orders where Packaging is 'complete' but there is no
+  // approved quality_controls row. That's the QC controller's
+  // real worklist — matches what qualite.html's pending banner shows.
+  Promise.all([
+    sb.from('order_step_tracking').select('order_no').eq('step','Packaging').eq('status','complete'),
+    sb.from('quality_controls').select('order_no,lot_number,overall_result').eq('overall_result','approved')
+  ]).then(([pkgR,qcR])=>{
+    const pkgDone=[...new Set((pkgR.data||[]).map(r=>String(r.order_no)).filter(Boolean))]
+    const qcApproved=new Set((qcR.data||[]).flatMap(q=>[q.order_no,q.lot_number].map(String).filter(Boolean)))
+    const pending=pkgDone.filter(o=>!qcApproved.has(o))
+    const el=document.getElementById('kPendingQC'),sub=document.getElementById('kPendingQCSub')
+    if(el){el.textContent=pending.length;el.style.color=pending.length>0?'var(--amber)':'var(--green)'}
+    if(sub){sub.textContent=pending.length>0?pending.length+' commande'+(pending.length!==1?'s':'')+' à inspecter':'Tout est inspecté ✓';sub.style.color=pending.length>0?'var(--amber)':'var(--green)'}
   }).catch(()=>{})
   // ──────────────────────────────────────────────────────────────
 

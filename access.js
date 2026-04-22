@@ -146,27 +146,40 @@ CW_ACCESS.injectButtonStyles = function () {
   s.textContent = `
     button:not(.nl):not(#helpBtn):not(#cw-help-btn),
     .btn, a.btn, input[type="submit"], input[type="button"] {
-      transition: transform .12s ease, box-shadow .12s ease,
-                  filter .12s ease, background-color .12s ease;
+      transition: transform .15s cubic-bezier(.4,0,.2,1),
+                  box-shadow .15s ease,
+                  filter .15s ease,
+                  background-color .15s ease,
+                  letter-spacing .15s ease;
+      transform-origin: center;
     }
+    /* HOVER — the whole button scales up, text visually grows, shadow
+       lifts it off the surface. 1.06 on a 14px button ≈ +0.8px text,
+       visible but not layout-breaking. */
     button:not(.nl):not(#helpBtn):not(#cw-help-btn):not(:disabled):hover,
     .btn:not(:disabled):hover,
     a.btn:hover,
     input[type="submit"]:not(:disabled):hover,
     input[type="button"]:not(:disabled):hover {
-      transform: translateY(-1px);
-      filter: brightness(1.06) saturate(1.05);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, .10);
+      transform: translateY(-2px) scale(1.06);
+      filter: brightness(1.08) saturate(1.08);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, .18),
+                  0 4px 10px rgba(15, 23, 42, .08);
+      letter-spacing: .15px;
       cursor: pointer;
+      z-index: 1;
     }
+    /* ACTIVE (pressed) — quick "sink" then back, with tight shadow. */
     button:not(.nl):not(#helpBtn):not(#cw-help-btn):not(:disabled):active,
     .btn:not(:disabled):active,
     a.btn:active,
     input[type="submit"]:not(:disabled):active,
     input[type="button"]:not(:disabled):active {
-      transform: translateY(0);
-      filter: brightness(.96);
-      box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+      transform: translateY(1px) scale(1.01);
+      filter: brightness(.94);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, .14) inset,
+                  0 1px 3px rgba(15, 23, 42, .12);
+      transition-duration: .06s;
     }
     button:disabled, .btn:disabled,
     input[type="submit"]:disabled, input[type="button"]:disabled {
@@ -174,13 +187,26 @@ CW_ACCESS.injectButtonStyles = function () {
       opacity: .55;
       filter: grayscale(.2);
     }
+    /* Keyboard focus — always visible for WCAG 2.1 §2.4.7. */
     button:focus-visible,
     .btn:focus-visible,
     a.btn:focus-visible,
     input[type="submit"]:focus-visible,
     input[type="button"]:focus-visible {
       outline: 2px solid #3b5fe2;
-      outline-offset: 2px;
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(59,95,226,.18),
+                  0 8px 20px rgba(15,23,42,.15);
+    }
+    /* Sidebar nav items — subtler bump (no scale, just weight + shadow)
+       because scaling a fixed-width sidebar entry looks jittery. */
+    .nl {
+      transition: background-color .15s ease, color .15s ease,
+                  box-shadow .15s ease, font-weight .15s ease;
+    }
+    .nl:hover {
+      box-shadow: 0 2px 8px rgba(15,23,42,.08);
+      font-weight: 600;
     }
   `;
   document.head.appendChild(s);
