@@ -197,5 +197,17 @@ document.getElementById('mSupplier').addEventListener('click',e=>{if(e.target===
 
 load()
 </script>
+<!-- CW_HELP mount (single source of truth, see lang.js) -->
+<div id="helpPanelMount"></div>
+<script>
+(function(){
+  function mountHelp(){
+    if(typeof CW_HELP==="undefined"||typeof CW_HELP.buildPanel!=="function"){setTimeout(mountHelp,50);return}
+    document.getElementById("helpPanelMount").innerHTML=CW_HELP.buildPanel("suppliers","🏭","Fournisseurs","Suppliers")
+    CW_HELP.init("suppliers","🏭","Fournisseurs","Suppliers")
+  }
+  document.addEventListener("DOMContentLoaded",mountHelp)
+})();
+</script>
 </body>
 </html>

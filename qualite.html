@@ -509,6 +509,16 @@ tr:hover td{background:#fafbfc}
 
 <!-- HELP PANEL PLACEHOLDER - filled by lang.js -->
 <div id="helpPanelMount"></div>
+<script>
+(function(){
+  function mountHelp(){
+    if(typeof CW_HELP==='undefined'||typeof CW_HELP.buildPanel!=='function'){setTimeout(mountHelp,50);return}
+    document.getElementById('helpPanelMount').innerHTML=CW_HELP.buildPanel('qualite','✅','Contrôle Qualité','Quality Control')
+    CW_HELP.init('qualite','✅','Contrôle Qualité','Quality Control')
+  }
+  document.addEventListener('DOMContentLoaded',mountHelp)
+})();
+</script>
 
 <script>const PAGE_KEY='qualite'</script>
 <script>

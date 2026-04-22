@@ -741,7 +741,8 @@ function renderDetail(o){
 
         <!-- ACTIONS -->
         <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap" class="no-print">
-          <button class="btn bgh" onclick="window.print()">🖨 Imprimer fiche</button>
+          <button class="btn bb" onclick="window.printBatchRecord()">📄 Imprimer DHR (Fiche de lot)</button>
+          <button class="btn bgh" onclick="window.print()">🖨 Aperçu écran</button>
           ${(()=>{
     const qcDone=hasQC(o.order_no)
     const lotNum=genLot(o.order_no,o)
@@ -954,6 +955,218 @@ async function renderProductionRecords(o){
         </tbody>
       </table>`
   }catch(e){el.innerHTML='<div style="color:var(--dim);font-size:12px;padding:8px 0">Erreur: '+e.message+'</div>'}
+}
+
+// ── ISO 13485 §4.2.5 DEVICE HISTORY RECORD (DHR) / FICHE DE LOT ──────
+// Generates a formal printable batch record for the currently-selected
+// order. Doc-code placeholders (DHR-FR-001 Rev.1) are staged until the
+// STAT-XIII spec is supplied — replace the DOC_REF constants in one
+// place to align with the live QMS form codes.
+const DHR_DOC_REF={code:'DHR-FR-001',rev:'Rev.1',iso:'ISO 13485:2016 §4.2.5 / §7.5.9'}
+window.printBatchRecord=()=>{
+  if(!selOrder){alert('Sélectionnez d\'abord une commande.');return}
+  generateBatchRecord(selOrder)
+}
+function generateBatchRecord(o){
+  const lotNum=genLot(o.order_no,o)
+  const startDate=o.first_started||o.status_change_date||o.last_synced_at||o.creation_date||null
+  const endDate=o.last_completed||null
+  const done=isComplete(o)
+  const sessions=o.sessions||[]
+  const packagingRow=o.steps&&o.steps['Packaging']
+  const operatorSigner=packagingRow&&packagingRow.completed_by||null
+  const operatorSignedAt=packagingRow&&packagingRow.completed_at||null
+  const orderQCs=qcRecords.filter(q=>String(q.order_no||'')===String(o.order_no)||String(q.lot_number||'')===String(lotNum))
+  const latestQC=orderQCs[0]||null
+  const qcSigner=latestQC?.performed_by||null
+  const qcSignedAt=latestQC?.performed_at||null
+  const qcVerdict=latestQC?.overall_result||latestQC?.result||null
+  const approved=qcVerdict==='approved'||qcVerdict==='pass'
+  const rejected=qcVerdict==='rejected'||qcVerdict==='fail'
+  const verdictLabel=approved?'LOT APPROUVÉ — LIBÉRÉ POUR EXPÉDITION':rejected?'LOT REJETÉ — MISE EN QUARANTAINE':qcVerdict?'LOT EN ATTENTE — NE PAS EXPÉDIER':'CONTRÔLE QUALITÉ NON EFFECTUÉ'
+  const verdictColor=approved?'#16a34a':rejected?'#dc2626':'#d97706'
+  const verdictBg=approved?'#f0fdf4':rejected?'#fff1f2':'#fffbeb'
+
+  // Steps table — duration from tracking timestamps
+  const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))
+  const stepRows=STEPS.map(step=>{
+    const t=o.steps[step]
+    const stepSess=sessions.filter(s=>s.work_type===step||s.session_type===step)
+    const techMs=stepSess.filter(s=>s.session_type!=='machine_running'&&s.ended_at)
+      .reduce((sum,s)=>sum+new Date(s.ended_at)-new Date(s.started_at),0)
+    const operators=[...new Set(stepSess.map(s=>s.employee_name).filter(Boolean))]
+    const trackMach=t?.machine_name||t?.machine||null
+    const sessMach=stepSess.map(s=>s.machine).filter(Boolean)
+    const machines=[...new Set([trackMach,...sessMach].filter(Boolean))]
+    const status=t?.status||'pending'
+    const statusLbl=status==='complete'?'<span style="color:#16a34a;font-weight:700">✓ Terminé</span>':status==='in_progress'?'<span style="color:#3b5fe2;font-weight:700">▶ En cours</span>':status==='machine_running'?'<span style="color:#3b5fe2;font-weight:700">⚙ Machine</span>':'<span style="color:#94a3b8">○ En attente</span>'
+    return '<tr style="border-bottom:1px solid #f1f5f9">'
+      +'<td style="padding:7px 10px;font-size:11px;font-weight:700">'+esc(STEP_FR[step]||step)+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace">'+(t?.first_started_at?fdt(t.first_started_at):'—')+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace">'+(t?.completed_at?fdt(t.completed_at):'—')+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px">'+esc(operators.join(', ')||'—')+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px">'+esc(machines.join(', ')||'—')+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace">'+dur(techMs)+'</td>'
+      +'<td style="padding:7px 10px;font-size:11px;text-align:right">'+statusLbl+'</td>'
+      +'</tr>'
+  }).join('')
+
+  // Materials — machine-assigned lots + consumption log
+  const orderMachines=[...new Set([...(o.sessions||[]).map(s=>s.machine).filter(Boolean),...Object.values(o.steps||{}).map(s=>s.machine_name||s.machine).filter(Boolean)])]
+  const matRowsFromLots=machineLots.filter(ml=>orderMachines.some(m=>String(ml.machine_name||'').toLowerCase()===String(m||'').toLowerCase()))
+    .map(ml=>'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 10px;font-size:11px">'+esc(ml.item_name||ml.material_name||'Matière')+'</td><td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace">'+esc(ml.lot_number||'—')+'</td><td style="padding:7px 10px;font-size:11px">'+esc(ml.machine_name||'—')+'</td><td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace;text-align:right">'+(ml.remaining_qty||ml.qty_remaining!=null?(Number(ml.remaining_qty||ml.qty_remaining)||0)+' '+(ml.unit||''):'—')+'</td></tr>')
+  const matRowsFromConsumption=(o.consumption||[]).map(c=>'<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 10px;font-size:11px">'+esc(c.item_name||'—')+'</td><td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace">'+esc(c.lot_number||'—')+'</td><td style="padding:7px 10px;font-size:11px">'+esc(c.machine_name||'—')+'</td><td style="padding:7px 10px;font-size:11px;font-family:JetBrains Mono,monospace;text-align:right">'+(Number(c.qty_used)||0).toFixed(4)+' '+esc(c.unit||'')+'</td></tr>')
+  const matRows=[...matRowsFromConsumption,...matRowsFromLots].join('')||'<tr><td colspan="4" style="padding:14px;text-align:center;font-size:11px;color:#94a3b8">Aucun lot matière enregistré pour cette commande.</td></tr>'
+
+  // Aligners produced
+  const entries=o.entries||[]
+  const alignerTotal=entries.reduce((s,e)=>s+(Number(e.number_of_aligners)||0),0)
+  const alignerUpper=entries.reduce((s,e)=>s+(Number(e.aligner_upper)||0),0)
+  const alignerLower=entries.reduce((s,e)=>s+(Number(e.aligner_lower)||0),0)
+
+  const html=`<!doctype html><html lang="fr"><head><meta charset="UTF-8">
+  <title>DHR ${esc(lotNum)} — ${esc(o.order_no)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;font-size:12px;color:#0f172a;background:#fff;padding:24px 32px}
+    .page{max-width:820px;margin:0 auto}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px solid #3b5fe2;margin-bottom:18px}
+    .brand{font-size:22px;font-weight:800;color:#3b5fe2;letter-spacing:-.5px}
+    .brand-sub{font-size:10px;color:#64748b;margin-top:3px}
+    .doc-ref{text-align:right;font-size:10px;color:#64748b}
+    .doc-ref .title{font-size:13px;font-weight:800;color:#0f172a}
+    .lot-banner{background:linear-gradient(135deg,#3b5fe2,#6366f1);color:#fff;padding:14px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .lot-banner .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.8}
+    .lot-banner .val{font-family:JetBrains Mono,monospace;font-size:18px;font-weight:700;letter-spacing:1px}
+    .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+    .meta-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px}
+    .meta-lbl{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+    .meta-val{font-size:12px;font-weight:700}
+    .sec{margin-bottom:14px}
+    .sec-title{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.6px;padding:8px 0 5px;border-bottom:1.5px solid #e2e8f0;margin-bottom:6px}
+    table{width:100%;border-collapse:collapse}
+    th{padding:7px 10px;text-align:left;font-size:9px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.3px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+    .verdict{padding:14px 18px;border-radius:12px;text-align:center;margin:14px 0}
+    .aligner-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .aligner-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center}
+    .aligner-item .n{font-family:JetBrains Mono,monospace;font-size:22px;font-weight:800}
+    .aligner-item .l{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;margin-top:3px;letter-spacing:.3px}
+    .sig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+    .sig-box{border:1.5px dashed #cbd5e1;border-radius:10px;padding:12px;min-height:88px}
+    .sig-lbl{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px}
+    .sig-name{font-size:13px;font-weight:700;margin-bottom:4px}
+    .sig-when{font-size:9px;color:#94a3b8}
+    .sig-line{border-top:1px dashed #cbd5e1;padding-top:4px;font-size:9px;color:#94a3b8;margin-top:10px}
+    .foot{margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;display:flex;justify-content:space-between}
+    @media print{body{padding:0 10mm}@page{margin:14mm;size:A4}}
+  </style></head><body><div class="page">
+    <div class="hdr">
+      <div>
+        <div class="brand">🦷 CEDARWINGS SAS</div>
+        <div class="brand-sub">Fabricant d'aligneurs dentaires sur mesure · 75 rue de la Fabrique, France</div>
+      </div>
+      <div class="doc-ref">
+        <div class="title">FICHE DE LOT — DEVICE HISTORY RECORD</div>
+        <div>Réf: ${esc(DHR_DOC_REF.iso)}</div>
+        <div>Formulaire: ${esc(DHR_DOC_REF.code)} · ${esc(DHR_DOC_REF.rev)}</div>
+      </div>
+    </div>
+
+    <div class="lot-banner">
+      <div>
+        <div class="lbl">N° de Lot</div>
+        <div class="val">${esc(lotNum)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="lbl">N° de Commande</div>
+        <div class="val">${esc(o.order_no)}</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">1. Identification du Dossier</div>
+      <div class="meta">
+        <div class="meta-item"><div class="meta-lbl">Patient</div><div class="meta-val">${esc(o.patient_name||'—')}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Praticien</div><div class="meta-val">${esc(o.doctor||'—')}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Statut Bloom</div><div class="meta-val" style="font-size:11px">${esc(o.bloom_status||'—')}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Date de début</div><div class="meta-val" style="font-size:11px">${esc(fd(startDate))}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Date de fin</div><div class="meta-val" style="font-size:11px;color:${done?'#16a34a':'#94a3b8'}">${done?esc(fd(endDate)):'En cours'}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Statut lot</div><div class="meta-val" style="color:${done?'#16a34a':'#3b5fe2'}">${done?'✅ Terminé':'🔄 '+stepsDone(o)+'/'+STEPS.length+' étapes'}</div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">2. Étapes de Production (ISO 13485 §7.5.1)</div>
+      <table>
+        <thead><tr><th>Étape</th><th>Début</th><th>Fin</th><th>Opérateur</th><th>Machine</th><th>Durée</th><th style="text-align:right">Statut</th></tr></thead>
+        <tbody>${stepRows}</tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">3. Matières Premières Consommées (ISO 13485 §7.5.9)</div>
+      <table>
+        <thead><tr><th>Matière</th><th>N° de Lot Fournisseur</th><th>Machine</th><th style="text-align:right">Quantité</th></tr></thead>
+        <tbody>${matRows}</tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">4. Aligneurs Produits</div>
+      <div class="aligner-grid">
+        <div class="aligner-item"><div class="n" style="color:#3b5fe2">${alignerTotal}</div><div class="l">Total aligneurs</div></div>
+        <div class="aligner-item"><div class="n" style="color:#16a34a">${alignerUpper}</div><div class="l">Maxillaire (haut)</div></div>
+        <div class="aligner-item"><div class="n" style="color:#d97706">${alignerLower}</div><div class="l">Mandibulaire (bas)</div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">5. Contrôle Qualité (ISO 13485 §8.2.4)</div>
+      <div class="meta">
+        <div class="meta-item"><div class="meta-lbl">Contrôleur qualité</div><div class="meta-val">${esc(qcSigner||'— Non effectué')}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Date QC</div><div class="meta-val" style="font-size:11px">${esc(fd(qcSignedAt))}</div></div>
+        <div class="meta-item"><div class="meta-lbl">Verdict</div><div class="meta-val" style="color:${verdictColor}">${approved?'✅ Approuvé':rejected?'❌ Rejeté':qcVerdict?'⏸ '+qcVerdict:'—'}</div></div>
+      </div>
+      ${latestQC&&latestQC.non_conformities?'<div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px;font-size:11px;margin-top:8px"><strong>Non-conformités:</strong> '+esc(latestQC.non_conformities)+'</div>':''}
+      ${latestQC&&latestQC.corrective_action?'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;font-size:11px;margin-top:8px"><strong>Action corrective:</strong> '+esc(latestQC.corrective_action)+'</div>':''}
+    </div>
+
+    <div class="verdict" style="background:${verdictBg};border:2px solid ${verdictColor}">
+      <div style="font-size:16px;font-weight:800;color:${verdictColor}">${esc(verdictLabel)}</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">6. Signatures & Libération du Lot</div>
+      <div class="sig-grid">
+        <div class="sig-box">
+          <div class="sig-lbl">Opérateur de Production</div>
+          <div class="sig-name">${esc(operatorSigner||'— non signé —')}</div>
+          <div class="sig-when">${operatorSignedAt?'Signé le '+esc(fdt(operatorSignedAt)):''}</div>
+          <div class="sig-line">Signature opérateur</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl">Contrôleur Qualité</div>
+          <div class="sig-name">${esc(qcSigner||'— non signé —')}</div>
+          <div class="sig-when">${qcSignedAt?'Signé le '+esc(fdt(qcSignedAt)):''}</div>
+          <div class="sig-line">Signature QC</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-lbl">Libération pour Expédition</div>
+          <div class="sig-name" style="visibility:${approved?'visible':'hidden'}">${approved?esc(qcSigner||''):'x'}</div>
+          <div class="sig-when">${approved&&qcSignedAt?'Libéré le '+esc(fdt(qcSignedAt)):''}</div>
+          <div class="sig-line">Signature responsable qualité</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div>© 2026 CEDARWINGS SAS — Document confidentiel · ${esc(DHR_DOC_REF.iso)}</div>
+      <div>Généré le ${esc(fdt(new Date().toISOString()))} — ${esc(DHR_DOC_REF.code)}</div>
+    </div>
+  </div></body></html>`
+  const w=window.open('','_blank')
+  if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600)}
 }
 </script>
 

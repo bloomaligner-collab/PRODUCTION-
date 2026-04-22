@@ -479,5 +479,17 @@ function sl(s){return s==='received'?'📦 Received':s==='approved'?'✅ Approve
 window.closeModal=function(id){document.getElementById(id).classList.remove('open')}
 function toast(msg,type='green'){const el=document.createElement('div');el.className='toast';el.style.background=type==='red'?'var(--red)':type==='amber'?'var(--amber)':'#0f172a';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3500)}
 </script>
+<!-- CW_HELP mount (single source of truth, see lang.js) -->
+<div id="helpPanelMount"></div>
+<script>
+(function(){
+  function mountHelp(){
+    if(typeof CW_HELP==="undefined"||typeof CW_HELP.buildPanel!=="function"){setTimeout(mountHelp,50);return}
+    document.getElementById("helpPanelMount").innerHTML=CW_HELP.buildPanel("requisition","📋","Réquisitions","Requisitions")
+    CW_HELP.init("requisition","📋","Réquisitions","Requisitions")
+  }
+  document.addEventListener("DOMContentLoaded",mountHelp)
+})();
+</script>
 </body>
 </html>

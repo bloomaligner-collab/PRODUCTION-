@@ -1070,5 +1070,17 @@ window.loadAll=loadAll
 loadAll()
 setInterval(loadAll,30000)
 </script>
+<!-- CW_HELP mount (single source of truth, see lang.js) -->
+<div id="helpPanelMount"></div>
+<script>
+(function(){
+  function mountHelp(){
+    if(typeof CW_HELP==="undefined"||typeof CW_HELP.buildPanel!=="function"){setTimeout(mountHelp,50);return}
+    document.getElementById("helpPanelMount").innerHTML=CW_HELP.buildPanel("bloom_import","🌸","Import Bloom","Bloom Import")
+    CW_HELP.init("bloom_import","🌸","Import Bloom","Bloom Import")
+  }
+  document.addEventListener("DOMContentLoaded",mountHelp)
+})();
+</script>
 </body>
 </html>

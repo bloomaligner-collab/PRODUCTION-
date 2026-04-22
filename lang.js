@@ -234,7 +234,7 @@ const CW_LANG = {
 
 // ─── Help content translations ─────────────────────────────────────────
 const CW_HELP = {
-  manager: {
+  dashboard: {
     fr: {
       role: 'Manager / Directeur',
       purpose: 'Votre centre de commande quotidien. Affiche les KPIs en temps réel, l\'activité de l\'équipe et le statut qualité ISO. Se rafraîchit toutes les 30 secondes.',
@@ -937,6 +937,44 @@ const CW_HELP = {
         ['+ Add Lot', 'Register a new material delivery as a lot.'],
         ['Assign to Machine', 'Link a lot to a specific production machine.'],
         ['📋 Consumption Log', 'See every deduction made from this lot.'],
+      ]
+    }
+  },
+  requisition: {
+    fr: {
+      role: 'Responsable production / Responsable achats',
+      purpose: 'ISO 13485 Clause 7.4.1 — Gérer les réquisitions internes de matières pour la production. Chaque demande est liée à une commande Bloom ou à un réapprovisionnement de stock. Le système calcule automatiquement les quantités à commander à partir de la nomenclature (BOM) et du niveau de stock minimum.',
+      process: [
+        ['1. Créer une réquisition', 'Cliquer sur + Nouvelle Réquisition. Choisir le type : Production (liée à un dossier Bloom) ou Réapprovisionnement (stock minimum atteint).'],
+        ['2. Sélectionner les matières', 'Pour une réquisition de production, le système pré-remplit les matières à partir de la nomenclature (BOM) et du nombre d\'aligneurs. Les quantités sont calculées automatiquement.'],
+        ['3. Vérifier le fournisseur', 'Chaque ligne affiche le fournisseur approuvé. Seuls les fournisseurs avec statut Approuvé dans la LFA peuvent être sélectionnés.'],
+        ['4. Soumettre pour approbation', 'La réquisition passe au statut En attente → le manager valide → Approuvée → envoyée au fournisseur.'],
+        ['5. Réception', 'À la réception des matières, marquer la réquisition Reçue — un lot d\'inventaire est créé automatiquement avec le numéro de lot fournisseur.'],
+      ],
+      buttons: [
+        ['+ Nouvelle Réquisition', 'Ouvrir le formulaire de création.'],
+        ['✅ Approuver', 'Valider la demande (manager uniquement).'],
+        ['📦 Marquer Reçue', 'Enregistrer la réception et créer automatiquement les lots d\'inventaire.'],
+        ['❌ Rejeter', 'Refuser la demande avec motif.'],
+        ['🖨 Imprimer Bon', 'Imprimer le bon de commande pour le fournisseur.'],
+      ]
+    },
+    en: {
+      role: 'Production Manager / Purchasing Manager',
+      purpose: 'ISO 13485 Clause 7.4.1 — Manage internal material requisitions for production. Every request is linked either to a Bloom case or to a stock replenishment. The system auto-computes quantities from the Bill of Materials (BOM) and minimum stock levels.',
+      process: [
+        ['1. Create requisition', 'Click + New Requisition. Pick the type: Production (linked to a Bloom case) or Replenishment (minimum stock hit).'],
+        ['2. Pick materials', 'For a production requisition, the system pre-fills materials from the BOM and aligner count. Quantities are computed automatically.'],
+        ['3. Verify supplier', 'Each line shows the approved supplier. Only suppliers with Approved status in the ASL can be selected.'],
+        ['4. Submit for approval', 'Status goes Pending → manager approves → Approved → sent to supplier.'],
+        ['5. Receive goods', 'On receipt, mark the requisition Received — an inventory lot is auto-created with the supplier lot number.'],
+      ],
+      buttons: [
+        ['+ New Requisition', 'Open the create form.'],
+        ['✅ Approve', 'Validate the request (manager only).'],
+        ['📦 Mark Received', 'Record receipt and auto-create inventory lots.'],
+        ['❌ Reject', 'Deny the request with a reason.'],
+        ['🖨 Print PO', 'Print the purchase order for the supplier.'],
       ]
     }
   },
