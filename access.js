@@ -224,12 +224,10 @@ CW_ACCESS.injectFeedbackBanner = async function () {
   window.__cwFeedbackBannerRan = true;
   if (typeof PAGE_KEY === 'undefined') return;                      // login / unauth pages
   if (PAGE_KEY === 'customer_feedback') return;                     // already on the page
-  if (sessionStorage.getItem('cw_feedback_banner_dismissed') === '1') return;
 
   const name = this.getName();
   if (!name || name === 'User') return;
 
-  // Defer until DOM is ready and config.js / supabase-js can be imported
   try {
     const cfgMod = await import('./config.js');
     const sbMod  = await import('https://esm.sh/@supabase/supabase-js@2');
@@ -249,33 +247,90 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 
     // Pull open assignments that match
     const { data: rows } = await sb.from('customer_feedback')
-      .select('id,feedback_no,customer_name,description,type,severity,category,assigned_to,status,notification_seen_at')
+      .select('id,feedback_no,customer_name,description,type,severity,category,assigned_to,status,notification_seen_at,received_date')
       .in('status', ['open', 'in_progress'])
-      .in('assigned_to', [...directValues, ...roleValues]);
+      .in('assigned_to', [...directValues, ...roleValues])
+      .order('severity', { ascending: false })
+      .order('received_date', { ascending: false });
     const unseen = (rows || []).filter(r => !r.notification_seen_at);
     if (!unseen.length) return;
 
+    const TYPE_LABELS = {complaint:'🚫 Complaint',feedback:'👍 Feedback',suggestion:'💡 Suggestion',warranty:'🛡️ Warranty',inquiry:'❓ Inquiry',return:'📦 Return',service_request:'🛠️ Service'};
+    const SEV_COLOR = {critical:'#dc2626',high:'#d97706',medium:'#1d4ed8',low:'#64748b'};
+
+    // The TOP BANNER is always shown when there are unseen complaints.
+    // It persists on every page until the user actually opens a complaint
+    // (which stamps notification_seen_at). There is no "hide this session"
+    // flag for the banner — the user wanted it to keep showing after Skip.
     const first = unseen[0];
-    const link = 'customer_feedback.html?open=' + encodeURIComponent(first.id);
-    const bar = document.createElement('div');
-    bar.id = 'cw-feedback-banner';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2000;background:linear-gradient(135deg,#1d4ed8,#3b5fe2);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;font-family:"DM Sans",sans-serif;font-size:13px;box-shadow:0 2px 10px rgba(15,23,42,.25)';
-    bar.innerHTML = `
+    const topBar = document.createElement('div');
+    topBar.id = 'cw-feedback-banner';
+    topBar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2000;background:linear-gradient(135deg,#1d4ed8,#3b5fe2);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;font-family:"DM Sans",sans-serif;font-size:13px;box-shadow:0 2px 10px rgba(15,23,42,.25)';
+    topBar.innerHTML = `
       <span style="font-size:18px">🔔</span>
       <div style="flex:1;min-width:0">
         <strong>You have ${unseen.length} complaint${unseen.length>1?'s':''} to handle.</strong>
         <span style="opacity:.85;margin-left:8px">Next up: <em>${(first.customer_name||'—')}</em> — ${(first.description||'').slice(0,90)}${(first.description||'').length>90?'…':''}</span>
       </div>
-      <a href="${link}" style="background:#fff;color:#1d4ed8;padding:6px 14px;border-radius:8px;font-weight:700;text-decoration:none;white-space:nowrap">View now →</a>
-      <button id="cw-fb-later" style="background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;padding:6px 12px;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit">Later</button>
+      <a href="customer_feedback.html?open=${encodeURIComponent(first.id)}" style="background:#fff;color:#1d4ed8;padding:6px 14px;border-radius:8px;font-weight:700;text-decoration:none;white-space:nowrap">View now →</a>
     `;
-    document.body.prepend(bar);
-    // Push the rest of the page down so the banner isn't covering the top bar
-    document.body.style.paddingTop = (bar.offsetHeight || 48) + 'px';
-    document.getElementById('cw-fb-later').addEventListener('click', () => {
-      sessionStorage.setItem('cw_feedback_banner_dismissed', '1');
-      bar.remove();
-      document.body.style.paddingTop = '';
+    document.body.prepend(topBar);
+    document.body.style.paddingTop = (topBar.offsetHeight || 48) + 'px';
+
+    // LOGIN MODAL — big, deliberate, only shown ONCE per tab session.
+    // After the user clicks Skip (or clicks outside / Esc), the modal
+    // is gone for this session but the top banner above stays visible
+    // so they can come back to it any time.
+    if (sessionStorage.getItem('cw_feedback_modal_seen') === '1') return;
+    sessionStorage.setItem('cw_feedback_modal_seen', '1');
+
+    const top = unseen.slice(0, 5);
+    const more = unseen.length - top.length;
+    const wrap = document.createElement('div');
+    wrap.id = 'cw-fb-modal';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;font-family:"DM Sans",sans-serif';
+    wrap.innerHTML = `
+      <div style="background:#fff;border-radius:18px;max-width:640px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(15,23,42,.35);animation:cwPop .18s ease">
+        <div style="padding:22px 24px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:14px">
+          <div style="font-size:30px">🔔</div>
+          <div style="flex:1">
+            <div style="font-size:17px;font-weight:800;letter-spacing:-.3px">You have ${unseen.length} complaint${unseen.length>1?'s':''} waiting for you</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">Welcome back, ${name}. Pick one to handle now, or skip and come back later — a banner will stay at the top until you handle it.</div>
+          </div>
+        </div>
+        <div style="padding:14px 18px 10px;display:flex;flex-direction:column;gap:10px">
+          ${top.map(r=>{
+            const descShort = (r.description||'').slice(0,140);
+            const ellip = (r.description||'').length>140 ? '…' : '';
+            const sevColor = SEV_COLOR[r.severity] || '#64748b';
+            return `<a href="customer_feedback.html?open=${encodeURIComponent(r.id)}" style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:inherit;transition:all .12s" onmouseover="this.style.borderColor='#3b5fe2';this.style.background='#eef6ff'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+              <div style="width:6px;align-self:stretch;background:${sevColor};border-radius:3px;flex-shrink:0"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:#64748b;margin-bottom:2px">${r.feedback_no||''} · ${TYPE_LABELS[r.type]||r.type||'—'} · <span style="color:${sevColor};font-weight:700">${r.severity||'—'}</span></div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:3px">${r.customer_name||'(no customer)'}</div>
+                <div style="font-size:12px;color:#334155;line-height:1.4">${descShort}${ellip}</div>
+              </div>
+              <div style="color:#3b5fe2;font-weight:800;font-size:18px;align-self:center">›</div>
+            </a>`;
+          }).join('')}
+          ${more>0?`<div style="text-align:center;color:#64748b;font-size:12px;padding:4px 0">+ ${more} more — visit Customer Feedback to see all</div>`:''}
+        </div>
+        <div style="padding:14px 20px 20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #f1f5f9">
+          <button id="cw-fb-skip" style="background:#fff;border:1.5px solid #e2e8f0;color:#64748b;padding:9px 20px;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px">Later</button>
+          <a href="customer_feedback.html?filter=mine" style="background:#3b5fe2;color:#fff;padding:9px 20px;border-radius:10px;font-weight:700;text-decoration:none;font-family:inherit;font-size:13px;display:inline-flex;align-items:center;gap:6px">View all my cases →</a>
+        </div>
+      </div>
+      <style>
+        @keyframes cwPop { from { transform: translateY(10px) scale(.98); opacity: 0 } to { transform: none; opacity: 1 } }
+      </style>
+    `;
+    document.body.appendChild(wrap);
+
+    const dismissModal = () => { wrap.remove(); };
+    document.getElementById('cw-fb-skip').addEventListener('click', dismissModal);
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) dismissModal(); });
+    document.addEventListener('keydown', function onEsc(e) {
+      if (e.key === 'Escape') { dismissModal(); document.removeEventListener('keydown', onEsc); }
     });
   } catch (e) { /* best-effort — never block the page */ }
 };
