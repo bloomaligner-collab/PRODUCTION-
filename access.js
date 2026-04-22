@@ -245,14 +245,33 @@ CW_ACCESS.injectFeedbackBanner = async function () {
     const directValues = [name];
     const roleValues = [...myRoles].map(r => 'role:' + r);
 
-    // Pull open assignments that match
-    const { data: rows } = await sb.from('customer_feedback')
-      .select('id,feedback_no,customer_name,description,type,severity,category,assigned_to,status,notification_seen_at,received_date')
-      .in('status', ['open', 'in_progress'])
-      .in('assigned_to', [...directValues, ...roleValues])
-      .order('severity', { ascending: false })
-      .order('received_date', { ascending: false });
-    const unseen = (rows || []).filter(r => !r.notification_seen_at);
+    // Two queries run in parallel:
+    //  1. Open complaints assigned to me (personal or via role) and not yet
+    //     stamped notification_seen_at.
+    //  2. Follow-up reminders I own whose follow_up_date is today or
+     //    earlier and that haven't been marked done.
+    const today = new Date().toISOString().slice(0, 10);
+    const [asgnRes, fuRes] = await Promise.all([
+      sb.from('customer_feedback')
+        .select('id,feedback_no,customer_name,description,type,severity,category,assigned_to,status,notification_seen_at,received_date,follow_up_date,follow_up_note,follow_up_assignee,follow_up_done_at')
+        .in('status', ['open', 'in_progress'])
+        .in('assigned_to', [...directValues, ...roleValues])
+        .order('severity', { ascending: false })
+        .order('received_date', { ascending: false }),
+      sb.from('customer_feedback')
+        .select('id,feedback_no,customer_name,description,type,severity,category,assigned_to,status,notification_seen_at,received_date,follow_up_date,follow_up_note,follow_up_assignee,follow_up_done_at')
+        .is('follow_up_done_at', null)
+        .lte('follow_up_date', today)
+        .in('follow_up_assignee', [...directValues, ...roleValues])
+    ]);
+    const seen = new Map();
+    for (const r of [...(asgnRes.data || []), ...(fuRes.data || [])]) seen.set(r.id, r);
+    // 'unseen' criteria: a new assignment that hasn't been opened OR a due follow-up
+    const unseen = [...seen.values()].filter(r => {
+      const isNewAssignment = !r.notification_seen_at;
+      const fuDue = r.follow_up_assignee && !r.follow_up_done_at && r.follow_up_date && r.follow_up_date <= today;
+      return isNewAssignment || fuDue;
+    });
     if (!unseen.length) return;
 
     const TYPE_LABELS = {complaint:'🚫 Complaint',feedback:'👍 Feedback',suggestion:'💡 Suggestion',warranty:'🛡️ Warranty',inquiry:'❓ Inquiry',return:'📦 Return',service_request:'🛠️ Service'};
@@ -262,15 +281,32 @@ CW_ACCESS.injectFeedbackBanner = async function () {
     // It persists on every page until the user actually opens a complaint
     // (which stamps notification_seen_at). There is no "hide this session"
     // flag for the banner — the user wanted it to keep showing after Skip.
+    // Sort so overdue follow-ups surface first, then due-today, then newly
+    // assigned. Overdue is the most urgent class.
+    unseen.sort((a, b) => {
+      const aOver = a.follow_up_date && !a.follow_up_done_at && a.follow_up_date < today ? 0 :
+                    a.follow_up_date && !a.follow_up_done_at && a.follow_up_date === today ? 1 : 2;
+      const bOver = b.follow_up_date && !b.follow_up_done_at && b.follow_up_date < today ? 0 :
+                    b.follow_up_date && !b.follow_up_done_at && b.follow_up_date === today ? 1 : 2;
+      return aOver - bOver;
+    });
     const first = unseen[0];
+    const firstFuDue = first.follow_up_date && !first.follow_up_done_at && first.follow_up_date <= today;
+    const firstFuOver = firstFuDue && first.follow_up_date < today;
+    const firstNote = firstFuDue ? (first.follow_up_note || 'Follow-up reminder') : (first.description || '').slice(0, 90);
+    const firstPrefix = firstFuOver ? '⚠️ OVERDUE — ' : firstFuDue ? '⏰ Due today — ' : '';
+    const overdueCount = unseen.filter(r => r.follow_up_date && !r.follow_up_done_at && r.follow_up_date < today).length;
+    const todayCount = unseen.filter(r => r.follow_up_date && !r.follow_up_done_at && r.follow_up_date === today).length;
+    const suffix = (overdueCount || todayCount) ? ` (${overdueCount?overdueCount+' overdue':''}${overdueCount&&todayCount?' · ':''}${todayCount?todayCount+' today':''})` : '';
     const topBar = document.createElement('div');
     topBar.id = 'cw-feedback-banner';
-    topBar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2000;background:linear-gradient(135deg,#1d4ed8,#3b5fe2);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;font-family:"DM Sans",sans-serif;font-size:13px;box-shadow:0 2px 10px rgba(15,23,42,.25)';
+    const bgGradient = firstFuOver ? 'linear-gradient(135deg,#b91c1c,#dc2626)' : 'linear-gradient(135deg,#1d4ed8,#3b5fe2)';
+    topBar.style.cssText = `position:fixed;top:0;left:0;right:0;z-index:2000;background:${bgGradient};color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;font-family:"DM Sans",sans-serif;font-size:13px;box-shadow:0 2px 10px rgba(15,23,42,.25)`;
     topBar.innerHTML = `
       <span style="font-size:18px">🔔</span>
       <div style="flex:1;min-width:0">
-        <strong>You have ${unseen.length} complaint${unseen.length>1?'s':''} to handle.</strong>
-        <span style="opacity:.85;margin-left:8px">Next up: <em>${(first.customer_name||'—')}</em> — ${(first.description||'').slice(0,90)}${(first.description||'').length>90?'…':''}</span>
+        <strong>You have ${unseen.length} item${unseen.length>1?'s':''} to handle${suffix}.</strong>
+        <span style="opacity:.85;margin-left:8px">${firstPrefix}<em>${(first.customer_name||'—')}</em> — ${firstNote}${firstNote.length>=90?'…':''}</span>
       </div>
       <a href="customer_feedback.html?open=${encodeURIComponent(first.id)}" style="background:#fff;color:#1d4ed8;padding:6px 14px;border-radius:8px;font-weight:700;text-decoration:none;white-space:nowrap">View now →</a>
     `;
