@@ -697,14 +697,18 @@ document.getElementById('btnNext').addEventListener('click',()=>{pg++;render()})
 
 ;(async()=>{
   await loadDropdowns()
+  // Deep-link filters from the 🔔 login modal — applied BEFORE load/render
+  const qp=new URLSearchParams(location.search)
+  if(qp.get('filter')==='mine'){
+    const af=document.getElementById('assignedFilter')
+    if(af){af.value='__mine__'}
+  }
   await load()
-  // ?open=<id> support — lets the 🔔 login banner jump straight to a complaint.
-  const openId=new URLSearchParams(location.search).get('open')
+  // ?open=<id> support — jump straight to a specific complaint.
+  const openId=qp.get('open')
   if(openId){
-    // Scroll to the record row, then open its view modal (which also marks it seen)
     const match=all.find(x=>String(x.id)===String(openId))
     if(match){
-      // If on a later page, jump to the page containing it
       const idx=filtered.findIndex(x=>String(x.id)===String(openId))
       if(idx>=0){pg=Math.floor(idx/PAGE);render()}
       if(typeof viewRec==='function')viewRec(openId)
