@@ -266,6 +266,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <option value="">All Assignees</option>
         <option value="__mine__">🙋 Assigned to me</option>
         <option value="__unassigned__">⏳ Unassigned</option>
+        <option value="__followup_mine__">⏰ My follow-ups due</option>
+        <option value="__followup_overdue__">⚠️ Overdue follow-ups</option>
       </select>
       <button class="btn bb" onclick="openNew()">+ Log Feedback</button>
     </div>
@@ -358,6 +360,23 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         </select>
       </div>
       <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
+
+      <!-- ── Follow-up reminder ─────────────────────────────────────── -->
+      <div style="grid-column:1/-1;border-top:1px dashed var(--bdr);padding-top:14px;margin-top:6px">
+        <div style="font-size:11px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⏰ Follow-up Reminder</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div><label class="form-label">Follow-up Date</label><input type="date" class="fi" id="fFollowDate" placeholder="Remind on this day"/></div>
+          <div><label class="form-label">Follow-up Owner</label>
+            <select class="fi" id="fFollowAssignee">
+              <option value="__self__">👤 Me (current user)</option>
+              <option value="">— Same as Assigned To —</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1"><label class="form-label">Follow-up Note (what to do)</label>
+            <input type="text" class="fi" id="fFollowNote" placeholder="e.g. Call doctor for confirmation, send replacement aligners…"/>
+          </div>
+        </div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
       <button class="btn bgh" onclick="closeModal()">Cancel</button>
@@ -455,6 +474,14 @@ async function loadDropdowns(){
   sel.innerHTML = '<option value="">— Unassigned —</option>'
     + (roleOpts?`<optgroup label="— Roles (any holder gets notified) —">${roleOpts}</optgroup>`:'')
     + (empOpts?`<optgroup label="— Individuals —">${empOpts}</optgroup>`:'')
+  // Follow-up owner dropdown — same role + person options as the main assignee
+  const followSel=document.getElementById('fFollowAssignee')
+  if(followSel){
+    followSel.innerHTML = '<option value="__self__">👤 Me (current user)</option>'
+      + '<option value="">— Same as Assigned To —</option>'
+      + (roleOpts?`<optgroup label="— Roles —">${roleOpts}</optgroup>`:'')
+      + (empOpts?`<optgroup label="— Individuals —">${empOpts}</optgroup>`:'')
+  }
   // Assignee filter — roles + individuals
   const af=document.getElementById('assignedFilter')
   af.insertAdjacentHTML('beforeend',
@@ -504,9 +531,14 @@ function applyFilter(){
   filtered=all.filter(r=>{
     if(tf&&r.type!==tf)return false
     if(sf&&r.status!==sf)return false
+    const today=new Date().toISOString().slice(0,10)
+    const fuDueForMe = r.follow_up_date && !r.follow_up_done_at && r.follow_up_date<=today && (r.follow_up_assignee===currentUser || (isRoleAssignee(r.follow_up_assignee) && (r.follow_up_assignee.slice(5)===userPrimaryRole || userExtraRoles.includes(r.follow_up_assignee.slice(5)))))
+    const fuOverdue = r.follow_up_date && !r.follow_up_done_at && r.follow_up_date<today
     if(af==='__mine__' && !assignedToMe(r.assigned_to))return false
     if(af==='__unassigned__' && r.assigned_to)return false
-    if(af && af!=='__mine__' && af!=='__unassigned__' && r.assigned_to!==af)return false
+    if(af==='__followup_mine__' && !fuDueForMe)return false
+    if(af==='__followup_overdue__' && !fuOverdue)return false
+    if(af && !['__mine__','__unassigned__','__followup_mine__','__followup_overdue__'].includes(af) && r.assigned_to!==af)return false
     if(term){
       const hay=`${r.customer_name||''} ${r.description||''} ${r.case_id||''} ${r.order_no||''} ${r.doctor||''}`.toLowerCase()
       if(!hay.includes(term))return false
@@ -554,7 +586,9 @@ window.openNew=()=>{
   editId=null
   document.getElementById('mTitle').textContent='💬 Log Feedback'
   document.getElementById('fDate').value=new Date().toISOString().slice(0,10)
-  ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed'].forEach(id=>document.getElementById(id).value='')
+  ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed','fFollowDate','fFollowNote'].forEach(id=>document.getElementById(id).value='')
+  // Default follow-up owner = Me (so 'remind me to check back')
+  const fa=document.getElementById('fFollowAssignee'); if(fa) fa.value='__self__'
   document.getElementById('fType').value='complaint'
   document.getElementById('fCategory').value=''
   document.getElementById('fPriority').value='medium'
@@ -583,6 +617,19 @@ window.editRec=(id)=>{
   document.getElementById('fAction').value=r.resolution||''
   document.getElementById('fAssigned').value=r.assigned_to||''
   document.getElementById('fClosed').value=r.resolved_at?String(r.resolved_at).slice(0,10):''
+  // Follow-up fields — stored owner value maps back to the dropdown;
+  // if follow-up owner is same as main assignee, select the blank option;
+  // if it's the current user, show 'Me'.
+  const fDateEl=document.getElementById('fFollowDate'); if(fDateEl) fDateEl.value=r.follow_up_date||''
+  const fNoteEl=document.getElementById('fFollowNote'); if(fNoteEl) fNoteEl.value=r.follow_up_note||''
+  const faEl=document.getElementById('fFollowAssignee')
+  if(faEl){
+    const fa=r.follow_up_assignee||''
+    if(!fa) faEl.value=''
+    else if(fa===currentUser) faEl.value='__self__'
+    else if([...faEl.options].some(o=>o.value===fa)) faEl.value=fa
+    else { const o=document.createElement('option'); o.value=fa; o.textContent=fa+' (from source)'; faEl.appendChild(o); faEl.value=fa }
+  }
   onTypeChange()
   document.getElementById('modal').classList.add('on')
 }
@@ -614,8 +661,31 @@ window.viewRec=async(id)=>{
     <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">DESCRIPTION</div><div style="background:var(--r50);border-radius:8px;padding:12px;font-size:13px">${r.description||'—'}</div></div>
     ${r.notes?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">ROOT CAUSE / NOTES</div><div style="background:var(--a50);border-radius:8px;padding:12px;font-size:13px">${r.notes}</div></div>`:''}
     ${r.resolution?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">RESOLUTION</div><div style="background:var(--g50);border-radius:8px;padding:12px;font-size:13px">${r.resolution}</div></div>`:''}
+    ${r.follow_up_date?(() => {
+      const today=new Date().toISOString().slice(0,10)
+      const overdue = !r.follow_up_done_at && r.follow_up_date < today
+      const dueToday = !r.follow_up_done_at && r.follow_up_date === today
+      const bg = r.follow_up_done_at ? 'var(--g50)' : overdue ? 'var(--r50)' : dueToday ? 'var(--a50)' : 'var(--b50)'
+      const bc = r.follow_up_done_at ? 'var(--green)' : overdue ? 'var(--red)' : dueToday ? 'var(--amber)' : 'var(--blue)'
+      const label = r.follow_up_done_at ? '✅ Follow-up done' : overdue ? '⚠️ Follow-up OVERDUE' : dueToday ? '⏰ Follow-up TODAY' : '⏰ Follow-up scheduled'
+      return `<div style="background:${bg};border:1px solid ${bc}33;border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:800;color:${bc};margin-bottom:4px">${label}</div>
+        <div style="font-size:13px">📅 ${fdt(r.follow_up_date)} · 👤 ${prettyAssignee(r.follow_up_assignee)||'—'}</div>
+        ${r.follow_up_note?`<div style="font-size:12px;color:var(--mu);margin-top:4px">“${r.follow_up_note}”</div>`:''}
+        ${!r.follow_up_done_at?`<button onclick="markFollowUpDone('${r.id}')" style="margin-top:10px;padding:6px 14px;background:${bc};color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f)">✓ Mark Follow-up Done</button>`:`<div style="font-size:11px;color:var(--mu);margin-top:4px">Done: ${fdt(r.follow_up_done_at)}</div>`}
+      </div>`
+    })():''}
     ${r.resolved_at?`<div style="font-size:12px;color:var(--green);font-weight:700">✅ Resolved: ${fdt(r.resolved_at)}</div>`:''}`
   document.getElementById('viewModal').classList.add('on')
+}
+
+window.markFollowUpDone=async(id)=>{
+  if(!confirm('Mark the follow-up as done?')) return
+  const{error}=await sb.from('customer_feedback').update({follow_up_done_at:new Date().toISOString()}).eq('id',id)
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf('Follow-up marked done','ok')
+  closeView()
+  await load()
 }
 
 window.save=async()=>{
@@ -654,6 +724,19 @@ window.save=async()=>{
     resolved_at:document.getElementById('fClosed').value||null,
     received_by:currentUser||null
   }
+  // Follow-up fields
+  const fDate=document.getElementById('fFollowDate').value||null
+  const fNote=document.getElementById('fFollowNote').value.trim()||null
+  const faSel=document.getElementById('fFollowAssignee').value
+  let fAssignee
+  if(faSel==='__self__') fAssignee = currentUser || null
+  else if(faSel==='')    fAssignee = newAssignee || null   // follow main assignee
+  else                   fAssignee = faSel
+  rec.follow_up_date = fDate
+  rec.follow_up_note = fNote
+  rec.follow_up_assignee = fDate ? fAssignee : null
+  // If follow-up date changed, reset the done timestamp so the reminder fires again
+  if(prev && prev.follow_up_date !== fDate) rec.follow_up_done_at = null
   // Reset the "seen" flag when assignment changes so the assignee gets a fresh toast
   if(assigneeChanged)rec.notification_seen_at=null
   if(!editId)rec.feedback_no=refNum()
