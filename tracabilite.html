@@ -221,9 +221,27 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 
 <script type="module">
 import{createClient}from"https://esm.sh/@supabase/supabase-js@2"
-import{SUPABASE_CONFIG}from"./config.js"
+import{SUPABASE_CONFIG,CW_DOC_REF}from"./config.js"
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
 window._sb=sb
+
+// Regulatory info loaded from system_settings at page boot — feeds both
+// the DHR (company header) and the EU MDR Annex XIII Declaration.
+let _cwRegInfo={
+  company_name:'Cedarwings SAS',
+  company_address:'', manufacturing_site:'',
+  legal_rep_name:'', legal_rep_function:'',
+  mdr_device_name_fr:'Aligneur dentaire sur mesure',
+  mdr_device_name_en:'Custom-made dental aligner'
+}
+async function loadRegulatoryInfo(){
+  try{
+    const{data}=await sb.from('system_settings').select('key,value').in('key',
+      ['company_name','company_address','manufacturing_site','legal_rep_name','legal_rep_function','mdr_device_name_fr','mdr_device_name_en'])
+    ;(data||[]).forEach(r=>{if(r.value)_cwRegInfo[r.key]=r.value})
+  }catch(e){console.warn('loadRegulatoryInfo:',e)}
+}
+loadRegulatoryInfo()
 
 const STEPS=['Printing','Cleaning','Thermoforming','Line Cut','Laser Marking','Packaging']
 const STEP_FR={'Printing':'🖨 Impression','Cleaning':'🧼 Nettoyage','Thermoforming':'🔄 Thermoformage','Line Cut':'✂ Découpe','Laser Marking':'🔆 Marquage Laser','Packaging':'📦 Emballage'}
@@ -742,6 +760,7 @@ function renderDetail(o){
         <!-- ACTIONS -->
         <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap" class="no-print">
           <button class="btn bb" onclick="window.printBatchRecord()">📄 Imprimer DHR (Fiche de lot)</button>
+          <button class="btn bb" style="background:#7c3aed" onclick="window.printMDRDeclaration()">📜 Déclaration MDR (Annexe XIII)</button>
           <button class="btn bgh" onclick="window.print()">🖨 Aperçu écran</button>
           ${(()=>{
     const qcDone=hasQC(o.order_no)
@@ -959,10 +978,8 @@ async function renderProductionRecords(o){
 
 // ── ISO 13485 §4.2.5 DEVICE HISTORY RECORD (DHR) / FICHE DE LOT ──────
 // Generates a formal printable batch record for the currently-selected
-// order. Doc-code placeholders (DHR-FR-001 Rev.1) are staged until the
-// STAT-XIII spec is supplied — replace the DOC_REF constants in one
-// place to align with the live QMS form codes.
-const DHR_DOC_REF={code:'DHR-FR-001',rev:'Rev.1',iso:'ISO 13485:2016 §4.2.5 / §7.5.9'}
+// order. Form codes come from CW_DOC_REF in config.js — one edit there
+// updates every generated PDF.
 window.printBatchRecord=()=>{
   if(!selOrder){alert('Sélectionnez d\'abord une commande.');return}
   generateBatchRecord(selOrder)
@@ -1063,13 +1080,13 @@ function generateBatchRecord(o){
   </style></head><body><div class="page">
     <div class="hdr">
       <div>
-        <div class="brand">🦷 CEDARWINGS SAS</div>
-        <div class="brand-sub">Fabricant d'aligneurs dentaires sur mesure · 75 rue de la Fabrique, France</div>
+        <div class="brand">🦷 ${esc((_cwRegInfo.company_name||'Cedarwings SAS').toUpperCase())}</div>
+        <div class="brand-sub">Fabricant d'aligneurs dentaires sur mesure${_cwRegInfo.company_address?' · '+esc(_cwRegInfo.company_address):''}</div>
       </div>
       <div class="doc-ref">
-        <div class="title">FICHE DE LOT — DEVICE HISTORY RECORD</div>
-        <div>Réf: ${esc(DHR_DOC_REF.iso)}</div>
-        <div>Formulaire: ${esc(DHR_DOC_REF.code)} · ${esc(DHR_DOC_REF.rev)}</div>
+        <div class="title">${esc(CW_DOC_REF.dhr.titleFR)}</div>
+        <div>Réf: ${esc(CW_DOC_REF.dhr.iso)}</div>
+        <div>Formulaire: ${esc(CW_DOC_REF.dhr.code)} · ${esc(CW_DOC_REF.dhr.rev)}</div>
       </div>
     </div>
 
@@ -1161,8 +1178,128 @@ function generateBatchRecord(o){
     </div>
 
     <div class="foot">
-      <div>© 2026 CEDARWINGS SAS — Document confidentiel · ${esc(DHR_DOC_REF.iso)}</div>
-      <div>Généré le ${esc(fdt(new Date().toISOString()))} — ${esc(DHR_DOC_REF.code)}</div>
+      <div>© 2026 CEDARWINGS SAS — Document confidentiel · ${esc(CW_DOC_REF.dhr.iso)}</div>
+      <div>Généré le ${esc(fdt(new Date().toISOString()))} — ${esc(CW_DOC_REF.dhr.code)}</div>
+    </div>
+  </div></body></html>`
+  const w=window.open('','_blank')
+  if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600)}
+}
+
+// ── EU MDR 2017/745 Annex XIII DECLARATION OF CONFORMITY ──────────────
+// Per-device declaration that must ship with every custom-made medical
+// device (ISO 11607 / EU MDR Article 52 §8 / Annex XIII).
+// Wording follows the STAT-XIII-BLOOMaligner-01 template exactly.
+window.printMDRDeclaration=()=>{
+  if(!selOrder){alert('Sélectionnez d\'abord une commande.');return}
+  const missing=[]
+  if(!_cwRegInfo.legal_rep_name)    missing.push('Représentant légal (Paramètres)')
+  if(!_cwRegInfo.legal_rep_function)missing.push('Fonction du représentant (Paramètres)')
+  if(!_cwRegInfo.company_address)   missing.push('Adresse du fabricant (Paramètres)')
+  if(missing.length){
+    if(!confirm('⚠️ Informations manquantes :\n  • '+missing.join('\n  • ')+'\n\nLa déclaration imprimera avec des champs vides. Continuer quand même ?'))return
+  }
+  generateMDRDeclaration(selOrder)
+}
+function generateMDRDeclaration(o){
+  const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))
+  const lotNum=genLot(o.order_no,o)
+  const deviceId=lotNum+' / '+o.order_no
+  const company=_cwRegInfo.company_name||'Cedarwings SAS'
+  const today=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})
+  const placeOfSigning=(_cwRegInfo.company_address||'').split(',').slice(-2).join(',').trim()||'France'
+  const deviceName=_cwRegInfo.mdr_device_name_fr||'Aligneur dentaire sur mesure'
+  const patientLabel=o.patient_name||'Patient — '+o.order_no
+  const prescriber=[o.doctor,o.clinic||o.distributor].filter(Boolean).join(' — ')||'— non renseigné —'
+  const prescriptionRef='Dossier Bloom '+o.order_no
+  // The fill-in-the-blank wording from STAT-XIII-BLOOMaligner-01, with
+  // live values substituted where the operator would otherwise write.
+  const html=`<!doctype html><html lang="fr"><head><meta charset="UTF-8">
+  <title>Déclaration MDR ${esc(lotNum)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;font-size:12.5px;color:#0f172a;background:#fff;padding:32px 40px;line-height:1.55}
+    .page{max-width:780px;margin:0 auto}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #7c3aed;margin-bottom:26px}
+    .brand{font-size:22px;font-weight:800;color:#7c3aed;letter-spacing:-.5px}
+    .brand-sub{font-size:10.5px;color:#64748b;margin-top:3px}
+    .doc-ref{text-align:right;font-size:10px;color:#64748b}
+    .doc-ref .title{font-size:12px;font-weight:800;color:#0f172a}
+    h1.title{font-size:18px;font-weight:800;text-align:center;letter-spacing:.3px;margin:10px 0 6px;color:#0f172a;text-transform:uppercase}
+    .subtitle{text-align:center;font-size:11px;color:#64748b;margin-bottom:22px;font-style:italic}
+    .body p{margin-bottom:14px}
+    .fill{display:inline-block;min-width:160px;padding:1px 8px;border-bottom:1.5px solid #0f172a;font-weight:700;background:#faf5ff}
+    .fill.empty{background:#fee2e2;border-bottom-color:#dc2626;color:#dc2626;font-style:italic;font-weight:500}
+    ul.bullets{list-style:none;margin:10px 0 16px 18px}
+    ul.bullets li{position:relative;padding:4px 0 4px 18px;font-size:12.5px}
+    ul.bullets li::before{content:"—";position:absolute;left:0;color:#7c3aed;font-weight:800}
+    .established{margin-top:26px;padding:14px 0;border-top:1px dashed #cbd5e1;border-bottom:1px dashed #cbd5e1;display:flex;gap:24px;font-size:12.5px}
+    .sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:28px}
+    .sig-box{border:1.5px dashed #cbd5e1;border-radius:10px;padding:14px;min-height:110px}
+    .sig-lbl{font-size:9.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;letter-spacing:.4px}
+    .sig-val{font-size:13.5px;font-weight:700}
+    .sig-line{border-top:1px dashed #cbd5e1;margin-top:48px;padding-top:4px;font-size:9px;color:#94a3b8}
+    .foot{margin-top:26px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;display:flex;justify-content:space-between}
+    .badge{display:inline-block;background:#f5f3ff;color:#7c3aed;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #ddd6fe;letter-spacing:.3px}
+    @media print{body{padding:0 14mm}@page{margin:18mm;size:A4}}
+  </style></head><body><div class="page">
+    <div class="hdr">
+      <div>
+        <div class="brand">🦷 ${esc(company.toUpperCase())}</div>
+        <div class="brand-sub">Fabricant d'aligneurs dentaires sur mesure${_cwRegInfo.company_address?' · '+esc(_cwRegInfo.company_address):''}</div>
+      </div>
+      <div class="doc-ref">
+        <div class="title">${esc(CW_DOC_REF.stat_xiii.titleFR)}</div>
+        <div>Réf: ${esc(CW_DOC_REF.stat_xiii.iso)}</div>
+        <div>Formulaire: ${esc(CW_DOC_REF.stat_xiii.code)} · ${esc(CW_DOC_REF.stat_xiii.rev)}</div>
+      </div>
+    </div>
+
+    <div class="badge">EU MDR 2017/745 · Annexe XIII · Dispositif sur mesure</div>
+    <h1 class="title">Déclaration de Conformité</h1>
+    <div class="subtitle">Declaration of Conformity — Custom-made device · established per ${esc(CW_DOC_REF.stat_xiii.iso)}</div>
+
+    <div class="body">
+      <p>Je soussigné(e), <span class="fill ${_cwRegInfo.legal_rep_name?'':'empty'}">${esc(_cwRegInfo.legal_rep_name||'— NOM À RENSEIGNER —')}</span>,
+      ${_cwRegInfo.legal_rep_function?'<span class="fill">'+esc(_cwRegInfo.legal_rep_function)+'</span>':'<span class="fill empty">— FONCTION À RENSEIGNER —</span>'},
+      représentant(e) légal(e) de la société <span class="fill">${esc(company)}</span>,
+      certifie et déclare que le dispositif médical sur mesure
+      «&nbsp;<span class="fill">${esc(deviceName)}</span> — ID <span class="fill" style="font-family:JetBrains Mono,monospace">${esc(deviceId)}</span>&nbsp;» :</p>
+
+      <ul class="bullets">
+        <li>a été fabriqué par <strong>${esc(company)}</strong> —
+          <span class="fill ${_cwRegInfo.company_address?'':'empty'}">${esc(_cwRegInfo.company_address||'— ADRESSE DU FABRICANT —')}</span>,
+          site de production <span class="fill ${_cwRegInfo.manufacturing_site?'':'empty'}">${esc(_cwRegInfo.manufacturing_site||_cwRegInfo.company_address||'— ADRESSE DU SITE DE FABRICATION —')}</span>,</li>
+        <li>a été prescrit par <span class="fill">${esc(prescriber)}</span>,</li>
+        <li>a été fabriqué selon les caractéristiques spécifiques du produit indiquées par la prescription <span class="fill" style="font-family:JetBrains Mono,monospace">${esc(prescriptionRef)}</span>,</li>
+        <li>est destiné à l'usage exclusif du patient <span class="fill">${esc(patientLabel)}</span>,</li>
+        <li>est conforme aux exigences générales de sécurité et de performance énoncées à l'Annexe&nbsp;I du Règlement MDR 2017/745.</li>
+      </ul>
+    </div>
+
+    <div class="established">
+      <div>Établi le&nbsp;: <span class="fill">${esc(today)}</span></div>
+      <div>à&nbsp;: <span class="fill">${esc(placeOfSigning)}</span></div>
+    </div>
+
+    <div class="sig-grid">
+      <div class="sig-box">
+        <div class="sig-lbl">Nom et prénom</div>
+        <div class="sig-val">${esc(_cwRegInfo.legal_rep_name||'')}</div>
+        ${_cwRegInfo.legal_rep_function?'<div style="font-size:10.5px;color:#64748b;margin-top:2px">'+esc(_cwRegInfo.legal_rep_function)+'</div>':''}
+        <div class="sig-line">Nom du signataire</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-lbl">Signature</div>
+        <div class="sig-val" style="visibility:hidden">x</div>
+        <div class="sig-line">Signature manuscrite</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div>© 2026 ${esc(company)} — Document confidentiel · ${esc(CW_DOC_REF.stat_xiii.iso)}</div>
+      <div>Généré le ${esc(fdt(new Date().toISOString()))} — ${esc(CW_DOC_REF.stat_xiii.code)}</div>
     </div>
   </div></body></html>`
   const w=window.open('','_blank')

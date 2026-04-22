@@ -148,6 +148,26 @@ tbody tr:last-child td{border:none}
       </div>
     </div>
 
+    <!-- EU MDR REGULATORY INFO -->
+    <!-- Feeds the Annex XIII per-device Declaration of Conformity
+         printed from the Traceability page (STAT-XIII-BLOOMaligner-01). -->
+    <div class="card">
+      <div class="card-title">🏛 Informations Réglementaires MDR 2017/745</div>
+      <div class="card-sub">Utilisé pour générer la <strong>Déclaration de Conformité Annexe XIII</strong> imprimée avec chaque aligneur sur mesure. Renseignez ces champs avant la première expédition.</div>
+      <div class="fg">
+        <div><lbl>Adresse complète du fabricant</lbl><input class="fi" id="companyAddress" placeholder="Numéro, rue, code postal, ville, pays"/></div>
+        <div><lbl>Adresse du site de fabrication</lbl><input class="fi" id="manufacturingSite" placeholder="Si identique au fabricant, copier la même adresse"/></div>
+      </div>
+      <div class="fg">
+        <div><lbl>Nom du représentant légal</lbl><input class="fi" id="legalRepName" placeholder="Nom Prénom"/></div>
+        <div><lbl>Fonction du représentant légal</lbl><input class="fi" id="legalRepFunction" placeholder="Président, Directeur Général, CEO…"/></div>
+      </div>
+      <div class="fg">
+        <div><lbl>Nom du dispositif (FR)</lbl><input class="fi" id="mdrDeviceNameFR" placeholder="Aligneur dentaire sur mesure"/></div>
+        <div><lbl>Device name (EN)</lbl><input class="fi" id="mdrDeviceNameEN" placeholder="Custom-made dental aligner"/></div>
+      </div>
+    </div>
+
     <!-- MANAGER NOTIFICATION RECIPIENTS -->
     <div class="card">
       <div class="card-title">👥 Notification Recipients</div>
@@ -315,6 +335,13 @@ async function load(){
   if(smap.brevo_sender_name){document.getElementById('brevoName').value=smap.brevo_sender_name;window._brevoName=smap.brevo_sender_name}
   if(smap.company_name)document.getElementById('companyName').value=smap.company_name
   if(smap.daily_report_time)document.getElementById('reportTime').value=smap.daily_report_time
+  // MDR regulatory info (feeds Annex XIII declaration)
+  if(smap.company_address)document.getElementById('companyAddress').value=smap.company_address
+  if(smap.manufacturing_site)document.getElementById('manufacturingSite').value=smap.manufacturing_site
+  if(smap.legal_rep_name)document.getElementById('legalRepName').value=smap.legal_rep_name
+  if(smap.legal_rep_function)document.getElementById('legalRepFunction').value=smap.legal_rep_function
+  if(smap.mdr_device_name_fr)document.getElementById('mdrDeviceNameFR').value=smap.mdr_device_name_fr
+  if(smap.mdr_device_name_en)document.getElementById('mdrDeviceNameEN').value=smap.mdr_device_name_en
 
   // Load recipients
   const{data:ns}=await sb.from('notification_settings').select('*').order('employee_name')
@@ -379,7 +406,13 @@ window.saveAll=async()=>{
     {key:'brevo_sender_email',value:document.getElementById('brevoEmail').value.trim()},
     {key:'brevo_sender_name',value:document.getElementById('brevoName').value.trim()},
     {key:'company_name',value:document.getElementById('companyName').value.trim()},
-    {key:'daily_report_time',value:document.getElementById('reportTime').value}
+    {key:'daily_report_time',value:document.getElementById('reportTime').value},
+    {key:'company_address',value:document.getElementById('companyAddress').value.trim()},
+    {key:'manufacturing_site',value:document.getElementById('manufacturingSite').value.trim()},
+    {key:'legal_rep_name',value:document.getElementById('legalRepName').value.trim()},
+    {key:'legal_rep_function',value:document.getElementById('legalRepFunction').value.trim()},
+    {key:'mdr_device_name_fr',value:document.getElementById('mdrDeviceNameFR').value.trim()},
+    {key:'mdr_device_name_en',value:document.getElementById('mdrDeviceNameEN').value.trim()}
   ]
   for(const s of settings){
     await sb.from('system_settings').upsert({key:s.key,value:s.value,updated_at:new Date().toISOString()},{onConflict:'key'})
