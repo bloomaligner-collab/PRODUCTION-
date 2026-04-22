@@ -1,6 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- CW defensive help cleanup -->
+<script>
+(function(){
+  function kill(){
+    var el=document.getElementById("cw-help-btn");if(el)el.remove();
+    var root=document.getElementById("cw-help-root");if(root)root.remove();
+  }
+  document.addEventListener("DOMContentLoaded",function(){
+    kill();
+    // If stale access.js injects later, kill as it appears.
+    try{
+      var mo=new MutationObserver(kill);
+      mo.observe(document.body,{childList:true,subtree:false});
+      setTimeout(function(){mo.disconnect()},5000);
+    }catch(e){}
+  });
+})();
+</script>
+
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Cedarwings — Settings</title>
 <script type="module" src="auth_guard.js?v=20260422c"></script>
