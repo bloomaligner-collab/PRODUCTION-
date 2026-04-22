@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings — Outsourcing</title>
+<script type="module" src="auth_guard.js?v=20260422c"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<script>const PAGE_KEY='outsourcing'</script>
+<script src="lang.js?v=20260422c"></script>
+<script src="access.js?v=20260422c"></script>
+<style>
+:root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
+  --blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;
+  --green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;
+  --amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;
+  --red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;
+  --purple:#7c3aed;--p50:#f5f3ff;--p100:#ede9fe;
+  --f:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--card);border-right:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-top{display:flex;align-items:center;gap:12px;padding:20px 18px 16px;border-bottom:1px solid var(--bdr)}
+.sb-logo{width:40px;height:40px;background:linear-gradient(135deg,#3b5fe2,#6366f1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.sb-name{font-weight:800;font-size:14px}.sb-badge{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;margin-top:3px;background:var(--b50);color:var(--blue)}
+.sb-nav{flex:1;padding:10px}.sb-s{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:14px 8px 6px}
+.nl{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:500;color:var(--mu);text-decoration:none;transition:all .12s}
+.nl:hover{background:var(--bg);color:var(--txt)}.nl.on{background:var(--b50);color:var(--blue);font-weight:700}.nl .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:12px 10px;border-top:1px solid var(--bdr)}
+.content{margin-left:240px;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:50}
+.body{padding:22px 28px 60px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:18px;border-top:3px solid var(--blue);position:relative}
+.kpi-ico{font-size:22px;margin-bottom:8px;opacity:.85}
+.kpi-val{font-size:26px;font-weight:800;font-family:var(--mono);letter-spacing:-.8px;line-height:1}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.kpi.green{border-top-color:var(--green)}.kpi.amber{border-top-color:var(--amber)}.kpi.red{border-top-color:var(--red)}.kpi.purple{border-top-color:var(--purple)}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:22px;margin-bottom:16px}
+.tabs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:3px;margin-bottom:20px;width:fit-content}
+.tab{padding:8px 20px;font-size:13px;font-weight:700;border:none;background:transparent;color:var(--mu);border-radius:8px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.tab.on{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.fi{padding:8px 12px;border:1px solid var(--bdr);border-radius:9px;font-size:13px;font-family:var(--f);background:var(--card);color:var(--txt);min-width:140px}
+.fi:focus{outline:none;border-color:var(--blue)}
+.fi-lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;display:block}
+.tw{overflow-x:auto;border-radius:12px;border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 14px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;background:#f8fafc;border-bottom:1px solid var(--bdr);white-space:nowrap;text-align:left}
+tbody td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--bdr);color:var(--txt)}
+tbody tr:last-child td{border:none}
+tbody tr:hover{background:#f8fafc}
+tbody tr.is-out{background:linear-gradient(90deg,#faf5ff,#fff)}
+tbody tr.is-out:hover{background:#f3e8ff}
+.mono{font-family:var(--mono);font-size:12px}
+.bdg{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700}
+.b-g{background:var(--g100);color:#15803d}.b-a{background:var(--a100);color:#92400e}.b-r{background:var(--r100);color:#991b1b}
+.b-b{background:var(--b100);color:#1e40af}.b-p{background:var(--p100);color:#5b21b6}.b-gray{background:#f1f5f9;color:var(--mu)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:700;border:none;border-radius:9px;cursor:pointer;font-family:var(--f)}
+.btn-p{background:var(--purple);color:#fff}.btn-b{background:var(--blue);color:#fff}
+.btn-g{background:#fff;color:var(--mu);border:1px solid var(--bdr)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.mov{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.mov.on{display:flex}
+.mo{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px}
+.mo-t{font-size:17px;font-weight:800;margin-bottom:4px}
+.mo-s{font-size:12px;color:var(--mu);margin-bottom:16px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.notif{position:fixed;bottom:20px;right:20px;padding:12px 18px;border-radius:10px;background:var(--g100);color:#15803d;font-weight:700;font-size:13px;z-index:600;display:none}
+.notif.on{display:block}.notif.err{background:var(--r100);color:#991b1b}
+.empty{text-align:center;padding:40px 20px;color:var(--mu)}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-top">
+    <div class="sb-logo">⚙</div>
+    <div><div class="sb-name">Cedarwings SAS</div><div class="sb-badge" id="sb-role-lbl">Loading…</div></div>
+  </div>
+  <nav class="sb-nav"></nav>
+  <div class="sb-foot"></div>
+</aside>
+
+<div class="content">
+  <div class="topbar">
+    <div>
+      <div style="font-size:16px;font-weight:800">🚚 Outsourcing</div>
+      <div style="font-size:11px;color:var(--mu)">Track outsourced aligner production · costs · payments</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="kpi-row">
+      <div class="kpi purple"><div class="kpi-ico">🚚</div><div class="kpi-val" id="kOut" style="color:var(--purple)">—</div><div class="kpi-lbl">Outsourced (month)</div></div>
+      <div class="kpi green"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
+      <div class="kpi amber"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
+      <div class="kpi red"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Invoices</div></div>
+      <div class="kpi"><div class="kpi-ico">🦷</div><div class="kpi-val" id="kAlig" style="color:var(--blue)">—</div><div class="kpi-lbl">Aligners Outsourced (month)</div></div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-t="cases">📋 Cases</button>
+      <button class="tab" data-t="orders">🚚 Outsourced Orders</button>
+      <button class="tab" data-t="report">📊 Monthly Report</button>
+    </div>
+
+    <!-- Tab: Cases ──────────────────────────────────────────────────── -->
+    <section class="card" id="tab-cases">
+      <div class="filters">
+        <div><div class="fi-lbl">Status</div>
+          <select class="fi" id="fStatus">
+            <option value="all">All</option>
+            <option value="inhouse">🏭 In-House only</option>
+            <option value="outsourced">🚚 Outsourced only</option>
+          </select>
+        </div>
+        <div><div class="fi-lbl">Supplier</div><select class="fi" id="fSupplier"><option value="">All suppliers</option></select></div>
+        <div><div class="fi-lbl">Search</div><input class="fi" id="fSearch" placeholder="Case # / patient / doctor"/></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-g" onclick="exportCasesCsv()">⬇ Export CSV</button>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Case #</th><th>Patient</th><th>Doctor</th><th>Status</th><th>Aligners</th><th>Supplier</th><th>Cost</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="tCases"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </section>
+
+    <!-- Tab: Outsourced Orders ──────────────────────────────────────── -->
+    <section class="card" id="tab-orders" style="display:none">
+      <div class="filters">
+        <div><div class="fi-lbl">Payment</div>
+          <select class="fi" id="oPay">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="paid">Paid</option>
+            <option value="disputed">Disputed</option>
+          </select>
+        </div>
+        <div><div class="fi-lbl">Supplier</div><select class="fi" id="oSupplier"><option value="">All</option></select></div>
+        <div><div class="fi-lbl">From</div><input type="date" class="fi" id="oFrom"/></div>
+        <div><div class="fi-lbl">To</div><input type="date" class="fi" id="oTo"/></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-g" onclick="exportOrdersCsv()">⬇ Export CSV</button>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Case #</th><th>Patient</th><th>Supplier</th><th>Aligners</th><th>Cost/Unit</th><th>Total</th><th>Outsourced</th><th>Received</th><th>Invoice</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="tOrders"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </section>
+
+    <!-- Tab: Monthly Report ─────────────────────────────────────────── -->
+    <section class="card" id="tab-report" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div style="font-size:14px;font-weight:800">📊 In-House vs Outsourced — last 6 months</div>
+        <button class="btn btn-g" onclick="exportReportCsv()">⬇ Export CSV</button>
+      </div>
+      <canvas id="mixChart" height="80"></canvas>
+      <div style="margin-top:24px;font-size:14px;font-weight:800">💼 Supplier Breakdown — this month</div>
+      <div class="tw" style="margin-top:10px"><table>
+        <thead><tr><th>Supplier</th><th>Cases</th><th>Aligners</th><th>Total cost</th><th>Pending</th><th>Paid</th></tr></thead>
+        <tbody id="tSupplier"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </section>
+  </div>
+</div>
+
+<!-- Mark Outsourced Modal -->
+<div class="mov" id="mOut">
+  <div class="mo">
+    <div class="mo-t">🚚 Mark Case as Outsourced</div>
+    <div class="mo-s" id="mOutSub">Record who makes the aligners, cost and return date.</div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div><div class="lbl">Supplier *</div><select class="fi" id="mSupplier" style="width:100%"></select></div>
+      <div><div class="lbl">Expected Return</div><input type="date" class="fi" id="mReturn" style="width:100%"/></div>
+      <div><div class="lbl">Aligners Upper</div><input type="number" class="fi" id="mUp" style="width:100%" min="0"/></div>
+      <div><div class="lbl">Aligners Lower</div><input type="number" class="fi" id="mLo" style="width:100%" min="0"/></div>
+      <div><div class="lbl">Cost / Aligner</div><input type="number" class="fi" id="mCost" style="width:100%" step="0.01" min="0"/></div>
+      <div><div class="lbl">Currency</div><select class="fi" id="mCur" style="width:100%"><option value="EUR">EUR €</option><option value="USD">USD $</option><option value="GBP">GBP £</option></select></div>
+      <div style="grid-column:1/-1"><div class="lbl">Notes</div><textarea class="fi" id="mNotes" rows="2" style="width:100%;resize:vertical"></textarea></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="font-size:13px;color:var(--mu)">Total estimated: <strong id="mTotal" style="color:var(--txt)">€0.00</strong></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g" onclick="closeOutModal()">Cancel</button>
+        <button class="btn btn-p" onclick="saveOut()">💾 Mark Outsourced</button>
+      </div>
+    </div>
+    <div id="mErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SUPABASE_CONFIG } from './config.js?v=20260422c'
+const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+const $ = id => document.getElementById(id)
+const ntf = (t, tp) => { const el=$('notif'); el.textContent=t; el.className='notif on '+(tp==='err'?'err':''); setTimeout(()=>el.className='notif',3500) }
+const fdt = v => v ? new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'
+const money = (v,c='EUR') => { const s=Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); const sy=({EUR:'€',USD:'$',GBP:'£'})[c]||c; return sy+s }
+const user = sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
+
+let allCases=[], allOrders=[], suppliers=[], chart=null, currentModalCase=null
+
+// ── Fetch everything in parallel, paginate bloom_cases past 1000-cap ──
+async function fetchAllBloom(){
+  const PAGE=1000; let from=0; const all=[]
+  while(true){
+    const{data,error}=await sb.from('bloom_cases')
+      .select('case_id,patient_name,doctor,clinic,current_status,status_change_date')
+      .order('status_change_date',{ascending:false,nullsFirst:false})
+      .range(from,from+PAGE-1)
+    if(error||!data?.length)break
+    all.push(...data)
+    if(data.length<PAGE)break
+    from+=PAGE
+  }
+  return all
+}
+
+async function loadAll(){
+  const [sRes, oRes, cRes] = await Promise.all([
+    sb.from('suppliers').select('id,name,country').order('name'),
+    sb.from('outsourced_orders').select('*').order('outsource_date',{ascending:false}),
+    fetchAllBloom()
+  ])
+  suppliers = sRes.data||[]
+  allOrders = oRes.data||[]
+  // Merge bloom + outsourcing state into a unified list
+  const orderByCase = new Map(allOrders.map(o=>[String(o.case_id),o]))
+  allCases = (cRes||[]).map(b=>({
+    case_id:String(b.case_id),
+    patient_name:b.patient_name||'',
+    doctor:b.doctor||'',
+    clinic:b.clinic||'',
+    current_status:b.current_status||'',
+    outsourced: orderByCase.has(String(b.case_id)),
+    order: orderByCase.get(String(b.case_id))||null
+  }))
+  populateSupplierDropdowns()
+  computeKpis()
+  renderCases(); renderOrders(); renderReport()
+}
+
+function populateSupplierDropdowns(){
+  const opts = '<option value="">All suppliers</option>' + suppliers.map(s=>`<option value="${s.id}">${s.name}${s.country?' ('+s.country+')':''}</option>`).join('')
+  $('fSupplier').innerHTML = opts
+  $('oSupplier').innerHTML = opts
+  // Modal supplier picker (required → no "All" option)
+  $('mSupplier').innerHTML = '<option value="">— Select supplier —</option>' + suppliers.map(s=>`<option value="${s.id}">${s.name}${s.country?' ('+s.country+')':''}</option>`).join('')
+}
+
+function computeKpis(){
+  const today=new Date()
+  const mStart=new Date(today.getFullYear(),today.getMonth(),1)
+  const isThisMonth = d => d && new Date(d)>=mStart
+  const monthOrders = allOrders.filter(o=>isThisMonth(o.outsource_date))
+  const monthInhouse = allCases.filter(c=>!c.outsourced && isThisMonth(c.order?.outsource_date || today.toISOString())).length // approximation — no created_at on bloom_cases
+  $('kOut').textContent = monthOrders.length
+  $('kIn').textContent  = Math.max(0, allCases.filter(c=>!c.outsourced).length - (monthOrders.length)) // rough
+  const pending = monthOrders.filter(o=>o.payment_status!=='paid').reduce((a,o)=>a+Number(o.total_cost||0),0)
+  $('kPay').textContent = money(pending,'EUR')
+  const overdue = allOrders.filter(o=>o.payment_status!=='paid' && o.expected_return_date && new Date(o.expected_return_date)<today).length
+  $('kOver').textContent = overdue
+  const aligners = monthOrders.reduce((a,o)=>a+Number(o.aligners_total||0),0)
+  $('kAlig').textContent = aligners
+}
+
+// ── Cases tab ─────────────────────────────────────────────────────────
+function renderCases(){
+  const st=$('fStatus').value, sup=$('fSupplier').value, q=($('fSearch').value||'').toLowerCase()
+  const filtered=allCases.filter(c=>{
+    if(st==='outsourced' && !c.outsourced) return false
+    if(st==='inhouse' && c.outsourced) return false
+    if(sup && c.order?.supplier_id!==sup) return false
+    if(q && !`${c.case_id} ${c.patient_name} ${c.doctor} ${c.clinic}`.toLowerCase().includes(q)) return false
+    return true
+  }).slice(0,500) // cap for perf
+  $('tCases').innerHTML = filtered.length ? filtered.map(c=>{
+    const o=c.order
+    const payCls = !o?'':o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
+    return `<tr class="${c.outsourced?'is-out':''}">
+      <td class="mono" style="font-weight:700">${c.case_id}</td>
+      <td>${c.patient_name||'—'}</td>
+      <td style="color:var(--mu)">${c.doctor||'—'}</td>
+      <td>${c.outsourced?'<span class="bdg b-p">🚚 Outsourced</span>':'<span class="bdg b-g">🏭 In-House</span>'}</td>
+      <td class="mono">${o?o.aligners_total||'—':'—'}</td>
+      <td>${o?.supplier_name||'—'}</td>
+      <td class="mono">${o?money(o.total_cost,o.currency):'—'}</td>
+      <td>${o?`<span class="bdg ${payCls}">${o.payment_status}</span>`:'—'}</td>
+      <td style="text-align:right">
+        ${c.outsourced
+          ? `<button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')">✏️ Edit</button>
+             <button class="btn btn-sm btn-g" onclick="unOutsource('${o.id}','${c.case_id}')">↩ Undo</button>`
+          : `<button class="btn btn-sm btn-p" onclick="openOutModal('${c.case_id}')">🚚 Outsource</button>`}
+      </td>
+    </tr>`
+  }).join('') : '<tr><td colspan="9" class="empty">No cases match these filters.</td></tr>'
+}
+
+// ── Orders tab ────────────────────────────────────────────────────────
+function renderOrders(){
+  const pay=$('oPay').value, sup=$('oSupplier').value, from=$('oFrom').value, to=$('oTo').value
+  const today=new Date().toISOString().slice(0,10)
+  const filtered=allOrders.filter(o=>{
+    if(pay && o.payment_status!==pay) return false
+    if(sup && o.supplier_id!==sup) return false
+    if(from && o.outsource_date<from) return false
+    if(to && o.outsource_date>to) return false
+    return true
+  })
+  $('tOrders').innerHTML = filtered.length ? filtered.map(o=>{
+    const c = allCases.find(x=>x.case_id===String(o.case_id))
+    const payCls = o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
+    const overdue = o.payment_status!=='paid' && o.expected_return_date && o.expected_return_date<today
+    return `<tr class="${overdue?'':'is-out'}" style="${overdue?'background:#fef2f2':''}">
+      <td class="mono" style="font-weight:700">${o.case_id}</td>
+      <td>${c?.patient_name||'—'}</td>
+      <td>${o.supplier_name||'—'}</td>
+      <td class="mono">${o.aligners_total||0}</td>
+      <td class="mono">${money(o.cost_per_aligner,o.currency)}</td>
+      <td class="mono" style="font-weight:700">${money(o.total_cost,o.currency)}</td>
+      <td class="mono">${fdt(o.outsource_date)}</td>
+      <td class="mono">${fdt(o.received_date)}</td>
+      <td class="mono">${o.invoice_no||'—'}</td>
+      <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')">✏️</button>
+        ${o.payment_status!=='paid'?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')">💰 Mark paid</button>`:''}
+      </td>
+    </tr>`
+  }).join('') : '<tr><td colspan="11" class="empty">No outsourced orders yet.</td></tr>'
+}
+
+// ── Report tab — Chart + supplier breakdown ───────────────────────────
+function renderReport(){
+  // Last 6 months including current
+  const now=new Date()
+  const months=[]
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1)
+    months.push({key:d.toISOString().slice(0,7), label:d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})})
+  }
+  const outByMonth = months.map(m => allOrders.filter(o=>String(o.outsource_date||'').slice(0,7)===m.key).reduce((a,o)=>a+(o.aligners_total||0),0))
+  const inByMonth  = months.map(m => allCases.filter(c=>!c.outsourced && String(c.current_status||'').length).length===0 ? 0 : 0) // Placeholder: we can't cheaply derive monthly in-house production here; filled by upstream data
+  // Try to enrich in-house count from production_entries if available
+  sb.from('production_entries').select('session_date,aligners_done').gte('session_date',months[0].key+'-01').then(({data})=>{
+    const byMonth={}
+    ;(data||[]).forEach(r=>{const k=String(r.session_date||'').slice(0,7); byMonth[k]=(byMonth[k]||0)+Number(r.aligners_done||0)})
+    const inArr = months.map(m=>byMonth[m.key]||0)
+    drawChart(months.map(m=>m.label), inArr, outByMonth)
+  }).catch(()=>drawChart(months.map(m=>m.label), months.map(()=>0), outByMonth))
+
+  // Supplier breakdown for THIS month
+  const mKey=now.toISOString().slice(0,7)
+  const mOrders=allOrders.filter(o=>String(o.outsource_date||'').slice(0,7)===mKey)
+  const bySup={}
+  mOrders.forEach(o=>{
+    const k=o.supplier_id||'_none'
+    if(!bySup[k]) bySup[k]={name:o.supplier_name||'(unassigned)',cases:0,aligners:0,total:0,pending:0,paid:0,currency:o.currency||'EUR'}
+    bySup[k].cases++
+    bySup[k].aligners += Number(o.aligners_total||0)
+    bySup[k].total += Number(o.total_cost||0)
+    if(o.payment_status==='paid') bySup[k].paid += Number(o.paid_amount||o.total_cost||0)
+    else                           bySup[k].pending += Number(o.total_cost||0)
+  })
+  const rows=Object.values(bySup).sort((a,b)=>b.total-a.total)
+  $('tSupplier').innerHTML = rows.length ? rows.map(r=>`<tr>
+    <td style="font-weight:700">${r.name}</td>
+    <td class="mono">${r.cases}</td>
+    <td class="mono">${r.aligners}</td>
+    <td class="mono" style="font-weight:700">${money(r.total,r.currency)}</td>
+    <td class="mono" style="color:var(--amber)">${money(r.pending,r.currency)}</td>
+    <td class="mono" style="color:var(--green)">${money(r.paid,r.currency)}</td>
+  </tr>`).join('') : '<tr><td colspan="6" class="empty">No outsourced orders this month.</td></tr>'
+}
+function drawChart(labels,inArr,outArr){
+  if(chart)chart.destroy()
+  chart = new Chart($('mixChart'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'In-House (aligners)',data:inArr,backgroundColor:'#16a34a'},
+      {label:'Outsourced (aligners)',data:outArr,backgroundColor:'#7c3aed'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}}
+  })
+}
+
+// ── Mark-outsourced modal ─────────────────────────────────────────────
+window.openOutModal=(caseId)=>{
+  currentModalCase=caseId
+  const c=allCases.find(x=>x.case_id===String(caseId))
+  $('mOutSub').innerHTML = `Case <strong>${caseId}</strong>${c?.patient_name?' · '+c.patient_name:''}${c?.doctor?' · Dr '+c.doctor:''}`
+  $('mSupplier').value=''; $('mReturn').value=''; $('mUp').value=0; $('mLo').value=0; $('mCost').value=0; $('mCur').value='EUR'; $('mNotes').value=''; $('mErr').textContent=''
+  updateMTotal()
+  $('mOut').classList.add('on')
+}
+window.closeOutModal=()=>{$('mOut').classList.remove('on')}
+function updateMTotal(){
+  const t=(Number($('mUp').value||0)+Number($('mLo').value||0))*Number($('mCost').value||0)
+  const sy=({EUR:'€',USD:'$',GBP:'£'})[$('mCur').value]||''
+  $('mTotal').textContent=sy+t.toFixed(2)
+}
+['mUp','mLo','mCost','mCur'].forEach(id=>$(id).addEventListener('input',updateMTotal))
+
+window.saveOut=async()=>{
+  const supId=$('mSupplier').value
+  if(!supId){$('mErr').textContent='Supplier is required';return}
+  const sup=suppliers.find(s=>s.id===supId)
+  const up=Number($('mUp').value||0), lo=Number($('mLo').value||0), cost=Number($('mCost').value||0)
+  const total=(up+lo)*cost
+  const rec={
+    case_id:String(currentModalCase), supplier_id:supId, supplier_name:sup?.name||null,
+    outsource_date:new Date().toISOString().slice(0,10),
+    expected_return_date:$('mReturn').value||null,
+    aligners_upper:up, aligners_lower:lo, cost_per_aligner:cost, total_cost:total,
+    currency:$('mCur').value, notes:$('mNotes').value.trim()||null,
+    created_by:user||null, payment_status:'pending'
+  }
+  const{error}=await sb.from('outsourced_orders').insert([rec])
+  if(error){$('mErr').textContent=error.message;return}
+  ntf('✅ Case marked as outsourced')
+  closeOutModal()
+  await loadAll()
+}
+
+window.editOrder=async(id)=>{
+  const o=allOrders.find(x=>x.id===id); if(!o)return
+  currentModalCase=o.case_id
+  openOutModal(o.case_id) // reuse modal; prefill values
+  $('mSupplier').value=o.supplier_id||''
+  $('mReturn').value=o.expected_return_date||''
+  $('mUp').value=o.aligners_upper||0; $('mLo').value=o.aligners_lower||0
+  $('mCost').value=o.cost_per_aligner||0; $('mCur').value=o.currency||'EUR'
+  $('mNotes').value=o.notes||''
+  updateMTotal()
+  // Swap Save button to update mode
+  const btn=$('mOut').querySelector('.btn-p')
+  btn.textContent='💾 Update'
+  btn.onclick=async()=>{
+    const supId=$('mSupplier').value
+    const sup=suppliers.find(s=>s.id===supId)
+    const up=Number($('mUp').value||0), lo=Number($('mLo').value||0), cost=Number($('mCost').value||0)
+    const{error}=await sb.from('outsourced_orders').update({
+      supplier_id:supId, supplier_name:sup?.name||null,
+      expected_return_date:$('mReturn').value||null,
+      aligners_upper:up, aligners_lower:lo, cost_per_aligner:cost, total_cost:(up+lo)*cost,
+      currency:$('mCur').value, notes:$('mNotes').value.trim()||null,
+      updated_at:new Date().toISOString()
+    }).eq('id',id)
+    if(error){$('mErr').textContent=error.message;return}
+    ntf('✅ Order updated'); closeOutModal(); btn.textContent='💾 Mark Outsourced'; btn.onclick=saveOut; await loadAll()
+  }
+}
+window.unOutsource=async(id,caseId)=>{
+  if(!confirm(`Remove outsourcing record for case ${caseId}? Case returns to In-House.`))return
+  const{error}=await sb.from('outsourced_orders').delete().eq('id',id)
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf('✅ Case restored to In-House'); await loadAll()
+}
+window.markPaid=async(id)=>{
+  const o=allOrders.find(x=>x.id===id); if(!o)return
+  const inv = prompt('Invoice number (optional):', o.invoice_no||'')
+  if(inv===null) return
+  const paid = prompt('Paid amount:', String(o.total_cost||''))
+  if(paid===null) return
+  const{error}=await sb.from('outsourced_orders').update({
+    payment_status:'paid',
+    paid_date:new Date().toISOString().slice(0,10),
+    paid_amount:Number(paid)||o.total_cost,
+    invoice_no:inv||o.invoice_no||null,
+    updated_at:new Date().toISOString()
+  }).eq('id',id)
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf('✅ Marked paid'); await loadAll()
+}
+
+// ── CSV exports ───────────────────────────────────────────────────────
+function csv(rows){
+  return rows.map(r=>r.map(v=>{
+    const s=String(v??''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s
+  }).join(',')).join('\n')
+}
+function download(name,text){
+  const b=new Blob([text],{type:'text/csv;charset=utf-8'})
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click()
+}
+window.exportCasesCsv=()=>{
+  const rows=[['Case #','Patient','Doctor','Status','Aligners','Supplier','Total Cost','Currency','Payment']]
+  allCases.forEach(c=>rows.push([c.case_id,c.patient_name,c.doctor,c.outsourced?'Outsourced':'In-House',c.order?.aligners_total||'',c.order?.supplier_name||'',c.order?.total_cost||'',c.order?.currency||'',c.order?.payment_status||'']))
+  download(`cases_outsourcing_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
+}
+window.exportOrdersCsv=()=>{
+  const rows=[['Case #','Supplier','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice','Payment','Paid Amount','Paid Date','Notes']]
+  allOrders.forEach(o=>rows.push([o.case_id,o.supplier_name,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
+  download(`outsourced_orders_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
+}
+window.exportReportCsv=()=>{
+  const rows=[['Supplier','Cases','Aligners','Total Cost','Pending','Paid']]
+  document.querySelectorAll('#tSupplier tr').forEach(tr=>{
+    const cells=[...tr.querySelectorAll('td')].map(td=>td.textContent.trim())
+    if(cells.length===6) rows.push(cells)
+  })
+  download(`outsourcing_report_${new Date().toISOString().slice(0,7)}.csv`, csv(rows))
+}
+
+// ── Tab + filter wiring ───────────────────────────────────────────────
+document.querySelectorAll('#tabs .tab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on')
+  const k=b.dataset.t
+  $('tab-cases').style.display=k==='cases'?'':'none'
+  $('tab-orders').style.display=k==='orders'?'':'none'
+  $('tab-report').style.display=k==='report'?'':'none'
+}))
+;['fStatus','fSupplier','fSearch'].forEach(id=>$(id).addEventListener('input',renderCases))
+;['oPay','oSupplier','oFrom','oTo'].forEach(id=>$(id).addEventListener('input',renderOrders))
+
+loadAll()
+</script>
+
+</body>
+</html>
