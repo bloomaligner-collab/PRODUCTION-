@@ -268,6 +268,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <option value="__unassigned__">⏳ Unassigned</option>
         <option value="__followup_mine__">⏰ My follow-ups due</option>
         <option value="__followup_overdue__">⚠️ Overdue follow-ups</option>
+        <option value="__open_unread__">📧 Open &amp; unread</option>
       </select>
       <button class="btn bb" onclick="openNew()">+ Log Feedback</button>
     </div>
@@ -287,8 +288,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <input class="fi" id="searchInput" placeholder="Search customer, order, description..." style="width:280px"/>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Ref #</th><th>Date</th><th>Customer / Distributor</th><th>Type</th><th>Category</th><th>Case #</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>Status</th><th></th></tr></thead>
-        <tbody id="tBody"><tr><td colspan="11" class="ec">Loading...</td></tr></tbody>
+        <thead><tr><th></th><th>Ref #</th><th>Date</th><th>Customer / Distributor</th><th>Type</th><th>Category</th><th>Case #</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>⏰ Follow-up</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tBody"><tr><td colspan="13" class="ec">Loading...</td></tr></tbody>
       </table></div>
       <div class="pager"><span id="pInfo"></span>
         <div style="display:flex;gap:6px">
@@ -391,12 +392,16 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div style="font-size:16px;font-weight:800" id="vTitle">Feedback Record</div>
       <div style="display:flex;gap:8px">
+        <button class="btn bb" id="vEditBtn" style="padding:6px 14px">✏️ Edit</button>
         <button class="btn bgh" onclick="window.print()" style="padding:5px 12px">🖨️</button>
         <button class="btn bgh" onclick="closeView()" style="padding:5px 12px">✕</button>
       </div>
     </div>
     <div id="vBody"></div>
-    <div style="margin-top:16px;text-align:right"><button class="btn bgh" onclick="closeView()">Close</button></div>
+    <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
+      <button class="btn bb" id="vEditBtnBottom">✏️ Edit this record</button>
+      <button class="btn bgh" onclick="closeView()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -451,7 +456,7 @@ async function loadDropdowns(){
   // Employees + roles — Assigned To dropdown will group them.
   const[eRes,rRes,csRes,meRes]=await Promise.all([
     sb.from('employees').select('name,custom_role,extra_roles').eq('is_active',true).order('name'),
-    sb.from('role_templates').select('name,label,icon,color').order('is_default',{ascending:false}).order('name'),
+    sb.from('role_templates').select('name,label,icon,color').order('label',{ascending:true}),
     sb.from('system_settings').select('value').eq('key','complaint_routing').maybeSingle(),
     currentUser
       ? sb.from('employees').select('custom_role,extra_roles,role').ilike('name',currentUser).maybeSingle()
@@ -538,7 +543,8 @@ function applyFilter(){
     if(af==='__unassigned__' && r.assigned_to)return false
     if(af==='__followup_mine__' && !fuDueForMe)return false
     if(af==='__followup_overdue__' && !fuOverdue)return false
-    if(af && !['__mine__','__unassigned__','__followup_mine__','__followup_overdue__'].includes(af) && r.assigned_to!==af)return false
+    if(af==='__open_unread__' && (r.notification_seen_at || r.status==='resolved' || r.status==='closed'))return false
+    if(af && !['__mine__','__unassigned__','__followup_mine__','__followup_overdue__','__open_unread__'].includes(af) && r.assigned_to!==af)return false
     if(term){
       const hay=`${r.customer_name||''} ${r.description||''} ${r.case_id||''} ${r.order_no||''} ${r.doctor||''}`.toLowerCase()
       if(!hay.includes(term))return false
@@ -559,7 +565,24 @@ function render(){
           ? `<strong style="color:var(--blue)">${prettyAssignee(r.assigned_to)}${!isRoleAssignee(r.assigned_to)?' (you)':' — you'}</strong>`
           : prettyAssignee(r.assigned_to))
       : '<span style="color:var(--dim)">—</span>'
+    // Envelope icon: 📧 open+unread, 📬 open+seen, ✅ resolved/closed
+    const isClosed = r.status==='resolved'||r.status==='closed'
+    const isUnread = !isClosed && !r.notification_seen_at
+    const envIcon = isClosed ? '✅' : isUnread ? '📧' : '📬'
+    const envTitle = isClosed ? 'Resolved / closed' : isUnread ? 'Open · unread' : 'Open · seen'
+    // Follow-up column: date + status dot
+    const today = new Date().toISOString().slice(0,10)
+    let fuHtml = '<span style="color:var(--dim)">—</span>'
+    if (r.follow_up_date) {
+      const done = !!r.follow_up_done_at
+      const overdue = !done && r.follow_up_date < today
+      const dueToday = !done && r.follow_up_date === today
+      const color = done ? 'var(--green)' : overdue ? 'var(--red)' : dueToday ? 'var(--amber)' : 'var(--blue)'
+      const ico = done ? '✅' : overdue ? '⚠️' : dueToday ? '⏰' : '📅'
+      fuHtml = `<span title="${r.follow_up_assignee || ''}" style="display:inline-flex;align-items:center;gap:4px;color:${color};font-weight:700;font-size:12px">${ico} ${fdt(r.follow_up_date)}</span>`
+    }
     return `<tr${mine?' style="background:#eef6ff"':''}>
+      <td style="font-size:16px;text-align:center" title="${envTitle}">${envIcon}</td>
       <td class="mono" style="font-weight:700">${r.feedback_no||'—'}</td>
       <td class="mono">${fdt(r.received_date)}</td>
       <td style="font-weight:600">${r.customer_name||'—'}</td>
@@ -569,13 +592,14 @@ function render(){
       <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
       <td><span class="badge ${pc}">${r.severity||'—'}</span></td>
       <td style="font-size:12px">${assigneeCell}</td>
+      <td>${fuHtml}</td>
       <td><span class="badge ${sc}">${(r.status||'open').replace(/_/g,' ')}</span></td>
       <td style="white-space:nowrap">
         <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="viewRec('${r.id}')">👁</button>
         <button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="editRec('${r.id}')">✏️</button>
       </td>
     </tr>`
-  }).join(''):'<tr><td colspan="11" class="ec">No feedback records. Log the first one.</td></tr>'
+  }).join(''):'<tr><td colspan="13" class="ec">No feedback records. Log the first one.</td></tr>'
   const tot=filtered.length,tp=Math.ceil(tot/PAGE)||1
   document.getElementById('pInfo').textContent=`${tot} records (page ${pg+1}/${tp})`
   document.getElementById('btnPrev').disabled=pg===0
@@ -677,6 +701,10 @@ window.viewRec=async(id)=>{
     })():''}
     ${r.resolved_at?`<div style="font-size:12px;color:var(--green);font-weight:700">✅ Resolved: ${fdt(r.resolved_at)}</div>`:''}`
   document.getElementById('viewModal').classList.add('on')
+  // Wire the Edit buttons in the view modal to open the edit modal for this record
+  const openEditFromView = () => { closeView(); editRec(r.id) }
+  const eb1 = document.getElementById('vEditBtn'); if (eb1) eb1.onclick = openEditFromView
+  const eb2 = document.getElementById('vEditBtnBottom'); if (eb2) eb2.onclick = openEditFromView
 }
 
 window.markFollowUpDone=async(id)=>{
