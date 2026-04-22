@@ -154,19 +154,19 @@ CW_ACCESS.injectButtonStyles = function () {
                   letter-spacing .15s ease;
       transform-origin: center;
     }
-    /* HOVER — the whole button scales up, text visually grows, shadow
-       lifts it off the surface. 1.06 on a 14px button ≈ +0.8px text,
-       visible but not layout-breaking. */
+    /* HOVER — punchier per user request: 3px lift, stronger shadow,
+       outline-ring accent so even ghost buttons read as hoverable. */
     button:not(.nl):not(#helpBtn):not(#cw-help-btn):not(:disabled):hover,
     .btn:not(:disabled):hover,
     a.btn:hover,
     input[type="submit"]:not(:disabled):hover,
     input[type="button"]:not(:disabled):hover {
-      transform: translateY(-2px) scale(1.06);
-      filter: brightness(1.08) saturate(1.08);
-      box-shadow: 0 12px 28px rgba(15, 23, 42, .18),
-                  0 4px 10px rgba(15, 23, 42, .08);
-      letter-spacing: .15px;
+      transform: translateY(-3px) scale(1.07);
+      filter: brightness(1.12) saturate(1.14);
+      box-shadow: 0 16px 34px rgba(15, 23, 42, .26),
+                  0 6px 14px rgba(15, 23, 42, .12),
+                  0 0 0 3px rgba(59, 95, 226, .18);
+      letter-spacing: .2px;
       cursor: pointer;
       z-index: 1;
     }
