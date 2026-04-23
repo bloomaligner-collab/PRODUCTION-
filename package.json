@@ -1,0 +1,16 @@
+{
+  "name": "cedarwings-ops",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Cedarwings SAS — operations management. Static HTML + Supabase.",
+  "scripts": {
+    "check:html": "html-validate *.html",
+    "check:js": "node scripts/check_js_syntax.mjs",
+    "check:ids": "node scripts/check_dom_ids.mjs",
+    "ci": "npm run check:html && npm run check:js && npm run check:ids"
+  },
+  "devDependencies": {
+    "acorn": "^8.16.0",
+    "html-validate": "^10.13.1"
+  }
+}

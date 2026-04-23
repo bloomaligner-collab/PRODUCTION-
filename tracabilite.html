@@ -1200,7 +1200,7 @@ function generateBatchRecord(o){
       <div>© 2026 CEDARWINGS SAS — Document confidentiel · ${esc(CW_DOC_REF.dhr.iso)}</div>
       <div>Généré le ${esc(fdt(new Date().toISOString()))} — ${esc(CW_DOC_REF.dhr.code)}</div>
     </div>
-  </div><script src="table_sort.js?v=20260423a"></script>
+  </div><script src="table_sort.js?v=20260423a"><\/script>
 </body></html>`
   const w=window.open('','_blank')
   if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600)}
@@ -1321,7 +1321,7 @@ function generateMDRDeclaration(o){
       <div>© 2026 ${esc(company)} — Document confidentiel · ${esc(CW_DOC_REF.stat_xiii.iso)}</div>
       <div>Généré le ${esc(fdt(new Date().toISOString()))} — ${esc(CW_DOC_REF.stat_xiii.code)}</div>
     </div>
-  </div><script src="table_sort.js?v=20260423a"></script>
+  </div><script src="table_sort.js?v=20260423a"><\/script>
 </body></html>`
   const w=window.open('','_blank')
   if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600)}
