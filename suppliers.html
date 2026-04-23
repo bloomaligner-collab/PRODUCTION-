@@ -161,7 +161,7 @@ function renderGrid(suppliers,items){
     return`<div class="card">
       ${s.is_default_distributor?`<div class="badge-default">★ Default</div>`:''}
       <div class="${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'Active':'Inactive'}</div>
-      <div class="card-name" style="margin-top:${s.is_default_distributor?'20px':'0'}">${s.name||s.company_name||'Unnamed'}</div>
+      <div class="card-name" style="margin-top:${s.is_default_distributor?'20px':'0'}">${s.name||'Unnamed'}</div>
       <div class="card-country">${s.country||'—'}</div>
       ${s.contact_name?`<div class="card-row">👤 <span>${s.contact_name}</span></div>`:''}
       ${s.email?`<div class="card-row">✉️ <span>${s.email}</span></div>`:''}
@@ -219,7 +219,7 @@ window.saveSupplier=async()=>{
   const priceRaw=document.getElementById('sDefPrice').value.trim()
   const isDefault=document.getElementById('sDefDist').checked
   const payload={
-    name, company_name: name, country:document.getElementById('sCountry').value.trim()||null,
+    name, country:document.getElementById('sCountry').value.trim()||null,
     contact_name:document.getElementById('sContact').value.trim()||null,
     phone:document.getElementById('sPhone').value.trim()||null,
     email:document.getElementById('sEmail').value.trim()||null,
