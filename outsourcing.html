@@ -123,12 +123,14 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
   </div>
 
   <div class="body">
-    <div class="kpi-row">
+    <div class="kpi-row" style="grid-template-columns:repeat(7,1fr)">
       <div class="kpi purple"><div class="kpi-ico">🚚</div><div class="kpi-val" id="kOut" style="color:var(--purple)">—</div><div class="kpi-lbl">Outsourced (month)</div></div>
-      <div class="kpi green"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
-      <div class="kpi amber"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
-      <div class="kpi red"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Invoices</div></div>
       <div class="kpi"><div class="kpi-ico">🦷</div><div class="kpi-val" id="kAlig" style="color:var(--blue)">—</div><div class="kpi-lbl">Aligners Outsourced (month)</div></div>
+      <div class="kpi amber" style="cursor:pointer" onclick="$('oLife').value='awaiting_return';switchTab('orders');renderOrders()"><div class="kpi-ico">📦</div><div class="kpi-val" id="kAwaitRet" style="color:var(--amber)">—</div><div class="kpi-lbl">Awaiting Return</div></div>
+      <div class="kpi" style="border-top-color:#0ea5e9;cursor:pointer" onclick="$('oLife').value='received_noinv';switchTab('orders');renderOrders()"><div class="kpi-ico">🧾</div><div class="kpi-val" id="kAwaitInv" style="color:#0284c7">—</div><div class="kpi-lbl">Awaiting Invoice</div></div>
+      <div class="kpi amber"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
+      <div class="kpi red"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Returns</div></div>
+      <div class="kpi green"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
     </div>
 
     <div class="tabs" id="tabs">
@@ -252,6 +254,15 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
     <!-- Tab: Outsourced Orders ──────────────────────────────────────── -->
     <section class="card" id="tab-orders" style="display:none">
       <div class="filters">
+        <div><div class="fi-lbl">Lifecycle</div>
+          <select class="fi" id="oLife">
+            <option value="">All</option>
+            <option value="awaiting_return">Awaiting return</option>
+            <option value="received_noinv">Received — no invoice</option>
+            <option value="invoiced_unpaid">Invoiced — unpaid</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
         <div><div class="fi-lbl">Payment</div>
           <select class="fi" id="oPay">
             <option value="">All</option>
@@ -262,16 +273,59 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
           </select>
         </div>
         <div><div class="fi-lbl">Supplier</div><select class="fi" id="oSupplier"><option value="">All</option></select></div>
+        <div><div class="fi-lbl">PO #</div><input class="fi" id="oPO" placeholder="PO-…"/></div>
         <div><div class="fi-lbl">From</div><input type="date" class="fi" id="oFrom"/></div>
         <div><div class="fi-lbl">To</div><input type="date" class="fi" id="oTo"/></div>
         <div style="flex:1"></div>
         <button class="btn btn-g" onclick="exportOrdersCsv()">⬇ Export CSV</button>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Case #</th><th>Patient</th><th>Supplier</th><th>Aligners</th><th>Cost/Unit</th><th>Total</th><th>Outsourced</th><th>Received</th><th>Invoice</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
-        <tbody id="tOrders"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th>PO #</th><th>Case #</th><th>Patient</th><th>Supplier</th><th>Aligners</th><th>Cost/Unit</th><th>Total</th><th>Outsourced</th><th>Expected</th><th>Received</th><th>Invoice</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="tOrders"><tr><td colspan="13" class="empty">Loading…</td></tr></tbody>
       </table></div>
     </section>
+
+    <!-- Mark Received Modal -->
+    <div class="mov" id="mRecv">
+      <div class="mo">
+        <div class="mo-t">📦 Mark Order Received</div>
+        <div class="mo-s" id="mRecvSub">Record the date the aligners arrived.</div>
+        <div class="fg2" style="margin-bottom:12px">
+          <div><div class="lbl">Received Date *</div><input type="date" class="fi" id="rDate" style="width:100%"/></div>
+          <div><div class="lbl">Expected Invoice Date</div><input type="date" class="fi" id="rInvExp" style="width:100%"/></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-g" onclick="closeRecvModal()">Cancel</button>
+          <button class="btn btn-p" onclick="saveReceived()">💾 Mark Received</button>
+        </div>
+        <div id="rErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+      </div>
+    </div>
+
+    <!-- Record Invoice Modal -->
+    <div class="mov" id="mInv">
+      <div class="mo">
+        <div class="mo-t">🧾 Record Invoice</div>
+        <div class="mo-s" id="mInvSub">Log the supplier invoice — payment remains pending until marked paid.</div>
+        <div class="fg2" style="margin-bottom:12px">
+          <div><div class="lbl">Invoice # *</div><input class="fi" id="iNo" style="width:100%" placeholder="INV-…"/></div>
+          <div><div class="lbl">Invoice Received Date *</div><input type="date" class="fi" id="iDate" style="width:100%"/></div>
+          <div><div class="lbl">Invoice Amount</div><input type="number" class="fi" id="iAmt" step="0.01" min="0" style="width:100%"/></div>
+          <div><div class="lbl">Status</div>
+            <select class="fi" id="iStatus" style="width:100%">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="disputed">Disputed</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-g" onclick="closeInvModal()">Cancel</button>
+          <button class="btn btn-p" onclick="saveInvoice()">💾 Record Invoice</button>
+        </div>
+        <div id="iErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+      </div>
+    </div>
 
     <!-- Tab: Monthly Report ─────────────────────────────────────────── -->
     <section class="card" id="tab-report" style="display:none">
@@ -431,12 +485,18 @@ function computeKpis(){
   const mStart=new Date(today.getFullYear(),today.getMonth(),1)
   const isThisMonth = d => d && new Date(d)>=mStart
   const monthOrders = allOrders.filter(o=>isThisMonth(o.outsource_date))
-  const monthInhouse = allCases.filter(c=>!c.outsourced && isThisMonth(c.order?.outsource_date || today.toISOString())).length // approximation — no created_at on bloom_cases
   $('kOut').textContent = monthOrders.length
   $('kIn').textContent  = Math.max(0, allCases.filter(c=>!c.outsourced).length - (monthOrders.length)) // rough
   const pending = monthOrders.filter(o=>o.payment_status!=='paid').reduce((a,o)=>a+Number(o.total_cost||0),0)
   $('kPay').textContent = money(pending,'EUR')
-  const overdue = allOrders.filter(o=>o.payment_status!=='paid' && o.expected_return_date && new Date(o.expected_return_date)<today).length
+  // Awaiting return = not yet received
+  const awaitingRet = allOrders.filter(o=>!o.received_date)
+  $('kAwaitRet').textContent = awaitingRet.length
+  // Awaiting invoice = received but no invoice recorded
+  const awaitingInv = allOrders.filter(o=>o.received_date && !o.invoice_no)
+  $('kAwaitInv').textContent = awaitingInv.length
+  // Overdue returns = not yet received AND past expected date
+  const overdue = awaitingRet.filter(o=>o.expected_return_date && new Date(o.expected_return_date)<today).length
   $('kOver').textContent = overdue
   const aligners = monthOrders.reduce((a,o)=>a+Number(o.aligners_total||0),0)
   $('kAlig').textContent = aligners
@@ -528,35 +588,116 @@ function renderSelectionBar(){
 // ── Orders tab ────────────────────────────────────────────────────────
 function renderOrders(){
   const pay=$('oPay').value, sup=$('oSupplier').value, from=$('oFrom').value, to=$('oTo').value
+  const life=$('oLife').value, po=($('oPO').value||'').trim().toLowerCase()
   const today=new Date().toISOString().slice(0,10)
+  const lifecycleOf = o => {
+    if(o.payment_status==='paid') return 'paid'
+    if(!o.received_date) return 'awaiting_return'
+    if(!o.invoice_no) return 'received_noinv'
+    return 'invoiced_unpaid'
+  }
   const filtered=allOrders.filter(o=>{
     if(pay && o.payment_status!==pay) return false
     if(sup && o.supplier_id!==sup) return false
     if(from && o.outsource_date<from) return false
     if(to && o.outsource_date>to) return false
+    if(po && !String(o.po_number||'').toLowerCase().includes(po)) return false
+    if(life && lifecycleOf(o)!==life) return false
     return true
   })
-  $('tOrders').innerHTML = filtered.length ? filtered.map(o=>{
+  // Group consecutive rows by po_number (after sorting by po_number then outsource_date)
+  const sorted=[...filtered].sort((a,b)=>{
+    const pa=a.po_number||'zzz', pb=b.po_number||'zzz'
+    if(pa!==pb) return pa<pb?-1:1
+    return (b.outsource_date||'').localeCompare(a.outsource_date||'')
+  })
+  let lastPo=null
+  $('tOrders').innerHTML = sorted.length ? sorted.map(o=>{
     const c = allCases.find(x=>x.case_id===String(o.case_id))
     const payCls = o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
-    const overdue = o.payment_status!=='paid' && o.expected_return_date && o.expected_return_date<today
+    const overdue = !o.received_date && o.expected_return_date && o.expected_return_date<today
+    const poNew = o.po_number && o.po_number!==lastPo
+    lastPo = o.po_number
+    const poCell = o.po_number
+      ? `<td class="mono" style="font-weight:700;color:var(--purple);${poNew?'border-top:2px solid var(--p100)':''}">${poNew?o.po_number:'·'}</td>`
+      : `<td style="color:var(--dim)">—</td>`
     return `<tr class="${overdue?'':'is-out'}" style="${overdue?'background:#fef2f2':''}">
+      ${poCell}
       <td class="mono" style="font-weight:700">${o.case_id}</td>
       <td>${c?.patient_name||'—'}</td>
       <td>${o.supplier_name||'—'}</td>
-      <td class="mono">${o.aligners_total||0}</td>
+      <td class="mono">${o.aligners_total||0} <span style="color:var(--mu);font-size:11px">(↑${o.aligners_upper||0} ↓${o.aligners_lower||0})</span></td>
       <td class="mono">${money(o.cost_per_aligner,o.currency)}</td>
       <td class="mono" style="font-weight:700">${money(o.total_cost,o.currency)}</td>
       <td class="mono">${fdt(o.outsource_date)}</td>
-      <td class="mono">${fdt(o.received_date)}</td>
-      <td class="mono">${o.invoice_no||'—'}</td>
+      <td class="mono" style="${overdue?'color:var(--red);font-weight:700':''}">${fdt(o.expected_return_date)}</td>
+      <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
+      <td class="mono">${o.invoice_no?`${o.invoice_no}${o.invoice_received_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_received_date)}</span>`:''}`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')">✏️</button>
-        ${o.payment_status!=='paid'?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')">💰 Mark paid</button>`:''}
+        <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')" title="Edit">✏️</button>
+        ${!o.received_date?`<button class="btn btn-sm btn-b" onclick="openRecvModal('${o.id}')" title="Mark Received">📦</button>`:''}
+        ${o.received_date && !o.invoice_no?`<button class="btn btn-sm btn-b" onclick="openInvModal('${o.id}')" title="Record Invoice">🧾</button>`:''}
+        ${o.payment_status!=='paid' && o.invoice_no?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')" title="Mark Paid">💰</button>`:''}
       </td>
     </tr>`
-  }).join('') : '<tr><td colspan="11" class="empty">No outsourced orders yet.</td></tr>'
+  }).join('') : '<tr><td colspan="13" class="empty">No outsourced orders yet.</td></tr>'
+}
+
+// ── Receive / Invoice modals ──────────────────────────────────────────
+let recvOrderId=null, invOrderId=null
+window.openRecvModal=(id)=>{
+  const o=allOrders.find(x=>x.id===id); if(!o) return
+  recvOrderId=id
+  const c=allCases.find(x=>x.case_id===String(o.case_id))
+  $('mRecvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.po_number?' · PO '+o.po_number:''}`
+  $('rDate').value=new Date().toISOString().slice(0,10)
+  $('rInvExp').value=o.invoice_expected_date||''
+  $('rErr').textContent=''
+  $('mRecv').classList.add('on')
+}
+window.closeRecvModal=()=>$('mRecv').classList.remove('on')
+window.saveReceived=async()=>{
+  $('rErr').textContent=''
+  const d=$('rDate').value
+  if(!d){$('rErr').textContent='Received date required';return}
+  const invExp=$('rInvExp').value||null
+  const{error}=await sb.from('outsourced_orders').update({
+    received_date:d, invoice_expected_date:invExp, updated_at:new Date().toISOString()
+  }).eq('id',recvOrderId)
+  if(error){$('rErr').textContent=error.message;return}
+  ntf('✅ Order marked received'); closeRecvModal(); await loadAll()
+}
+
+window.openInvModal=(id)=>{
+  const o=allOrders.find(x=>x.id===id); if(!o) return
+  invOrderId=id
+  const c=allCases.find(x=>x.case_id===String(o.case_id))
+  $('mInvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.po_number?' · PO '+o.po_number:''}`
+  $('iNo').value=o.invoice_no||''
+  $('iDate').value=o.invoice_received_date||new Date().toISOString().slice(0,10)
+  $('iAmt').value=o.total_cost||''
+  $('iStatus').value=o.payment_status==='paid'?'approved':(o.payment_status||'pending')
+  $('iErr').textContent=''
+  $('mInv').classList.add('on')
+}
+window.closeInvModal=()=>$('mInv').classList.remove('on')
+window.saveInvoice=async()=>{
+  $('iErr').textContent=''
+  const no=$('iNo').value.trim()
+  const d=$('iDate').value
+  if(!no){$('iErr').textContent='Invoice number required';return}
+  if(!d){$('iErr').textContent='Invoice received date required';return}
+  const patch={
+    invoice_no:no, invoice_received_date:d,
+    payment_status:$('iStatus').value||'pending',
+    updated_at:new Date().toISOString()
+  }
+  const amt=Number($('iAmt').value||0)
+  if(amt>0) patch.total_cost=amt
+  const{error}=await sb.from('outsourced_orders').update(patch).eq('id',invOrderId)
+  if(error){$('iErr').textContent=error.message;return}
+  ntf('✅ Invoice recorded'); closeInvModal(); await loadAll()
 }
 
 // ── Report tab — Chart + supplier breakdown ───────────────────────────
@@ -718,8 +859,8 @@ window.exportCasesCsv=()=>{
   download(`cases_outsourcing_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
 }
 window.exportOrdersCsv=()=>{
-  const rows=[['Case #','Supplier','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice','Payment','Paid Amount','Paid Date','Notes']]
-  allOrders.forEach(o=>rows.push([o.case_id,o.supplier_name,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
+  const rows=[['PO #','Case #','Supplier','Upper','Lower','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice #','Invoice Expected','Invoice Received','Payment','Paid Amount','Paid Date','Notes']]
+  allOrders.forEach(o=>rows.push([o.po_number,o.case_id,o.supplier_name,o.aligners_upper,o.aligners_lower,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.invoice_expected_date,o.invoice_received_date,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
   download(`outsourced_orders_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
 }
 window.exportReportCsv=()=>{
@@ -865,7 +1006,7 @@ function switchTab(k){
 window.switchTab=switchTab
 document.querySelectorAll('#tabs .tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)))
 ;['fStatus','fSupplier','fSearch'].forEach(id=>$(id).addEventListener('input',renderCases))
-;['oPay','oSupplier','oFrom','oTo'].forEach(id=>$(id).addEventListener('input',renderOrders))
+;['oPay','oSupplier','oFrom','oTo','oLife','oPO'].forEach(id=>$(id)?.addEventListener('input',renderOrders))
 
 loadAll()
 </script>
