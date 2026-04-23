@@ -58,7 +58,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .card:last-child{margin-bottom:0}
 .ct{font-size:15px;font-weight:800;margin-bottom:4px}
 .cs{font-size:12px;color:var(--mu);line-height:1.6;margin-bottom:16px}
-lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
 .fi{width:100%;padding:11px 14px;border:1.5px solid var(--bdr);border-radius:10px;font-family:var(--f);font-size:14px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
 .fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--dim)}
 .ord-opt{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bdr);transition:background .1s}
@@ -218,7 +218,7 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
 
         <!-- ORDER NUMBER + PIPELINE -->
         <div class="fg">
-          <lbl>Order Number *</lbl>
+          <label class="fl">Order Number *</label>
           <div style="position:relative">
             <input class="fi" id="ord" placeholder="Type to search orders…" autocomplete="off" 
               oninput="window._filterOrders&&window._filterOrders(this.value)" 
@@ -279,7 +279,7 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
 
         <!-- STEP BUTTONS -->
         <div class="fg">
-          <lbl>&#10003; Tap a step to clock in</lbl>
+          <label class="fl">&#10003; Tap a step to clock in</label>
           <div class="sg" id="stepGrid">
             <button class="sb" data-step="Printing" data-mach="3D Printing Machine 1"><span class="si">&#128424;</span>Printing</button>
             <button class="sb" data-step="Cleaning" data-mach="Cleaning Station"><span class="si">&#129529;</span>Cleaning</button>
@@ -292,7 +292,7 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
 
         <!-- WASTE BUTTONS -->
         <div class="fg">
-          <lbl>&#9888; Non-Productive</lbl>
+          <label class="fl">&#9888; Non-Productive</label>
           <div class="wg">
             <button class="wb" data-w="Waiting for next job">&#8987;<br/>W1 Waiting</button>
             <button class="wb" data-w="General cleaning">&#129531;<br/>W2 Cleaning</button>

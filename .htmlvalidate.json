@@ -25,7 +25,7 @@
     "no-implicit-button-type": "off",
     "unique-landmark": "off",
     "script-type": "off",
-    "no-unknown-elements": "warn",
+    "no-unknown-elements": "error",
     "no-dup-id": "error",
     "valid-id": "error",
     "close-order": "warn",

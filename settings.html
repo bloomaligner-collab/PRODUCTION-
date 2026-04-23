@@ -50,7 +50,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .card{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:24px;margin-bottom:20px}
 .card-title{font-size:15px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
 .card-sub{font-size:12px;color:var(--mu);margin-bottom:20px;line-height:1.6}
-lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
 .fi{width:100%;padding:11px 14px;border:1.5px solid var(--bdr);border-radius:10px;font-family:var(--f);font-size:13px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
 .fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--dim)}
 .fi-pw{-webkit-text-security:disc;font-family:var(--mono)}
@@ -154,12 +154,12 @@ tbody tr:last-child td{border:none}
       <div class="card-title">📧 Brevo Integration (Email + WhatsApp)</div>
       <div class="card-sub">Connect your Brevo account to send automated email and WhatsApp notifications. Get your API key from <strong>app.brevo.com → Settings → API Keys</strong>.</div>
       <div class="fg">
-        <div><lbl>Brevo API Key *</lbl><input class="fi fi-pw" id="brevoKey" placeholder="xkeysib-…" autocomplete="off"/></div>
-        <div><lbl>Sender Email *</lbl><input class="fi" id="brevoEmail" placeholder="noreply@cedarwings.com" type="email"/></div>
+        <div><label class="fl">Brevo API Key *</label><input class="fi fi-pw" id="brevoKey" placeholder="xkeysib-…" autocomplete="off"/></div>
+        <div><label class="fl">Sender Email *</label><input class="fi" id="brevoEmail" placeholder="noreply@cedarwings.com" type="email"/></div>
       </div>
       <div class="fg">
-        <div><lbl>Sender Name</lbl><input class="fi" id="brevoName" placeholder="Cedarwings SAS"/></div>
-        <div><lbl>Company Name</lbl><input class="fi" id="companyName" placeholder="Cedarwings SAS"/></div>
+        <div><label class="fl">Sender Name</label><input class="fi" id="brevoName" placeholder="Cedarwings SAS"/></div>
+        <div><label class="fl">Company Name</label><input class="fi" id="companyName" placeholder="Cedarwings SAS"/></div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
         <button class="btn bg" onclick="testBrevo()">🧪 Test Connection</button>
@@ -174,16 +174,16 @@ tbody tr:last-child td{border:none}
       <div class="card-title">🏛 Informations Réglementaires MDR 2017/745</div>
       <div class="card-sub">Utilisé pour générer la <strong>Déclaration de Conformité Annexe XIII</strong> imprimée avec chaque aligneur sur mesure. Renseignez ces champs avant la première expédition.</div>
       <div class="fg">
-        <div><lbl>Adresse complète du fabricant</lbl><input class="fi" id="companyAddress" placeholder="Numéro, rue, code postal, ville, pays"/></div>
-        <div><lbl>Adresse du site de fabrication</lbl><input class="fi" id="manufacturingSite" placeholder="Si identique au fabricant, copier la même adresse"/></div>
+        <div><label class="fl">Adresse complète du fabricant</label><input class="fi" id="companyAddress" placeholder="Numéro, rue, code postal, ville, pays"/></div>
+        <div><label class="fl">Adresse du site de fabrication</label><input class="fi" id="manufacturingSite" placeholder="Si identique au fabricant, copier la même adresse"/></div>
       </div>
       <div class="fg">
-        <div><lbl>Nom du représentant légal</lbl><input class="fi" id="legalRepName" placeholder="Nom Prénom"/></div>
-        <div><lbl>Fonction du représentant légal</lbl><input class="fi" id="legalRepFunction" placeholder="Président, Directeur Général, CEO…"/></div>
+        <div><label class="fl">Nom du représentant légal</label><input class="fi" id="legalRepName" placeholder="Nom Prénom"/></div>
+        <div><label class="fl">Fonction du représentant légal</label><input class="fi" id="legalRepFunction" placeholder="Président, Directeur Général, CEO…"/></div>
       </div>
       <div class="fg">
-        <div><lbl>Nom du dispositif (FR)</lbl><input class="fi" id="mdrDeviceNameFR" placeholder="Aligneur dentaire sur mesure"/></div>
-        <div><lbl>Device name (EN)</lbl><input class="fi" id="mdrDeviceNameEN" placeholder="Custom-made dental aligner"/></div>
+        <div><label class="fl">Nom du dispositif (FR)</label><input class="fi" id="mdrDeviceNameFR" placeholder="Aligneur dentaire sur mesure"/></div>
+        <div><label class="fl">Device name (EN)</label><input class="fi" id="mdrDeviceNameEN" placeholder="Custom-made dental aligner"/></div>
       </div>
     </div>
 
@@ -237,8 +237,8 @@ tbody tr:last-child td{border:none}
         <label class="toggle"><input type="checkbox" id="t_rejection" checked/><span class="slider"></span></label>
       </div>
       <div style="margin-top:16px;display:flex;align-items:center;gap:14px">
-        <div><lbl>Daily Report Time</lbl><input type="time" class="fi" id="reportTime" value="18:00" style="width:130px"/></div>
-        <div style="flex:1"><lbl>Note</lbl><div style="font-size:12px;color:var(--mu)">Daily reports are triggered by opening the dashboard at/after this time. For true scheduled sending, set up a Supabase Edge Function or external cron.</div></div>
+        <div><label class="fl">Daily Report Time</label><input type="time" class="fi" id="reportTime" value="18:00" style="width:130px"/></div>
+        <div style="flex:1"><label class="fl">Note</label><div style="font-size:12px;color:var(--mu)">Daily reports are triggered by opening the dashboard at/after this time. For true scheduled sending, set up a Supabase Edge Function or external cron.</div></div>
       </div>
     </div>
 
@@ -404,9 +404,9 @@ function renderRecipients(){
   document.getElementById('recipientList').innerHTML=recipients.map((r,i)=>`
     <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--bdr)">
       <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <div><lbl>Name</lbl><input class="fi" value="${r.employee_name||''}" onchange="recipients[${i}].employee_name=this.value" placeholder="Manager name"/></div>
-        <div><lbl>Email</lbl><input class="fi" type="email" value="${r.email||''}" onchange="recipients[${i}].email=this.value" placeholder="email@company.com"/></div>
-        <div><lbl>WhatsApp (+country code)</lbl><input class="fi" value="${r.whatsapp_phone||''}" onchange="recipients[${i}].whatsapp_phone=this.value" placeholder="+21212345678"/></div>
+        <div><label class="fl">Name</label><input class="fi" value="${r.employee_name||''}" onchange="recipients[${i}].employee_name=this.value" placeholder="Manager name"/></div>
+        <div><label class="fl">Email</label><input class="fi" type="email" value="${r.email||''}" onchange="recipients[${i}].email=this.value" placeholder="email@company.com"/></div>
+        <div><label class="fl">WhatsApp (+country code)</label><input class="fi" value="${r.whatsapp_phone||''}" onchange="recipients[${i}].whatsapp_phone=this.value" placeholder="+21212345678"/></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:center;flex-shrink:0">
         <label style="font-size:10px;color:var(--mu);font-weight:700">ACTIVE</label>

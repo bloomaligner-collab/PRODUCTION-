@@ -48,7 +48,7 @@
     .b-gho{background:var(--card);border:1px solid var(--border);color:var(--muted)}.b-gho:hover{color:var(--text)}
     .b-red{background:var(--red);color:#fff}.b-amb{background:var(--amber);color:#fff}
     .b-sm{padding:5px 11px;font-size:12px}
-    lbl{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+    .fl{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
     .fi{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:var(--f);font-size:13px;color:var(--text);background:#fff;outline:none;transition:border-color .15s}
     .fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--dim)}
     .fg{display:grid;grid-template-columns:1fr 1fr;gap:11px}
@@ -244,22 +244,22 @@
           <div class="card">
             <div class="ct" style="margin-bottom:14px">➕ New Requisition</div>
             <div style="display:grid;gap:11px">
-              <div><lbl>Item Name *</lbl><input class="fi" id="nrItem" placeholder="e.g. Resin"/></div>
+              <div><label class="fl">Item Name *</label><input class="fi" id="nrItem" placeholder="e.g. Resin"/></div>
               <div class="fg">
-                <div><lbl>Quantity *</lbl><input class="fi" id="nrQty" type="number" min="0.01" step="0.01"/></div>
-                <div><lbl>Priority</lbl><select class="fi" id="nrPri"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+                <div><label class="fl">Quantity *</label><input class="fi" id="nrQty" type="number" min="0.01" step="0.01"/></div>
+                <div><label class="fl">Priority</label><select class="fi" id="nrPri"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
               </div>
-              <div><lbl>Requested By</lbl><input class="fi" id="nrBy" placeholder="Name"/></div>
-              <div><lbl>Notes</lbl><textarea class="fi" id="nrNote" style="min-height:55px;resize:vertical" placeholder="Reason…"></textarea></div>
+              <div><label class="fl">Requested By</label><input class="fi" id="nrBy" placeholder="Name"/></div>
+              <div><label class="fl">Notes</label><textarea class="fi" id="nrNote" style="min-height:55px;resize:vertical" placeholder="Reason…"></textarea></div>
             </div>
             <button class="btn b-pri" style="width:100%;justify-content:center;margin-top:12px" id="btnSubR">Submit</button>
           </div>
           <div class="card">
             <div class="ct" style="margin-bottom:14px">✏️ Update Status</div>
             <div style="display:grid;gap:10px">
-              <div><lbl>Requisition ID</lbl><input class="fi" id="raId" placeholder="Paste ID from queue…"/></div>
-              <div><lbl>Actor</lbl><input class="fi" id="raAct" placeholder="Manager name"/></div>
-              <div><lbl>Note</lbl><input class="fi" id="raNote" placeholder="Optional"/></div>
+              <div><label class="fl">Requisition ID</label><input class="fi" id="raId" placeholder="Paste ID from queue…"/></div>
+              <div><label class="fl">Actor</label><input class="fi" id="raAct" placeholder="Manager name"/></div>
+              <div><label class="fl">Note</label><input class="fi" id="raNote" placeholder="Optional"/></div>
             </div>
             <div class="fg3" style="margin-top:12px">
               <button class="btn b-grn b-sm" style="justify-content:center" id="btnApp">✓ Approve</button>
@@ -278,16 +278,16 @@
           <div class="ct">🔄 FEFO Consumption</div>
           <div class="cs">Selects the First Expired First Out lot automatically. Updates stock and logs usage.</div>
           <div style="display:grid;gap:12px">
-            <div><lbl>Item *</lbl><select class="fi" id="fItem"><option value="">— Select item —</option></select></div>
+            <div><label class="fl">Item *</label><select class="fi" id="fItem"><option value="">— Select item —</option></select></div>
             <div class="fg">
-              <div><lbl>Quantity *</lbl><input class="fi" id="fQty" type="number" min="0.01" step="0.01"/></div>
-              <div><lbl>Unit</lbl><input class="fi" id="fUnit" placeholder="Auto-filled" readonly/></div>
+              <div><label class="fl">Quantity *</label><input class="fi" id="fQty" type="number" min="0.01" step="0.01"/></div>
+              <div><label class="fl">Unit</label><input class="fi" id="fUnit" placeholder="Auto-filled" readonly/></div>
             </div>
             <div class="fg">
-              <div><lbl>Order No.</lbl><input class="fi" id="fOrder" placeholder="e.g. ORD-1048"/></div>
-              <div><lbl>Batch ID</lbl><input class="fi" id="fBatch" placeholder="Optional"/></div>
+              <div><label class="fl">Order No.</label><input class="fi" id="fOrder" placeholder="e.g. ORD-1048"/></div>
+              <div><label class="fl">Batch ID</label><input class="fi" id="fBatch" placeholder="Optional"/></div>
             </div>
-            <div><lbl>Note</lbl><textarea class="fi" id="fNote" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
+            <div><label class="fl">Note</label><textarea class="fi" id="fNote" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
             <div id="fPrev" style="display:none;background:var(--amber-50);border:1px solid var(--amber-100);border-radius:10px;padding:12px;font-size:13px;line-height:1.6"></div>
           </div>
           <button class="btn b-amb" style="width:100%;justify-content:center;margin-top:14px" id="btnFefo">⚡ Consume via FEFO</button>
@@ -322,8 +322,8 @@
             <div class="ct" style="margin-bottom:14px" id="bomFormTitle">➕ Add BOM Entry</div>
             <div style="display:grid;gap:11px">
               <input type="hidden" id="bomEditId"/>
-              <div><lbl>Material Name *</lbl><select class="fi" id="bomName" onchange="onBomMaterialChange()"><option value="">— Select from inventory —</option></select></div>
-              <div><lbl>Category</lbl>
+              <div><label class="fl">Material Name *</label><select class="fi" id="bomName" onchange="onBomMaterialChange()"><option value="">— Select from inventory —</option></select></div>
+              <div><label class="fl">Category</label>
                 <select class="fi" id="bomCategory">
                   <option value="Film">Film</option>
                   <option value="Resin">Resin</option>
@@ -333,21 +333,21 @@
                 </select>
               </div>
               <div class="fg">
-                <div><lbl>Unit *</lbl><input class="fi" id="bomUnit" placeholder="sheet / liter / unit"/></div>
-                <div><lbl>Qty *</lbl><input class="fi" id="bomQtyPerAligner" type="number" step="0.001" min="0.001" placeholder="e.g. 1"/></div>
+                <div><label class="fl">Unit *</label><input class="fi" id="bomUnit" placeholder="sheet / liter / unit"/></div>
+                <div><label class="fl">Qty *</label><input class="fi" id="bomQtyPerAligner" type="number" step="0.001" min="0.001" placeholder="e.g. 1"/></div>
               </div>
-              <div><lbl>Per *</lbl>
+              <div><label class="fl">Per *</label>
                 <select class="fi" id="bomQtyBasis">
                   <option value="per_aligner">Per Aligner (scales with aligner count)</option>
                   <option value="per_case">Per Case (fixed amount per case)</option>
                 </select>
               </div>
               <div class="fg">
-                <div><lbl>Pack Size</lbl><input class="fi" id="bomPackSize" type="number" step="1" min="1" placeholder="e.g. 50"/></div>
-                <div><lbl>Pack Unit</lbl><input class="fi" id="bomPackUnit" placeholder="e.g. roll / box"/></div>
+                <div><label class="fl">Pack Size</label><input class="fi" id="bomPackSize" type="number" step="1" min="1" placeholder="e.g. 50"/></div>
+                <div><label class="fl">Pack Unit</label><input class="fi" id="bomPackUnit" placeholder="e.g. roll / box"/></div>
               </div>
-              <div><lbl>Safety Reserve %</lbl><input class="fi" id="bomReserve" type="number" step="1" min="0" max="100" value="10" placeholder="10"/></div>
-              <div><lbl>Notes</lbl><input class="fi" id="bomNotes" placeholder="Optional notes..."/></div>
+              <div><label class="fl">Safety Reserve %</label><input class="fi" id="bomReserve" type="number" step="1" min="0" max="100" value="10" placeholder="10"/></div>
+              <div><label class="fl">Notes</label><input class="fi" id="bomNotes" placeholder="Optional notes..."/></div>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px">
               <button class="btn b-gho" style="flex:1;justify-content:center" onclick="resetBomForm()">Cancel</button>
@@ -449,12 +449,12 @@
     <div class="mos">Define item details and reorder settings. Add stock lots separately.</div>
     <input type="hidden" id="eiId"/>
     <div class="mof">
-      <div class="fg"><div><lbl>Item Name *</lbl><input class="fi" id="iN" placeholder="e.g. Resin"/></div><div><lbl>Category</lbl><input class="fi" id="iC" placeholder="e.g. Material"/></div></div>
-      <div class="fg"><div><lbl>Unit of Measure</lbl><input class="fi" id="iU" placeholder="litres / pcs / kg"/></div><div><lbl>SKU</lbl><input class="fi" id="iSK" placeholder="Optional"/></div></div>
-      <div class="fg"><div><lbl>Min Qty (reorder point)</lbl><input class="fi" id="iMn" type="number" step="0.01" placeholder="0"/></div><div><lbl>Max Qty (target)</lbl><input class="fi" id="iMx" type="number" step="0.01" placeholder="0"/></div></div>
-      <div class="fg"><div><lbl>Monthly Consumption</lbl><input class="fi" id="iMC" type="number" step="0.01" placeholder="0"/></div><div><lbl>Lead Time (days)</lbl><input class="fi" id="iLT" type="number" placeholder="0"/></div></div>
-      <div class="fg"><div><lbl>Preferred Supplier</lbl><select class="fi" id="iSup"><option value="">— Select Supplier —</option></select></div><div><lbl>Auto Requisition</lbl><select class="fi" id="iAR"><option value="true">Enabled</option><option value="false">Disabled</option></select></div></div>
-      <div><lbl>Notes</lbl><textarea class="fi" id="iNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
+      <div class="fg"><div><label class="fl">Item Name *</label><input class="fi" id="iN" placeholder="e.g. Resin"/></div><div><label class="fl">Category</label><input class="fi" id="iC" placeholder="e.g. Material"/></div></div>
+      <div class="fg"><div><label class="fl">Unit of Measure</label><input class="fi" id="iU" placeholder="litres / pcs / kg"/></div><div><label class="fl">SKU</label><input class="fi" id="iSK" placeholder="Optional"/></div></div>
+      <div class="fg"><div><label class="fl">Min Qty (reorder point)</label><input class="fi" id="iMn" type="number" step="0.01" placeholder="0"/></div><div><label class="fl">Max Qty (target)</label><input class="fi" id="iMx" type="number" step="0.01" placeholder="0"/></div></div>
+      <div class="fg"><div><label class="fl">Monthly Consumption</label><input class="fi" id="iMC" type="number" step="0.01" placeholder="0"/></div><div><label class="fl">Lead Time (days)</label><input class="fi" id="iLT" type="number" placeholder="0"/></div></div>
+      <div class="fg"><div><label class="fl">Preferred Supplier</label><select class="fi" id="iSup"><option value="">— Select Supplier —</option></select></div><div><label class="fl">Auto Requisition</label><select class="fi" id="iAR"><option value="true">Enabled</option><option value="false">Disabled</option></select></div></div>
+      <div><label class="fl">Notes</label><textarea class="fi" id="iNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
     </div>
     <div class="moa"><button class="btn b-gho" id="cItem">Cancel</button><button class="btn b-pri" id="svItem">Save Item</button></div>
     <div class="mer" id="eItem"></div>
@@ -467,13 +467,13 @@
     <div class="mot">Add Stock Lot</div>
     <div class="mos">Record a new batch received. Stock will be immediately available.</div>
     <div class="mof">
-      <div><lbl>Item *</lbl><select class="fi" id="lIt"><option value="">— Select item —</option></select></div>
-      <div class="fg"><div><lbl>Lot Number</lbl><input class="fi" id="lLN" placeholder="e.g. LOT-R042"/></div><div><lbl>Serial No.</lbl><input class="fi" id="lSN" placeholder="Optional"/></div></div>
-      <div class="fg"><div><lbl>Quantity Received *</lbl><input class="fi" id="lQT" type="number" step="0.01" min="0.01" placeholder="0"/></div><div><lbl>Unit Cost ($) *</lbl><input class="fi" id="lUC" type="number" step="0.01" min="0" placeholder="0.00"/></div></div>
-      <div class="fg"><div><lbl>Purchase Date</lbl><input class="fi" id="lPD" type="date"/></div><div><lbl>Expiry Date</lbl><input class="fi" id="lED" type="date"/></div></div>
-      <div class="fg"><div><lbl>Supplier</lbl><select class="fi" id="lSup"><option value="">— Select Supplier —</option></select></div><div><lbl>Location / Shelf</lbl><select class="fi" id="lLoc"><option value="">— Select Location —</option></select></div></div>
-      <div class="fg"><div><lbl>Min Stock (this lot)</lbl><input class="fi" id="lMS" type="number" step="0.01" placeholder="0"/></div><div><lbl>Reorder Point</lbl><input class="fi" id="lRP" type="number" step="0.01" placeholder="0"/></div></div>
-      <div><lbl>Notes</lbl><textarea class="fi" id="lNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
+      <div><label class="fl">Item *</label><select class="fi" id="lIt"><option value="">— Select item —</option></select></div>
+      <div class="fg"><div><label class="fl">Lot Number</label><input class="fi" id="lLN" placeholder="e.g. LOT-R042"/></div><div><label class="fl">Serial No.</label><input class="fi" id="lSN" placeholder="Optional"/></div></div>
+      <div class="fg"><div><label class="fl">Quantity Received *</label><input class="fi" id="lQT" type="number" step="0.01" min="0.01" placeholder="0"/></div><div><label class="fl">Unit Cost ($) *</label><input class="fi" id="lUC" type="number" step="0.01" min="0" placeholder="0.00"/></div></div>
+      <div class="fg"><div><label class="fl">Purchase Date</label><input class="fi" id="lPD" type="date"/></div><div><label class="fl">Expiry Date</label><input class="fi" id="lED" type="date"/></div></div>
+      <div class="fg"><div><label class="fl">Supplier</label><select class="fi" id="lSup"><option value="">— Select Supplier —</option></select></div><div><label class="fl">Location / Shelf</label><select class="fi" id="lLoc"><option value="">— Select Location —</option></select></div></div>
+      <div class="fg"><div><label class="fl">Min Stock (this lot)</label><input class="fi" id="lMS" type="number" step="0.01" placeholder="0"/></div><div><label class="fl">Reorder Point</label><input class="fi" id="lRP" type="number" step="0.01" placeholder="0"/></div></div>
+      <div><label class="fl">Notes</label><textarea class="fi" id="lNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
     </div>
     <div class="moa"><button class="btn b-gho" id="cLot">Cancel</button><button class="btn b-grn" id="svLot">Add Lot</button></div>
     <div class="mer" id="eLot"></div>

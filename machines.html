@@ -105,7 +105,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 .mo{background:var(--card);border-radius:18px;padding:28px;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
 .mot{font-size:18px;font-weight:800;margin-bottom:4px}.mos{font-size:13px;color:var(--mu);margin-bottom:18px;line-height:1.6}
 .mof{display:grid;gap:11px}.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 .fi{width:100%;padding:10px 12px;border:1.5px solid var(--bdr);border-radius:9px;font-family:var(--f);font-size:13px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
 .fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--dim)}
 .moa{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
@@ -230,27 +230,27 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <div class="mos">Add a new machine or edit existing details.</div>
     <input type="hidden" id="eid"/>
     <div class="mof">
-      <div><lbl>Machine Name *</lbl><input class="fi" id="eName" placeholder="e.g. Thermoforming Machine 2"/></div>
+      <div><label class="fl">Machine Name *</label><input class="fi" id="eName" placeholder="e.g. Thermoforming Machine 2"/></div>
       <div class="fg">
-        <div><lbl>Type</lbl><select class="fi" id="eType">
+        <div><label class="fl">Type</label><select class="fi" id="eType">
           <option value="Printer">Printer</option><option value="Cleaning">Cleaning</option>
           <option value="Thermoformer">Thermoformer</option><option value="Cutting">Cutting</option>
           <option value="Laser">Laser</option><option value="Packaging">Packaging</option><option value="Other">Other</option>
         </select></div>
-        <div><lbl>Status</lbl><select class="fi" id="eSt">
+        <div><label class="fl">Status</label><select class="fi" id="eSt">
           <option value="idle">Idle</option><option value="running">Running</option>
           <option value="maintenance">Maintenance</option><option value="offline">Offline</option>
         </select></div>
       </div>
       <div class="fg">
-        <div><lbl>Serial Number</lbl><input class="fi" id="eSN" placeholder="Optional"/></div>
-        <div><lbl>Purchase Date</lbl><input class="fi" id="ePD" type="date"/></div>
+        <div><label class="fl">Serial Number</label><input class="fi" id="eSN" placeholder="Optional"/></div>
+        <div><label class="fl">Purchase Date</label><input class="fi" id="ePD" type="date"/></div>
       </div>
       <div class="fg">
-        <div><lbl>Next Maintenance</lbl><input class="fi" id="eNM" type="date"/></div>
-        <div><lbl>Interval (days)</lbl><input class="fi" id="eInt" type="number" placeholder="30"/></div>
+        <div><label class="fl">Next Maintenance</label><input class="fi" id="eNM" type="date"/></div>
+        <div><label class="fl">Interval (days)</label><input class="fi" id="eInt" type="number" placeholder="30"/></div>
       </div>
-      <div><lbl>Notes</lbl><textarea class="fi" id="eNt" style="min-height:55px;resize:vertical" placeholder="Optional&hellip;"></textarea></div>
+      <div><label class="fl">Notes</label><textarea class="fi" id="eNt" style="min-height:55px;resize:vertical" placeholder="Optional&hellip;"></textarea></div>
     </div>
     <div class="moa"><button class="btn bgh" id="cMach">Cancel</button><button class="btn bb" id="svMach">Save Machine</button></div>
     <div class="mer" id="eMachErr"></div>
@@ -264,17 +264,17 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <div class="mos" id="mMDsub">Record completed maintenance and set next date.</div>
     <input type="hidden" id="mdId"/>
     <div class="mof">
-      <div><lbl>Type</lbl><select class="fi" id="mdType">
+      <div><label class="fl">Type</label><select class="fi" id="mdType">
         <option value="scheduled">Scheduled</option><option value="emergency">Emergency</option>
         <option value="upgrade">Upgrade</option><option value="cleaning">Deep Cleaning</option>
         <option value="calibration">Calibration</option>
       </select></div>
       <div class="fg">
-        <div><lbl>Performed By</lbl><input class="fi" id="mdBy" placeholder="Technician name"/></div>
-        <div><lbl>Cost ($)</lbl><input class="fi" id="mdCost" type="number" step="0.01" placeholder="0.00"/></div>
+        <div><label class="fl">Performed By</label><input class="fi" id="mdBy" placeholder="Technician name"/></div>
+        <div><label class="fl">Cost ($)</label><input class="fi" id="mdCost" type="number" step="0.01" placeholder="0.00"/></div>
       </div>
-      <div><lbl>Next Maintenance Date</lbl><input class="fi" id="mdNext" type="date"/></div>
-      <div><lbl>What was done?</lbl><textarea class="fi" id="mdNotes" style="min-height:70px;resize:vertical" placeholder="Describe the maintenance work&hellip;"></textarea></div>
+      <div><label class="fl">Next Maintenance Date</label><input class="fi" id="mdNext" type="date"/></div>
+      <div><label class="fl">What was done?</label><textarea class="fi" id="mdNotes" style="min-height:70px;resize:vertical" placeholder="Describe the maintenance work&hellip;"></textarea></div>
     </div>
     <div class="moa"><button class="btn bgh" id="cMD">Cancel</button><button class="btn bg" id="svMD">Confirm Done</button></div>
     <div class="mer" id="mdErr"></div>
@@ -288,15 +288,15 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <div class="mos" id="mInstSub">Sélectionner la matière et entrer le numéro de lot. Le système suivra la consommation automatiquement.</div>
     <input type="hidden" id="instMid"/>
     <div class="mof">
-      <div><lbl>Supplier</lbl><select class="fi" id="instSupplier" onchange="onSupplierChange()"><option value="">— All suppliers —</option></select></div>
-      <div><lbl>Item *</lbl><select class="fi" id="instItem"><option value="">— Sélectionner la matière —</option></select></div>
-      <div id="instLotDiv" style="display:none"><lbl>Numéro de lot</lbl><div class="fi" id="instLotInfo" style="background:var(--a50);border-color:var(--a100);font-size:12px;min-height:44px">Select an item first</div></div>
+      <div><label class="fl">Supplier</label><select class="fi" id="instSupplier" onchange="onSupplierChange()"><option value="">— All suppliers —</option></select></div>
+      <div><label class="fl">Item *</label><select class="fi" id="instItem"><option value="">— Sélectionner la matière —</option></select></div>
+      <div id="instLotDiv" style="display:none"><label class="fl">Numéro de lot</label><div class="fi" id="instLotInfo" style="background:var(--a50);border-color:var(--a100);font-size:12px;min-height:44px">Select an item first</div></div>
       <div class="fg">
-        <div><lbl>Quantity Installed *</lbl><input class="fi" id="instQty" type="number" step="0.01" min="0.01" placeholder="0"/></div>
-        <div><lbl>Unit</lbl><input class="fi" id="instUnit" placeholder="Auto" readonly/></div>
+        <div><label class="fl">Quantity Installed *</label><input class="fi" id="instQty" type="number" step="0.01" min="0.01" placeholder="0"/></div>
+        <div><label class="fl">Unit</label><input class="fi" id="instUnit" placeholder="Auto" readonly/></div>
       </div>
-      <div><lbl>Installed By</lbl><input class="fi" id="instBy" placeholder="Employee name"/></div>
-      <div><lbl>Notes</lbl><textarea class="fi" id="instNotes" style="min-height:50px;resize:vertical" placeholder="Optional&hellip;"></textarea></div>
+      <div><label class="fl">Installed By</label><input class="fi" id="instBy" placeholder="Employee name"/></div>
+      <div><label class="fl">Notes</label><textarea class="fi" id="instNotes" style="min-height:50px;resize:vertical" placeholder="Optional&hellip;"></textarea></div>
     </div>
     <div class="moa"><button class="btn bgh" id="cInst">Cancel</button><button class="btn ba" id="svInst">Install &amp; Deduct Stock</button></div>
     <div class="mer" id="instErr"></div>

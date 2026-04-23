@@ -52,7 +52,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .body{padding:20px 28px 80px}
 /* EMP SELECTOR */
 .emp-select{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:14px;box-shadow:var(--sh);padding:16px 22px;margin-bottom:20px}
-.emp-select lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;margin-bottom:0}
+.emp-select .fl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;margin-bottom:0}
 .fi{padding:10px 14px;border:1.5px solid var(--bdr);border-radius:10px;font-family:var(--f);font-size:14px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s;min-width:200px}
 .fi:focus{border-color:var(--blue)}
 /* PROFILE HEADER */
@@ -118,7 +118,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 .mot{font-size:17px;font-weight:800;margin-bottom:4px}
 .mos{font-size:13px;color:var(--mu);margin-bottom:18px;line-height:1.5}
 .mof{display:grid;gap:11px}
-lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 .mfi{width:100%;padding:10px 12px;border:1.5px solid var(--bdr);border-radius:9px;font-family:var(--f);font-size:13px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
 .mfi:focus{border-color:var(--blue)}
 .moa{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
@@ -400,19 +400,19 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <div class="mos" id="mEditSub">Correct the clocking time for this session.</div>
     <input type="hidden" id="editId"/>
     <div class="mof">
-      <div><lbl>Order No.</lbl><input class="mfi" id="editOrd"/></div>
-      <div><lbl>Work Type / Step</lbl><select class="mfi" id="editStep">
+      <div><label class="fl">Order No.</label><input class="mfi" id="editOrd"/></div>
+      <div><label class="fl">Work Type / Step</label><select class="mfi" id="editStep">
         <option value="Printing">Printing</option><option value="Cleaning">Cleaning</option>
         <option value="Thermoforming">Thermoforming</option><option value="Line Cut">Line Cut</option>
         <option value="Laser Marking">Laser Marking</option><option value="Packaging">Packaging</option>
         <option value="Waste Time">Waste Time (Non-Productive)</option>
       </select></div>
-      <div><lbl>Session Type</lbl><select class="mfi" id="editType">
+      <div><label class="fl">Session Type</label><select class="mfi" id="editType">
         <option value="productive">Productive</option><option value="waste">Non-Productive</option><option value="overtime">Overtime</option>
       </select></div>
-      <div><lbl>Start Time *</lbl><input class="mfi" id="editStart" type="datetime-local"/></div>
-      <div><lbl>End Time *</lbl><input class="mfi" id="editEnd" type="datetime-local"/></div>
-      <div><lbl>Notes</lbl><textarea class="mfi" id="editNotes" style="min-height:55px;resize:vertical"></textarea></div>
+      <div><label class="fl">Start Time *</label><input class="mfi" id="editStart" type="datetime-local"/></div>
+      <div><label class="fl">End Time *</label><input class="mfi" id="editEnd" type="datetime-local"/></div>
+      <div><label class="fl">Notes</label><textarea class="mfi" id="editNotes" style="min-height:55px;resize:vertical"></textarea></div>
     </div>
     <div class="moa">
       <button class="btn bgh" id="cancelEdit">Cancel</button>
@@ -428,19 +428,19 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <div class="mot">Add Manual Session</div>
     <div class="mos">Add a session that was not recorded automatically.</div>
     <div class="mof">
-      <div><lbl>Order No.</lbl><input class="mfi" id="addOrd" placeholder="e.g. ORD-1052"/></div>
-      <div><lbl>Work Type</lbl><select class="mfi" id="addStep">
+      <div><label class="fl">Order No.</label><input class="mfi" id="addOrd" placeholder="e.g. ORD-1052"/></div>
+      <div><label class="fl">Work Type</label><select class="mfi" id="addStep">
         <option value="Printing">Printing</option><option value="Cleaning">Cleaning</option>
         <option value="Thermoforming">Thermoforming</option><option value="Line Cut">Line Cut</option>
         <option value="Laser Marking">Laser Marking</option><option value="Packaging">Packaging</option>
         <option value="Waste Time">Waste Time</option>
       </select></div>
-      <div><lbl>Session Type</lbl><select class="mfi" id="addType">
+      <div><label class="fl">Session Type</label><select class="mfi" id="addType">
         <option value="productive">Productive</option><option value="waste">Non-Productive</option>
       </select></div>
-      <div><lbl>Start *</lbl><input class="mfi" id="addStart" type="datetime-local"/></div>
-      <div><lbl>End *</lbl><input class="mfi" id="addEnd" type="datetime-local"/></div>
-      <div><lbl>Notes</lbl><textarea class="mfi" id="addNotes" style="min-height:50px;resize:vertical"></textarea></div>
+      <div><label class="fl">Start *</label><input class="mfi" id="addStart" type="datetime-local"/></div>
+      <div><label class="fl">End *</label><input class="mfi" id="addEnd" type="datetime-local"/></div>
+      <div><label class="fl">Notes</label><textarea class="mfi" id="addNotes" style="min-height:50px;resize:vertical"></textarea></div>
     </div>
     <div class="moa">
       <button class="btn bgh" id="cancelAdd">Cancel</button>
@@ -457,7 +457,7 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <input type="hidden" id="dayDate"/>
     <div class="mof">
       <div>
-        <lbl>Day Type</lbl>
+        <label class="fl">Day Type</label>
         <div class="day-type-btns" id="dayTypeBtns">
           <button class="dtb" style="background:#f0fdf4;border-color:#bbf7d0;color:#15803d" data-t="working">Working</button>
           <button class="dtb" style="background:#f1f5f9;border-color:#e2e8f0;color:#64748b" data-t="off">Day Off</button>
@@ -467,8 +467,8 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
           <button class="dtb" style="background:#fffbeb;border-color:#fde68a;color:#92400e" data-t="half">Half Day</button>
         </div>
       </div>
-      <div><lbl>Expected Hours</lbl><input class="mfi" id="dayHours" type="number" step=".5" min="0" max="24" value="8"/></div>
-      <div><lbl>Notes</lbl><input class="mfi" id="dayNotes" placeholder="Optional&hellip;"/></div>
+      <div><label class="fl">Expected Hours</label><input class="mfi" id="dayHours" type="number" step=".5" min="0" max="24" value="8"/></div>
+      <div><label class="fl">Notes</label><input class="mfi" id="dayNotes" placeholder="Optional&hellip;"/></div>
     </div>
     <div class="moa">
       <button class="btn bgh" id="cancelDay">Cancel</button>

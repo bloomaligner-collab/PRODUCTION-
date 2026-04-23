@@ -66,7 +66,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .card-t{font-size:15px;font-weight:800;margin-bottom:4px}
 .card-s{font-size:12px;color:var(--mu);margin-bottom:16px}
 /* FORM */
-lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
 .fi{width:100%;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:9px;font-family:var(--f);font-size:13px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
 .fi:focus{border-color:var(--blue)}.fi::placeholder{color:var(--dim)}
 .fg2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
@@ -268,13 +268,13 @@ tbody tr:hover{background:#f8fafc}
     <div class="mo-s">Record how many aligners were produced for an order today.</div>
     <div class="fg2">
       <div style="position:relative">
-        <lbl>Order *</lbl>
+        <label class="fl">Order *</label>
         <input class="fi" id="enOrder" placeholder="Type to search order…" autocomplete="off"
           data-cw-for="enOrderDD" style="padding-right:36px"/>
         <span style="position:absolute;right:12px;bottom:10px;pointer-events:none">🔍</span>
         <div id="enOrderDD" class="cw-order-dd" data-cw-dd></div>
       </div>
-      <div><lbl>Case Type</lbl>
+      <div><label class="fl">Case Type</label>
         <select class="fi" id="enCase">
           <option value="">Select…</option>
           <option>Full Treatment</option>
@@ -285,16 +285,16 @@ tbody tr:hover{background:#f8fafc}
       </div>
     </div>
     <div class="fg3">
-      <div><lbl>Total Aligners *</lbl><input class="fi" id="enTotal" type="number" min="1" placeholder="e.g. 28"/></div>
-      <div><lbl>Upper</lbl><input class="fi" id="enUpper" type="number" min="0" placeholder="e.g. 14"/></div>
-      <div><lbl>Lower</lbl><input class="fi" id="enLower" type="number" min="0" placeholder="e.g. 14"/></div>
+      <div><label class="fl">Total Aligners *</label><input class="fi" id="enTotal" type="number" min="1" placeholder="e.g. 28"/></div>
+      <div><label class="fl">Upper</label><input class="fi" id="enUpper" type="number" min="0" placeholder="e.g. 14"/></div>
+      <div><label class="fl">Lower</label><input class="fi" id="enLower" type="number" min="0" placeholder="e.g. 14"/></div>
     </div>
     <div id="materialDeductPreview" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:14px;display:none">
       <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:6px">📊 MATERIAL DEDUCTION PREVIEW</div>
       <div id="deductList" style="font-size:12px;color:#166534"></div>
     </div>
-    <div class="fgrp"><lbl>Notes</lbl><input class="fi" id="enNotes" placeholder="Optional notes…"/></div>
-    <div class="fgrp"><lbl>Entered by</lbl><input class="fi" id="enBy" placeholder="Your name"/></div>
+    <div class="fgrp"><label class="fl">Notes</label><input class="fi" id="enNotes" placeholder="Optional notes…"/></div>
+    <div class="fgrp"><label class="fl">Entered by</label><input class="fi" id="enBy" placeholder="Your name"/></div>
     <div class="mo-actions">
       <button class="btn bgh" onclick="document.getElementById('mEntry').classList.remove('on')">Cancel</button>
       <button class="btn bb" onclick="saveEntry()">Save & Deduct Materials</button>
@@ -312,16 +312,16 @@ tbody tr:hover{background:#f8fafc}
     <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid var(--bdr)">
       <div style="font-size:12px;font-weight:700;margin-bottom:10px">+ Add New Rule</div>
       <div class="fg3">
-        <div><lbl>Material</lbl>
+        <div><label class="fl">Material</label>
           <select class="fi" id="yrItem"><option value="">— Select material —</option></select>
         </div>
-        <div><lbl>Step</lbl>
+        <div><label class="fl">Step</label>
           <select class="fi" id="yrStep">
             <option>Printing</option><option>Cleaning</option><option>Thermoforming</option>
             <option>Line Cut</option><option>Laser Marking</option><option>Packaging</option>
           </select>
         </div>
-        <div><lbl>Qty / Aligner</lbl>
+        <div><label class="fl">Qty / Aligner</label>
           <div style="display:flex;gap:5px">
             <input class="fi" id="yrQty" type="number" step="0.001" placeholder="0.025" style="flex:1"/>
             <input class="fi" id="yrUnit" style="width:70px;background:#f1f5f9;text-align:center" readonly placeholder="unit"/>
