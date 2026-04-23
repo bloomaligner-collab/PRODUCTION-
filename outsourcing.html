@@ -93,6 +93,35 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
 .po-row .lbl{color:var(--mu);font-weight:600}
 .po-row .val{font-weight:700;font-family:var(--mono)}
 .po-total{font-size:24px;color:var(--purple)}
+/* Sortable column headers */
+thead th.sortable{cursor:pointer;user-select:none;position:relative}
+thead th.sortable:hover{color:var(--blue);background:#f1f5f9}
+thead th.sortable::after{content:'↕';opacity:.25;font-size:9px;margin-left:5px;position:relative;top:-1px}
+thead th.sortable.sort-asc::after{content:'▲';opacity:1;color:var(--blue)}
+thead th.sortable.sort-desc::after{content:'▼';opacity:1;color:var(--blue)}
+/* Lifecycle pipeline */
+.pipe{display:inline-flex;align-items:center;gap:1px;font-family:var(--mono);font-size:9px;vertical-align:middle}
+.pipe .st{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#f1f5f9;color:var(--dim);font-weight:700;font-size:9px;border:1.5px solid #e2e8f0}
+.pipe .st.done{background:var(--green);color:#fff;border-color:var(--green)}
+.pipe .st.cur{background:var(--amber);color:#fff;border-color:var(--amber);animation:pulse 1.6s ease-in-out infinite}
+.pipe .st.bad{background:var(--red);color:#fff;border-color:var(--red)}
+.pipe .ln{width:8px;height:2px;background:#e2e8f0}
+.pipe .ln.done{background:var(--green)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+/* PO detail modal */
+.po-modal{background:#fff;border-radius:16px;max-width:860px;width:100%;max-height:92vh;overflow:auto;padding:22px 24px}
+.po-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.po-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--p50);border:1px solid var(--p100);font-size:12px;font-weight:700;color:var(--purple);font-family:var(--mono)}
+.pipe-xl{display:flex;align-items:center;gap:4px;padding:12px 14px;background:var(--bg);border-radius:12px;margin:12px 0;font-size:11px;font-weight:600}
+.pipe-xl .step{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;color:var(--mu)}
+.pipe-xl .step .ico{width:30px;height:30px;border-radius:50%;background:#fff;color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;border:2px solid #e2e8f0}
+.pipe-xl .step.done{color:var(--green)}
+.pipe-xl .step.done .ico{background:var(--green);color:#fff;border-color:var(--green)}
+.pipe-xl .step.cur{color:var(--amber)}
+.pipe-xl .step.cur .ico{background:var(--amber);color:#fff;border-color:var(--amber)}
+.pipe-xl .step.bad .ico{background:var(--red);color:#fff;border-color:var(--red)}
+.pipe-xl .cnx{flex:0 0 22px;height:2px;background:#e2e8f0;margin-top:15px}
+.pipe-xl .cnx.done{background:var(--green)}
 </style>
 </head>
 <body>
@@ -124,13 +153,13 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
 
   <div class="body">
     <div class="kpi-row" style="grid-template-columns:repeat(7,1fr)">
-      <div class="kpi purple"><div class="kpi-ico">🚚</div><div class="kpi-val" id="kOut" style="color:var(--purple)">—</div><div class="kpi-lbl">Outsourced (month)</div></div>
-      <div class="kpi"><div class="kpi-ico">🦷</div><div class="kpi-val" id="kAlig" style="color:var(--blue)">—</div><div class="kpi-lbl">Aligners Outsourced (month)</div></div>
-      <div class="kpi amber" style="cursor:pointer" onclick="$('oLife').value='awaiting_return';switchTab('orders');renderOrders()"><div class="kpi-ico">📦</div><div class="kpi-val" id="kAwaitRet" style="color:var(--amber)">—</div><div class="kpi-lbl">Awaiting Return</div></div>
-      <div class="kpi" style="border-top-color:#0ea5e9;cursor:pointer" onclick="$('oLife').value='received_noinv';switchTab('orders');renderOrders()"><div class="kpi-ico">🧾</div><div class="kpi-val" id="kAwaitInv" style="color:#0284c7">—</div><div class="kpi-lbl">Awaiting Invoice</div></div>
-      <div class="kpi amber"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
-      <div class="kpi red"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Returns</div></div>
-      <div class="kpi green"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
+      <div class="kpi purple" style="cursor:pointer" onclick="kpiFilter('outsourced_month')"><div class="kpi-ico">🚚</div><div class="kpi-val" id="kOut" style="color:var(--purple)">—</div><div class="kpi-lbl">Outsourced (month)</div></div>
+      <div class="kpi" style="cursor:pointer" onclick="kpiFilter('aligners_month')"><div class="kpi-ico">🦷</div><div class="kpi-val" id="kAlig" style="color:var(--blue)">—</div><div class="kpi-lbl">Aligners Outsourced (month)</div></div>
+      <div class="kpi amber" style="cursor:pointer" onclick="kpiFilter('awaiting_return')"><div class="kpi-ico">📦</div><div class="kpi-val" id="kAwaitRet" style="color:var(--amber)">—</div><div class="kpi-lbl">Awaiting Return</div></div>
+      <div class="kpi" style="border-top-color:#0ea5e9;cursor:pointer" onclick="kpiFilter('received_noinv')"><div class="kpi-ico">🧾</div><div class="kpi-val" id="kAwaitInv" style="color:#0284c7">—</div><div class="kpi-lbl">Awaiting Invoice</div></div>
+      <div class="kpi amber" style="cursor:pointer" onclick="kpiFilter('to_pay_month')"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
+      <div class="kpi red" style="cursor:pointer" onclick="kpiFilter('overdue_returns')"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Returns</div></div>
+      <div class="kpi green" style="cursor:pointer" onclick="kpiFilter('inhouse')"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
     </div>
 
     <div class="tabs" id="tabs">
@@ -168,8 +197,21 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
         <div style="flex:1"></div>
         <button class="btn btn-g" onclick="exportCasesCsv()">⬇ Export CSV</button>
       </div>
-      <div class="tw"><table>
-        <thead><tr><th style="width:40px;text-align:center">Pick</th><th>Case #</th><th>Patient</th><th>Doctor</th><th>Status</th><th>↑ Upper</th><th>↓ Lower</th><th>Total</th><th>Supplier</th><th>Cost</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
+      <div class="tw"><table data-tbl="cases">
+        <thead><tr>
+          <th style="width:40px;text-align:center">Pick</th>
+          <th class="sortable" data-k="case_id">Case #</th>
+          <th class="sortable" data-k="patient_name">Patient</th>
+          <th class="sortable" data-k="doctor">Doctor</th>
+          <th class="sortable" data-k="outsourced">Status</th>
+          <th class="sortable" data-k="aligners_upper">↑ Upper</th>
+          <th class="sortable" data-k="aligners_lower">↓ Lower</th>
+          <th class="sortable" data-k="aligners_total">Total</th>
+          <th class="sortable" data-k="supplier_name">Supplier</th>
+          <th class="sortable" data-k="total_cost">Cost</th>
+          <th class="sortable" data-k="payment_status">Payment</th>
+          <th style="text-align:right">Action</th>
+        </tr></thead>
         <tbody id="tCases"><tr><td colspan="12" class="empty">Loading…</td></tr></tbody>
       </table></div>
     </section>
@@ -279,11 +321,53 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
         <div style="flex:1"></div>
         <button class="btn btn-g" onclick="exportOrdersCsv()">⬇ Export CSV</button>
       </div>
-      <div class="tw"><table>
-        <thead><tr><th>PO #</th><th>Case #</th><th>Patient</th><th>Supplier</th><th>Aligners</th><th>Cost/Unit</th><th>Total</th><th>Outsourced</th><th>Expected</th><th>Received</th><th>Invoice</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
-        <tbody id="tOrders"><tr><td colspan="13" class="empty">Loading…</td></tr></tbody>
+      <div class="tw"><table data-tbl="orders">
+        <thead><tr>
+          <th class="sortable" data-k="batch_ref">PO #</th>
+          <th class="sortable" data-k="case_id">Case #</th>
+          <th class="sortable" data-k="patient_name">Patient</th>
+          <th class="sortable" data-k="supplier_name">Supplier</th>
+          <th class="sortable" data-k="aligners_total">Aligners</th>
+          <th class="sortable" data-k="cost_per_aligner">Cost/Unit</th>
+          <th class="sortable" data-k="total_cost">Total</th>
+          <th class="sortable" data-k="outsource_date">Outsourced</th>
+          <th class="sortable" data-k="expected_return_date">Expected</th>
+          <th class="sortable" data-k="received_date">Received</th>
+          <th class="sortable" data-k="invoice_no">Invoice</th>
+          <th class="sortable" data-k="payment_status">Payment</th>
+          <th>Pipeline</th>
+          <th style="text-align:right">Action</th>
+        </tr></thead>
+        <tbody id="tOrders"><tr><td colspan="14" class="empty">Loading…</td></tr></tbody>
       </table></div>
     </section>
+
+    <!-- PO Detail Modal -->
+    <div class="mov" id="mPO">
+      <div class="po-modal">
+        <div class="po-hdr">
+          <div>
+            <div style="font-size:18px;font-weight:800">📝 <span id="poDetailNum">PO</span></div>
+            <div style="font-size:12px;color:var(--mu);margin-top:2px" id="poDetailSub">—</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span class="po-pill"><span>🦷</span> <span id="poDetailAlig">0</span> aligners</span>
+            <span class="po-pill" style="background:var(--a50);color:var(--amber);border-color:#fde68a"><span>💶</span> <span id="poDetailTot">€0.00</span></span>
+            <button class="btn btn-g" onclick="closePOModal()">✕</button>
+          </div>
+        </div>
+        <div class="pipe-xl" id="poDetailPipe"></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-b" onclick="poBulkReceive()">📦 Mark All Received…</button>
+          <button class="btn btn-b" onclick="poBulkInvoice()">🧾 Record PO Invoice…</button>
+          <button class="btn btn-b" onclick="poBulkPay()">💰 Mark All Paid…</button>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>Case #</th><th>Patient</th><th>↑ U</th><th>↓ L</th><th>Total</th><th>Cost</th><th>Received</th><th>Invoice</th><th>Payment</th><th>Pipeline</th><th style="text-align:right">Action</th></tr></thead>
+          <tbody id="poDetailRows"></tbody>
+        </table></div>
+      </div>
+    </div>
 
     <!-- Mark Received Modal -->
     <div class="mov" id="mRecv">
@@ -330,14 +414,23 @@ tbody tr.is-sel:hover{background:#ede9fe!important}
     <!-- Tab: Monthly Report ─────────────────────────────────────────── -->
     <section class="card" id="tab-report" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-        <div style="font-size:14px;font-weight:800">📊 In-House vs Outsourced — last 6 months</div>
+        <div style="font-size:14px;font-weight:800">📊 6-Month Trend</div>
         <button class="btn btn-g" onclick="exportReportCsv()">⬇ Export CSV</button>
       </div>
-      <canvas id="mixChart" height="80"></canvas>
-      <div style="margin-top:24px;font-size:14px;font-weight:800">💼 Supplier Breakdown — this month</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px">
+        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">In-House vs Outsourced · aligners · % outsourced</div>
+          <div style="height:180px;position:relative"><canvas id="mixChart"></canvas></div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Outsourced € spend / month</div>
+          <div style="height:180px;position:relative"><canvas id="costChart"></canvas></div>
+        </div>
+      </div>
+      <div style="margin-top:20px;font-size:14px;font-weight:800">💼 Supplier Breakdown — this month</div>
       <div class="tw" style="margin-top:10px"><table>
-        <thead><tr><th>Supplier</th><th>Cases</th><th>Aligners</th><th>Total cost</th><th>Pending</th><th>Paid</th></tr></thead>
-        <tbody id="tSupplier"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th class="sortable" data-k="name">Supplier</th><th class="sortable" data-k="cases">Cases</th><th class="sortable" data-k="aligners">Aligners</th><th class="sortable" data-k="avg">Avg €/aligner</th><th class="sortable" data-k="total">Total cost</th><th class="sortable" data-k="pending">Pending</th><th class="sortable" data-k="paid">Paid</th></tr></thead>
+        <tbody id="tSupplier"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
       </table></div>
     </section>
   </div>
@@ -466,7 +559,7 @@ async function loadAll(){
     const c=allCases.find(x=>x.case_id===id); return c && !c.outsourced
   }))
   computeKpis()
-  renderCases(); renderOrders(); renderReport(); renderSelectionBar(); renderPrepared()
+  renderCases(); renderOrders(); renderReport(); renderSelectionBar(); renderPrepared(); attachSort()
 }
 
 function populateSupplierDropdowns(){
@@ -502,16 +595,225 @@ function computeKpis(){
   $('kAlig').textContent = aligners
 }
 
+// ── Sortable tables ──────────────────────────────────────────────────
+const sortState={cases:{k:null,dir:'asc'}, orders:{k:null,dir:'asc'}}
+function attachSort(){
+  document.querySelectorAll('table[data-tbl]').forEach(tbl=>{
+    const tblKey=tbl.dataset.tbl
+    tbl.querySelectorAll('thead th.sortable').forEach(th=>{
+      if(th.dataset.bound) return
+      th.dataset.bound='1'
+      th.addEventListener('click',()=>{
+        const k=th.dataset.k
+        const s=sortState[tblKey]
+        if(s.k===k) s.dir=s.dir==='asc'?'desc':'asc'
+        else {s.k=k;s.dir='asc'}
+        // update arrows
+        tbl.querySelectorAll('thead th.sortable').forEach(x=>{
+          x.classList.remove('sort-asc','sort-desc')
+          if(x.dataset.k===s.k) x.classList.add(s.dir==='asc'?'sort-asc':'sort-desc')
+        })
+        if(tblKey==='cases') renderCases()
+        else if(tblKey==='orders') renderOrders()
+      })
+    })
+  })
+}
+function sortRows(rows, tblKey){
+  const s=sortState[tblKey]
+  if(!s.k) return rows
+  const dir=s.dir==='asc'?1:-1
+  return [...rows].sort((a,b)=>{
+    const av=a[s.k], bv=b[s.k]
+    if(av==null && bv==null) return 0
+    if(av==null) return 1
+    if(bv==null) return -1
+    const an=Number(av), bn=Number(bv)
+    if(!isNaN(an) && !isNaN(bn) && (typeof av==='number' || /^\d+(\.\d+)?$/.test(String(av))) && (typeof bv==='number' || /^\d+(\.\d+)?$/.test(String(bv)))) return (an-bn)*dir
+    return String(av).localeCompare(String(bv),undefined,{numeric:true,sensitivity:'base'})*dir
+  })
+}
+
+// ── Lifecycle helpers ────────────────────────────────────────────────
+function lifecycleStage(o){
+  // 0=Outsourced (always done), 1=Received, 2=Invoiced, 3=Paid
+  if(o.payment_status==='paid') return 3
+  if(o.invoice_no) return 2
+  if(o.received_date) return 1
+  return 0
+}
+function pipelineHtml(o, today){
+  const st=lifecycleStage(o)
+  const overdue = !o.received_date && o.expected_return_date && o.expected_return_date<today
+  const step=(idx, label)=>{
+    let cls='st'
+    if(idx<st) cls='st done'
+    else if(idx===st){
+      cls = (idx===1 && overdue) ? 'st bad' : 'st cur'
+    }
+    return `<span class="${cls}" title="${label}">${idx+1}</span>`
+  }
+  const ln=(idx)=>`<span class="ln${idx<st?' done':''}"></span>`
+  return `<span class="pipe" title="Outsourced → Received → Invoiced → Paid">${step(0,'Outsourced')}${ln(0)}${step(1,overdue?'Overdue':'Received')}${ln(1)}${step(2,'Invoiced')}${ln(2)}${step(3,'Paid')}</span>`
+}
+function pipelineXlHtml(o, today){
+  const st=lifecycleStage(o)
+  const overdue = !o.received_date && o.expected_return_date && o.expected_return_date<today
+  const steps=[
+    {ico:'🚚',lbl:'Outsourced',date:fdt(o.outsource_date)},
+    {ico:'📦',lbl:overdue?'Overdue Return':'Received',date:o.received_date?fdt(o.received_date):(o.expected_return_date?'exp '+fdt(o.expected_return_date):'—')},
+    {ico:'🧾',lbl:'Invoiced',date:o.invoice_no?`#${o.invoice_no}`:(o.invoice_due_date?'due '+fdt(o.invoice_due_date):'—')},
+    {ico:'💰',lbl:'Paid',date:o.paid_date?fdt(o.paid_date):'—'},
+  ]
+  return steps.map((s,i)=>{
+    let cls='step'
+    if(i<st) cls='step done'
+    else if(i===st) cls = (i===1 && overdue) ? 'step bad' : 'step cur'
+    const dot=`<div class="step ${cls.replace('step ','')}"><div class="ico">${s.ico}</div><div>${s.lbl}</div><div style="font-family:var(--mono);font-size:10px;opacity:.8">${s.date}</div></div>`
+    if(i===steps.length-1) return dot
+    return dot+`<div class="cnx${i<st?' done':''}"></div>`
+  }).join('')
+}
+
+// ── KPI filter helper ─────────────────────────────────────────────────
+window.kpiFilter=(which)=>{
+  // Reset filters then apply
+  ;['oLife','oPay','oSupplier','oPO'].forEach(id=>{if($(id))$(id).value=''})
+  $('oFrom').value=''; $('oTo').value=''
+  const now=new Date()
+  const ym=now.toISOString().slice(0,7)
+  const mStart=ym+'-01'
+  const mEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10)
+  switch(which){
+    case 'outsourced_month':
+    case 'aligners_month':
+      $('oFrom').value=mStart; $('oTo').value=mEnd
+      switchTab('orders'); renderOrders(); break
+    case 'awaiting_return':
+      $('oLife').value='awaiting_return'; switchTab('orders'); renderOrders(); break
+    case 'received_noinv':
+      $('oLife').value='received_noinv'; switchTab('orders'); renderOrders(); break
+    case 'to_pay_month':
+      $('oLife').value='invoiced_unpaid'; $('oFrom').value=mStart; $('oTo').value=mEnd
+      switchTab('orders'); renderOrders(); break
+    case 'overdue_returns':
+      $('oLife').value='awaiting_return'; switchTab('orders'); renderOrders()
+      // Sort overdue-first: sort by expected_return_date asc
+      sortState.orders={k:'expected_return_date',dir:'asc'}
+      attachSort(); renderOrders()
+      break
+    case 'inhouse':
+      $('fStatus').value='inhouse'; switchTab('cases'); renderCases(); break
+  }
+}
+
+// ── PO Detail Modal ───────────────────────────────────────────────────
+let currentPO=null
+window.openPOModal=(po)=>{
+  if(!po) return
+  currentPO=po
+  const rows=allOrders.filter(o=>o.batch_ref===po)
+  if(!rows.length){ntf('No cases in this PO','err'); return}
+  renderPOModal()
+  $('mPO').classList.add('on')
+}
+window.closePOModal=()=>{currentPO=null; $('mPO').classList.remove('on')}
+function renderPOModal(){
+  if(!currentPO) return
+  const rows=allOrders.filter(o=>o.batch_ref===currentPO)
+  if(!rows.length){closePOModal(); return}
+  const sup=rows[0].supplier_name||'—'
+  const cur=rows[0].currency||'EUR'
+  const totAl=rows.reduce((a,o)=>a+(o.aligners_total||0),0)
+  const totAmt=rows.reduce((a,o)=>a+Number(o.total_cost||0),0)
+  $('poDetailNum').textContent=currentPO
+  $('poDetailSub').innerHTML=`Supplier <strong>${sup}</strong> · ${rows.length} case${rows.length>1?'s':''} · Outsourced ${fdt(rows[0].outsource_date)}${rows[0].expected_return_date?' · Expected '+fdt(rows[0].expected_return_date):''}`
+  $('poDetailAlig').textContent=totAl
+  $('poDetailTot').textContent=money(totAmt,cur)
+  // Pipeline for the PO = min stage across cases (most pessimistic)
+  const today=new Date().toISOString().slice(0,10)
+  const minStage=Math.min(...rows.map(lifecycleStage))
+  const worstOrder={...rows[0], payment_status: minStage===3?'paid':rows[0].payment_status, invoice_no: minStage>=2?rows[0].invoice_no:null, received_date: minStage>=1?rows[0].received_date:null}
+  $('poDetailPipe').innerHTML=pipelineXlHtml(worstOrder, today)
+  // Per-case rows
+  $('poDetailRows').innerHTML=rows.map(o=>{
+    const c=allCases.find(x=>x.case_id===String(o.case_id))
+    const payCls=o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
+    return `<tr>
+      <td class="mono" style="font-weight:700">${o.case_id}</td>
+      <td>${c?.patient_name||'—'}</td>
+      <td class="mono">${o.aligners_upper||0}</td>
+      <td class="mono">${o.aligners_lower||0}</td>
+      <td class="mono" style="font-weight:700">${o.aligners_total||0}</td>
+      <td class="mono">${money(o.total_cost,o.currency)}</td>
+      <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
+      <td class="mono">${o.invoice_no||'—'}</td>
+      <td><span class="bdg ${payCls}">${o.payment_status}</span></td>
+      <td>${pipelineHtml(o, today)}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${!o.received_date?`<button class="btn btn-sm btn-b" onclick="openRecvModal('${o.id}')" title="Mark Received">📦</button>`:''}
+        ${o.received_date && !o.invoice_no?`<button class="btn btn-sm btn-b" onclick="openInvModal('${o.id}')" title="Record Invoice">🧾</button>`:''}
+        ${o.payment_status!=='paid' && o.invoice_no?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')" title="Mark Paid">💰</button>`:''}
+      </td>
+    </tr>`
+  }).join('')
+}
+window.poBulkReceive=async()=>{
+  const rows=allOrders.filter(o=>o.batch_ref===currentPO && !o.received_date)
+  if(!rows.length){ntf('All cases in this PO already received','err');return}
+  const d=prompt(`Received date for ${rows.length} case(s) in ${currentPO} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10))
+  if(!d) return
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ntf('Invalid date format','err');return}
+  const invExp=prompt('Expected invoice date (optional, YYYY-MM-DD):', rows[0].invoice_due_date||'')
+  const patch={received_date:d, updated_at:new Date().toISOString()}
+  if(invExp && /^\d{4}-\d{2}-\d{2}$/.test(invExp)) patch.invoice_due_date=invExp
+  const{error}=await sb.from('outsourced_orders').update(patch).in('id',rows.map(r=>r.id))
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf(`✅ ${rows.length} case(s) marked received`); await loadAll(); renderPOModal()
+}
+window.poBulkInvoice=async()=>{
+  const rows=allOrders.filter(o=>o.batch_ref===currentPO && !o.invoice_no)
+  if(!rows.length){ntf('All cases in this PO already invoiced','err');return}
+  const no=prompt(`Invoice # for ${rows.length} case(s) in ${currentPO}:`,'')
+  if(!no) return
+  const d=prompt('Invoice received date (YYYY-MM-DD):', new Date().toISOString().slice(0,10))
+  if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d)){ntf('Invalid date','err');return}
+  const{error}=await sb.from('outsourced_orders').update({
+    invoice_no:no.trim(), invoice_date:d, payment_status:'approved', updated_at:new Date().toISOString()
+  }).in('id',rows.map(r=>r.id))
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf(`✅ Invoice ${no} recorded for ${rows.length} case(s)`); await loadAll(); renderPOModal()
+}
+window.poBulkPay=async()=>{
+  const rows=allOrders.filter(o=>o.batch_ref===currentPO && o.payment_status!=='paid')
+  if(!rows.length){ntf('Everything in this PO is already paid','err');return}
+  if(!confirm(`Mark ${rows.length} case(s) in ${currentPO} as paid?`)) return
+  const today=new Date().toISOString().slice(0,10)
+  const{error}=await sb.from('outsourced_orders').update({
+    payment_status:'paid', paid_date:today, updated_at:new Date().toISOString()
+  }).in('id',rows.map(r=>r.id))
+  if(error){ntf('Error: '+error.message,'err');return}
+  ntf(`✅ ${rows.length} case(s) paid`); await loadAll(); renderPOModal()
+}
+
 // ── Cases tab ─────────────────────────────────────────────────────────
 function renderCases(){
   const st=$('fStatus').value, sup=$('fSupplier').value, q=($('fSearch').value||'').toLowerCase()
-  const filtered=allCases.filter(c=>{
+  // Enrich rows with sortable order-derived fields
+  const enriched=allCases.map(c=>({
+    ...c,
+    supplier_name:c.order?.supplier_name||'',
+    total_cost:c.order?.total_cost||0,
+    payment_status:c.order?.payment_status||'',
+  }))
+  const filteredRaw=enriched.filter(c=>{
     if(st==='outsourced' && !c.outsourced) return false
     if(st==='inhouse' && c.outsourced) return false
     if(sup && c.order?.supplier_id!==sup) return false
     if(q && !`${c.case_id} ${c.patient_name} ${c.doctor} ${c.clinic}`.toLowerCase().includes(q)) return false
     return true
-  }).slice(0,500) // cap for perf
+  })
+  const filtered=sortRows(filteredRaw,'cases').slice(0,500) // cap for perf
   $('tCases').innerHTML = filtered.length ? filtered.map(c=>{
     const o=c.order
     const payCls = !o?'':o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
@@ -605,12 +907,17 @@ function renderOrders(){
     if(life && lifecycleOf(o)!==life) return false
     return true
   })
-  // Group consecutive rows by batch_ref (after sorting by batch_ref then outsource_date)
-  const sorted=[...filtered].sort((a,b)=>{
-    const pa=a.batch_ref||'zzz', pb=b.batch_ref||'zzz'
-    if(pa!==pb) return pa<pb?-1:1
-    return (b.outsource_date||'').localeCompare(a.outsource_date||'')
-  })
+  // Apply column sort if user picked one, else keep PO grouping
+  let sorted
+  if(sortState.orders.k){
+    sorted=sortRows(filtered,'orders')
+  } else {
+    sorted=[...filtered].sort((a,b)=>{
+      const pa=a.batch_ref||'zzz', pb=b.batch_ref||'zzz'
+      if(pa!==pb) return pa<pb?-1:1
+      return (b.outsource_date||'').localeCompare(a.outsource_date||'')
+    })
+  }
   let lastPo=null
   $('tOrders').innerHTML = sorted.length ? sorted.map(o=>{
     const c = allCases.find(x=>x.case_id===String(o.case_id))
@@ -619,7 +926,7 @@ function renderOrders(){
     const poNew = o.batch_ref && o.batch_ref!==lastPo
     lastPo = o.batch_ref
     const poCell = o.batch_ref
-      ? `<td class="mono" style="font-weight:700;color:var(--purple);${poNew?'border-top:2px solid var(--p100)':''}">${poNew?o.batch_ref:'·'}</td>`
+      ? `<td class="mono" style="font-weight:800;color:var(--purple);cursor:pointer;text-decoration:underline;${poNew?'border-top:2px solid var(--p100)':''}" onclick="openPOModal('${o.batch_ref}')" title="Open PO detail">${poNew?o.batch_ref:'·'}</td>`
       : `<td style="color:var(--dim)">—</td>`
     return `<tr class="${overdue?'':'is-out'}" style="${overdue?'background:#fef2f2':''}">
       ${poCell}
@@ -634,6 +941,7 @@ function renderOrders(){
       <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
       <td class="mono">${o.invoice_no?`${o.invoice_no}${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
+      <td>${pipelineHtml(o, today)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')" title="Edit">✏️</button>
         ${!o.received_date?`<button class="btn btn-sm btn-b" onclick="openRecvModal('${o.id}')" title="Mark Received">📦</button>`:''}
@@ -641,7 +949,7 @@ function renderOrders(){
         ${o.payment_status!=='paid' && o.invoice_no?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')" title="Mark Paid">💰</button>`:''}
       </td>
     </tr>`
-  }).join('') : '<tr><td colspan="13" class="empty">No outsourced orders yet.</td></tr>'
+  }).join('') : '<tr><td colspan="14" class="empty">No outsourced orders yet.</td></tr>'
 }
 
 // ── Receive / Invoice modals ──────────────────────────────────────────
@@ -701,6 +1009,7 @@ window.saveInvoice=async()=>{
 }
 
 // ── Report tab — Chart + supplier breakdown ───────────────────────────
+let chartCost=null
 function renderReport(){
   // Last 6 months including current
   const now=new Date()
@@ -709,15 +1018,30 @@ function renderReport(){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1)
     months.push({key:d.toISOString().slice(0,7), label:d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})})
   }
+  // Outsourced aligners per month (from allOrders)
   const outByMonth = months.map(m => allOrders.filter(o=>String(o.outsource_date||'').slice(0,7)===m.key).reduce((a,o)=>a+(o.aligners_total||0),0))
-  const inByMonth  = months.map(m => allCases.filter(c=>!c.outsourced && String(c.current_status||'').length).length===0 ? 0 : 0) // Placeholder: we can't cheaply derive monthly in-house production here; filled by upstream data
-  // Try to enrich in-house count from production_entries if available
-  sb.from('production_entries').select('session_date,aligners_done').gte('session_date',months[0].key+'-01').then(({data})=>{
-    const byMonth={}
-    ;(data||[]).forEach(r=>{const k=String(r.session_date||'').slice(0,7); byMonth[k]=(byMonth[k]||0)+Number(r.aligners_done||0)})
-    const inArr = months.map(m=>byMonth[m.key]||0)
-    drawChart(months.map(m=>m.label), inArr, outByMonth)
-  }).catch(()=>drawChart(months.map(m=>m.label), months.map(()=>0), outByMonth))
+  // Outsourced € spend per month
+  const costByMonth = months.map(m => allOrders.filter(o=>String(o.outsource_date||'').slice(0,7)===m.key).reduce((a,o)=>a+Number(o.total_cost||0),0))
+  // In-house = Packaging completions × aligner count per case (same method the dashboard uses)
+  Promise.all([
+    sb.from('order_step_tracking').select('order_no,step,completed_at').eq('status','complete').eq('step','Packaging').gte('completed_at',months[0].key+'-01'),
+    sb.from('bloom_aligner_details').select('case_number,aligner_upper,aligner_lower,order_type').eq('order_type','TreatmentPlan')
+  ]).then(([stR,alR])=>{
+    const aligByCase={}
+    ;(alR.data||[]).forEach(r=>{const k=String(r.case_number||''); aligByCase[k]=(Number(r.aligner_upper)||0)+(Number(r.aligner_lower)||0)})
+    const seen=new Set()
+    const inByMonth=months.map(()=>0)
+    ;(stR.data||[]).forEach(r=>{
+      const k=String(r.order_no||'')
+      if(seen.has(k)) return
+      seen.add(k)
+      const mk=String(r.completed_at||'').slice(0,7)
+      const idx=months.findIndex(m=>m.key===mk)
+      if(idx>=0) inByMonth[idx]+=aligByCase[k]||0
+    })
+    drawVolumeChart(months.map(m=>m.label), inByMonth, outByMonth)
+  }).catch(()=>drawVolumeChart(months.map(m=>m.label), months.map(()=>0), outByMonth))
+  drawCostChart(months.map(m=>m.label), costByMonth)
 
   // Supplier breakdown for THIS month
   const mKey=now.toISOString().slice(0,7)
@@ -725,32 +1049,66 @@ function renderReport(){
   const bySup={}
   mOrders.forEach(o=>{
     const k=o.supplier_id||'_none'
-    if(!bySup[k]) bySup[k]={name:o.supplier_name||'(unassigned)',cases:0,aligners:0,total:0,pending:0,paid:0,currency:o.currency||'EUR'}
+    if(!bySup[k]) bySup[k]={name:o.supplier_name||'(unassigned)',cases:0,aligners:0,total:0,pending:0,paid:0,currency:o.currency||'EUR',avg:0}
     bySup[k].cases++
     bySup[k].aligners += Number(o.aligners_total||0)
     bySup[k].total += Number(o.total_cost||0)
     if(o.payment_status==='paid') bySup[k].paid += Number(o.paid_amount||o.total_cost||0)
     else                           bySup[k].pending += Number(o.total_cost||0)
   })
+  Object.values(bySup).forEach(r=>{r.avg = r.aligners>0 ? r.total/r.aligners : 0})
   const rows=Object.values(bySup).sort((a,b)=>b.total-a.total)
   $('tSupplier').innerHTML = rows.length ? rows.map(r=>`<tr>
     <td style="font-weight:700">${r.name}</td>
     <td class="mono">${r.cases}</td>
     <td class="mono">${r.aligners}</td>
+    <td class="mono">${money(r.avg,r.currency)}</td>
     <td class="mono" style="font-weight:700">${money(r.total,r.currency)}</td>
     <td class="mono" style="color:var(--amber)">${money(r.pending,r.currency)}</td>
     <td class="mono" style="color:var(--green)">${money(r.paid,r.currency)}</td>
-  </tr>`).join('') : '<tr><td colspan="6" class="empty">No outsourced orders this month.</td></tr>'
+  </tr>`).join('') : '<tr><td colspan="7" class="empty">No outsourced orders this month.</td></tr>'
 }
-function drawChart(labels,inArr,outArr){
+function drawVolumeChart(labels,inArr,outArr){
+  if(!window.Chart){setTimeout(()=>drawVolumeChart(labels,inArr,outArr),300);return}
   if(chart)chart.destroy()
+  const totalArr=inArr.map((v,i)=>v+outArr[i])
+  const pctOutArr=totalArr.map((t,i)=>t>0?Math.round(outArr[i]/t*100):0)
   chart = new Chart($('mixChart'),{
     type:'bar',
     data:{labels,datasets:[
-      {label:'In-House (aligners)',data:inArr,backgroundColor:'#16a34a'},
-      {label:'Outsourced (aligners)',data:outArr,backgroundColor:'#7c3aed'}
+      {label:'In-House',data:inArr,backgroundColor:'#16a34a',stack:'vol',borderRadius:4,barThickness:28},
+      {label:'Outsourced',data:outArr,backgroundColor:'#7c3aed',stack:'vol',borderRadius:4,barThickness:28},
+      {type:'line',label:'% Outsourced',data:pctOutArr,yAxisID:'y2',borderColor:'#d97706',backgroundColor:'#d97706',borderWidth:2,tension:.35,pointRadius:3,pointBackgroundColor:'#d97706'}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}}
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{boxWidth:11,font:{size:11},padding:8}},
+        tooltip:{callbacks:{afterBody:(items)=>{const i=items[0].dataIndex; return [`Total: ${totalArr[i]} aligners`]}}}
+      },
+      scales:{
+        x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}},
+        y:{stacked:true,beginAtZero:true,ticks:{font:{size:10}},title:{display:true,text:'Aligners',font:{size:10,weight:'700'}}},
+        y2:{position:'right',beginAtZero:true,max:100,ticks:{font:{size:10},callback:v=>v+'%'},grid:{display:false},title:{display:true,text:'% Outsourced',font:{size:10,weight:'700'}}}
+      }
+    }
+  })
+}
+function drawCostChart(labels,costArr){
+  if(!window.Chart){setTimeout(()=>drawCostChart(labels,costArr),300);return}
+  if(chartCost)chartCost.destroy()
+  if(!$('costChart')) return
+  chartCost=new Chart($('costChart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Outsourced € spend',data:costArr,borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.15)',fill:true,tension:.35,pointRadius:3,pointBackgroundColor:'#dc2626',borderWidth:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:11,font:{size:11},padding:8}}},
+      scales:{
+        x:{ticks:{font:{size:10}},grid:{display:false}},
+        y:{beginAtZero:true,ticks:{font:{size:10},callback:v=>'€'+v},title:{display:true,text:'€ spend',font:{size:10,weight:'700'}}}
+      }
+    }
   })
 }
 
@@ -864,10 +1222,10 @@ window.exportOrdersCsv=()=>{
   download(`outsourced_orders_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
 }
 window.exportReportCsv=()=>{
-  const rows=[['Supplier','Cases','Aligners','Total Cost','Pending','Paid']]
+  const rows=[['Supplier','Cases','Aligners','Avg €/aligner','Total Cost','Pending','Paid']]
   document.querySelectorAll('#tSupplier tr').forEach(tr=>{
     const cells=[...tr.querySelectorAll('td')].map(td=>td.textContent.trim())
-    if(cells.length===6) rows.push(cells)
+    if(cells.length===7) rows.push(cells)
   })
   download(`outsourcing_report_${new Date().toISOString().slice(0,7)}.csv`, csv(rows))
 }
