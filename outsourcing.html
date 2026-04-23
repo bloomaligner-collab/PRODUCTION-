@@ -70,6 +70,29 @@ tbody tr.is-out:hover{background:#f3e8ff}
 .notif{position:fixed;bottom:20px;right:20px;padding:12px 18px;border-radius:10px;background:var(--g100);color:#15803d;font-weight:700;font-size:13px;z-index:600;display:none}
 .notif.on{display:block}.notif.err{background:var(--r100);color:#991b1b}
 .empty{text-align:center;padding:40px 20px;color:var(--mu)}
+/* Selection system */
+.sel-ico{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;border:1.5px solid var(--bdr);background:#fff;cursor:pointer;font-size:14px;color:var(--mu);transition:all .12s;font-family:var(--f)}
+.sel-ico:hover{border-color:var(--purple);color:var(--purple);background:var(--p50)}
+.sel-ico.on{border-color:var(--purple);background:var(--purple);color:#fff;box-shadow:0 2px 6px rgba(124,58,237,.3)}
+tbody tr.is-sel{background:linear-gradient(90deg,#f5f3ff,#fff)!important}
+tbody tr.is-sel:hover{background:#ede9fe!important}
+.sel-bar{background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1.5px solid var(--p100);border-radius:14px;padding:14px 18px;margin-bottom:18px;display:none;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(124,58,237,.08)}
+.sel-bar.on{display:flex}
+.sel-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid var(--p100);font-size:12px;font-weight:700;color:var(--purple);font-family:var(--mono)}
+.sel-pill .lbl{color:var(--mu);font-weight:600;font-family:var(--f);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.sel-sep{color:var(--dim);font-weight:300}
+/* Prepared order tab */
+.po-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.po-grid{grid-template-columns:1fr}}
+.po-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.po-stat{background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:12px;text-align:center}
+.po-stat-val{font-size:22px;font-weight:800;font-family:var(--mono);letter-spacing:-.5px;line-height:1}
+.po-stat-lbl{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.po-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bdr);font-size:13px}
+.po-row:last-child{border:none}
+.po-row .lbl{color:var(--mu);font-weight:600}
+.po-row .val{font-weight:700;font-family:var(--mono)}
+.po-total{font-size:24px;color:var(--purple)}
 </style>
 </head>
 <body>
@@ -89,21 +112,45 @@ tbody tr.is-out:hover{background:#f3e8ff}
       <div style="font-size:16px;font-weight:800">🚚 Outsourcing</div>
       <div style="font-size:11px;color:var(--mu)">Track outsourced aligner production · costs · payments</div>
     </div>
+    <div id="hdrSel" style="display:none;align-items:center;gap:10px;padding:8px 14px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1.5px solid var(--p100);border-radius:12px;cursor:pointer" onclick="goToPrepared()" title="Open Prepared List Order">
+      <span style="font-size:16px">🦷</span>
+      <div style="line-height:1.1">
+        <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px">Selected Order(s)</div>
+        <div style="font-size:12px;color:var(--mu);font-weight:600;margin-top:1px"><span id="hdrCases">0</span> case(s) · <span id="hdrAlig" style="color:var(--purple);font-weight:800">0</span> aligners (↑<span id="hdrUp">0</span> ↓<span id="hdrLo">0</span>)</div>
+      </div>
+      <span style="font-size:14px;color:var(--purple)">→</span>
+    </div>
   </div>
 
   <div class="body">
-    <div class="kpi-row">
+    <div class="kpi-row" style="grid-template-columns:repeat(7,1fr)">
       <div class="kpi purple"><div class="kpi-ico">🚚</div><div class="kpi-val" id="kOut" style="color:var(--purple)">—</div><div class="kpi-lbl">Outsourced (month)</div></div>
-      <div class="kpi green"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
-      <div class="kpi amber"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
-      <div class="kpi red"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Invoices</div></div>
       <div class="kpi"><div class="kpi-ico">🦷</div><div class="kpi-val" id="kAlig" style="color:var(--blue)">—</div><div class="kpi-lbl">Aligners Outsourced (month)</div></div>
+      <div class="kpi amber" style="cursor:pointer" onclick="$('oLife').value='awaiting_return';switchTab('orders');renderOrders()"><div class="kpi-ico">📦</div><div class="kpi-val" id="kAwaitRet" style="color:var(--amber)">—</div><div class="kpi-lbl">Awaiting Return</div></div>
+      <div class="kpi" style="border-top-color:#0ea5e9;cursor:pointer" onclick="$('oLife').value='received_noinv';switchTab('orders');renderOrders()"><div class="kpi-ico">🧾</div><div class="kpi-val" id="kAwaitInv" style="color:#0284c7">—</div><div class="kpi-lbl">Awaiting Invoice</div></div>
+      <div class="kpi amber"><div class="kpi-ico">💶</div><div class="kpi-val" id="kPay" style="color:var(--amber)">—</div><div class="kpi-lbl">To Pay (month)</div></div>
+      <div class="kpi red"><div class="kpi-ico">⏰</div><div class="kpi-val" id="kOver" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue Returns</div></div>
+      <div class="kpi green"><div class="kpi-ico">🏭</div><div class="kpi-val" id="kIn" style="color:var(--green)">—</div><div class="kpi-lbl">In-House (month)</div></div>
     </div>
 
     <div class="tabs" id="tabs">
       <button class="tab on" data-t="cases">📋 Cases</button>
+      <button class="tab" data-t="prepared">📝 Prepared List Order <span id="tPrepBadge" style="display:none;background:var(--purple);color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;margin-left:4px"></span></button>
       <button class="tab" data-t="orders">🚚 Outsourced Orders</button>
       <button class="tab" data-t="report">📊 Monthly Report</button>
+    </div>
+
+    <!-- Selection bar — appears when any in-house case is selected -->
+    <div class="sel-bar" id="selBar">
+      <div style="font-size:14px;font-weight:800;color:var(--purple)">🚚 Selected for Outsourcing</div>
+      <div class="sel-pill"><span class="lbl">Cases</span><span id="selCases">0</span></div>
+      <div class="sel-pill"><span class="lbl">Aligners</span><span id="selAlig">0</span></div>
+      <div class="sel-pill"><span class="lbl">Upper</span><span id="selUp">0</span></div>
+      <div class="sel-pill"><span class="lbl">Lower</span><span id="selLo">0</span></div>
+      <div class="sel-pill"><span class="lbl">Est. Amount</span><span id="selAmt">€0.00</span></div>
+      <div style="flex:1"></div>
+      <button class="btn btn-g" onclick="clearSelection()">✕ Clear</button>
+      <button class="btn btn-p" onclick="goToPrepared()">📝 Prepare Order →</button>
     </div>
 
     <!-- Tab: Cases ──────────────────────────────────────────────────── -->
@@ -122,14 +169,100 @@ tbody tr.is-out:hover{background:#f3e8ff}
         <button class="btn btn-g" onclick="exportCasesCsv()">⬇ Export CSV</button>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Case #</th><th>Patient</th><th>Doctor</th><th>Status</th><th>Aligners</th><th>Supplier</th><th>Cost</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
-        <tbody id="tCases"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th style="width:40px;text-align:center">Pick</th><th>Case #</th><th>Patient</th><th>Doctor</th><th>Status</th><th>↑ Upper</th><th>↓ Lower</th><th>Total</th><th>Supplier</th><th>Cost</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="tCases"><tr><td colspan="12" class="empty">Loading…</td></tr></tbody>
       </table></div>
+    </section>
+
+    <!-- Tab: Prepared List Order ─────────────────────────────────────── -->
+    <section class="card" id="tab-prepared" style="display:none">
+      <div id="prepEmpty" class="empty" style="padding:60px 20px">
+        <div style="font-size:40px;margin-bottom:12px">📭</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">No cases selected yet</div>
+        <div style="font-size:13px;color:var(--mu)">Pick cases from the Cases tab by tapping the selection icon, then come back here to prepare the outsourced order.</div>
+        <button class="btn btn-p" style="margin-top:16px" onclick="switchTab('cases')">← Go to Cases</button>
+      </div>
+      <div id="prepContent" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+          <div>
+            <div style="font-size:16px;font-weight:800">📝 Prepared List Order</div>
+            <div style="font-size:12px;color:var(--mu);margin-top:2px">Bulk outsource <span id="prepCountInline">0</span> cases to one distributor</div>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--mu)">PO# <strong id="poNumBadge" style="color:var(--purple)">—</strong></div>
+        </div>
+
+        <div class="po-grid">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Selected Cases</div>
+            <div class="tw"><table>
+              <thead><tr><th>Case #</th><th>Patient</th><th>↑ U</th><th>↓ L</th><th>Total</th><th>€/unit</th><th>Subtotal</th><th></th></tr></thead>
+              <tbody id="tPrep"></tbody>
+            </table></div>
+          </div>
+          <div>
+            <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="grid-column:1/-1">
+                <div class="lbl">Distributor *</div>
+                <select class="fi" id="pSupplier" style="width:100%"></select>
+                <div style="font-size:11px;color:var(--mu);margin-top:3px">Default distributor auto-selected. Change it anytime.</div>
+              </div>
+              <div>
+                <div class="lbl">Default Price / Aligner</div>
+                <input type="number" class="fi" id="pPrice" style="width:100%" step="0.01" min="0"/>
+              </div>
+              <div>
+                <div class="lbl">Currency</div>
+                <select class="fi" id="pCur" style="width:100%"><option value="EUR">EUR €</option><option value="USD">USD $</option><option value="GBP">GBP £</option></select>
+              </div>
+              <div>
+                <div class="lbl">Expected Return Date *</div>
+                <input type="date" class="fi" id="pReturn" style="width:100%"/>
+              </div>
+              <div>
+                <div class="lbl">Expected Invoice Date</div>
+                <input type="date" class="fi" id="pInvExp" style="width:100%"/>
+              </div>
+              <div style="grid-column:1/-1">
+                <div class="lbl">Notes</div>
+                <textarea class="fi" id="pNotes" rows="2" style="width:100%;resize:vertical"></textarea>
+              </div>
+            </div>
+
+            <div class="po-stats">
+              <div class="po-stat"><div class="po-stat-val" id="pStatUp" style="color:var(--blue)">0</div><div class="po-stat-lbl">↑ Upper</div></div>
+              <div class="po-stat"><div class="po-stat-val" id="pStatLo" style="color:var(--blue)">0</div><div class="po-stat-lbl">↓ Lower</div></div>
+              <div class="po-stat"><div class="po-stat-val" id="pStatTot" style="color:var(--purple)">0</div><div class="po-stat-lbl">Aligners</div></div>
+            </div>
+
+            <div style="background:var(--p50);border:1px solid var(--p100);border-radius:12px;padding:14px;margin-top:12px">
+              <div class="po-row"><span class="lbl">Cases</span><span class="val" id="pRowCases">0</span></div>
+              <div class="po-row"><span class="lbl">Aligners</span><span class="val" id="pRowAlig">0</span></div>
+              <div class="po-row"><span class="lbl">Avg €/aligner</span><span class="val" id="pRowAvg">€0.00</span></div>
+              <div class="po-row"><span class="lbl">Total Amount</span><span class="val po-total" id="pRowTotal">€0.00</span></div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+              <button class="btn btn-g" onclick="switchTab('cases')">← Back</button>
+              <button class="btn btn-p" onclick="savePreparedOrder()">💾 Save &amp; Create Orders</button>
+            </div>
+            <div id="pErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Tab: Outsourced Orders ──────────────────────────────────────── -->
     <section class="card" id="tab-orders" style="display:none">
       <div class="filters">
+        <div><div class="fi-lbl">Lifecycle</div>
+          <select class="fi" id="oLife">
+            <option value="">All</option>
+            <option value="awaiting_return">Awaiting return</option>
+            <option value="received_noinv">Received — no invoice</option>
+            <option value="invoiced_unpaid">Invoiced — unpaid</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
         <div><div class="fi-lbl">Payment</div>
           <select class="fi" id="oPay">
             <option value="">All</option>
@@ -140,16 +273,59 @@ tbody tr.is-out:hover{background:#f3e8ff}
           </select>
         </div>
         <div><div class="fi-lbl">Supplier</div><select class="fi" id="oSupplier"><option value="">All</option></select></div>
+        <div><div class="fi-lbl">PO #</div><input class="fi" id="oPO" placeholder="PO-…"/></div>
         <div><div class="fi-lbl">From</div><input type="date" class="fi" id="oFrom"/></div>
         <div><div class="fi-lbl">To</div><input type="date" class="fi" id="oTo"/></div>
         <div style="flex:1"></div>
         <button class="btn btn-g" onclick="exportOrdersCsv()">⬇ Export CSV</button>
       </div>
       <div class="tw"><table>
-        <thead><tr><th>Case #</th><th>Patient</th><th>Supplier</th><th>Aligners</th><th>Cost/Unit</th><th>Total</th><th>Outsourced</th><th>Received</th><th>Invoice</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
-        <tbody id="tOrders"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th>PO #</th><th>Case #</th><th>Patient</th><th>Supplier</th><th>Aligners</th><th>Cost/Unit</th><th>Total</th><th>Outsourced</th><th>Expected</th><th>Received</th><th>Invoice</th><th>Payment</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="tOrders"><tr><td colspan="13" class="empty">Loading…</td></tr></tbody>
       </table></div>
     </section>
+
+    <!-- Mark Received Modal -->
+    <div class="mov" id="mRecv">
+      <div class="mo">
+        <div class="mo-t">📦 Mark Order Received</div>
+        <div class="mo-s" id="mRecvSub">Record the date the aligners arrived.</div>
+        <div class="fg2" style="margin-bottom:12px">
+          <div><div class="lbl">Received Date *</div><input type="date" class="fi" id="rDate" style="width:100%"/></div>
+          <div><div class="lbl">Expected Invoice Date</div><input type="date" class="fi" id="rInvExp" style="width:100%"/></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-g" onclick="closeRecvModal()">Cancel</button>
+          <button class="btn btn-p" onclick="saveReceived()">💾 Mark Received</button>
+        </div>
+        <div id="rErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+      </div>
+    </div>
+
+    <!-- Record Invoice Modal -->
+    <div class="mov" id="mInv">
+      <div class="mo">
+        <div class="mo-t">🧾 Record Invoice</div>
+        <div class="mo-s" id="mInvSub">Log the supplier invoice — payment remains pending until marked paid.</div>
+        <div class="fg2" style="margin-bottom:12px">
+          <div><div class="lbl">Invoice # *</div><input class="fi" id="iNo" style="width:100%" placeholder="INV-…"/></div>
+          <div><div class="lbl">Invoice Received Date *</div><input type="date" class="fi" id="iDate" style="width:100%"/></div>
+          <div><div class="lbl">Invoice Amount</div><input type="number" class="fi" id="iAmt" step="0.01" min="0" style="width:100%"/></div>
+          <div><div class="lbl">Status</div>
+            <select class="fi" id="iStatus" style="width:100%">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="disputed">Disputed</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-g" onclick="closeInvModal()">Cancel</button>
+          <button class="btn btn-p" onclick="saveInvoice()">💾 Record Invoice</button>
+        </div>
+        <div id="iErr" style="color:var(--red);font-size:12px;margin-top:8px;min-height:14px"></div>
+      </div>
+    </div>
 
     <!-- Tab: Monthly Report ─────────────────────────────────────────── -->
     <section class="card" id="tab-report" style="display:none">
@@ -207,6 +383,8 @@ const money = (v,c='EUR') => { const s=Number(v||0).toLocaleString(undefined,{mi
 const user = sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
 
 let allCases=[], allOrders=[], suppliers=[], chart=null, currentModalCase=null
+let selectedIds=new Set()  // set of case_ids picked for the prepared order
+let defaultSupplier=null   // supplier row marked is_default_distributor
 
 // ── Fetch everything in parallel, paginate bloom_cases past 1000-cap ──
 async function fetchAllBloom(){
@@ -223,37 +401,83 @@ async function fetchAllBloom(){
   }
   return all
 }
+async function fetchAllAligners(){
+  const PAGE=1000; let from=0; const all=[]
+  while(true){
+    const{data,error}=await sb.from('bloom_aligner_details')
+      .select('case_number,aligner_upper,aligner_lower,number_of_aligners,order_type')
+      .range(from,from+PAGE-1)
+    if(error||!data?.length)break
+    all.push(...data)
+    if(data.length<PAGE)break
+    from+=PAGE
+  }
+  return all
+}
 
 async function loadAll(){
-  const [sRes, oRes, cRes] = await Promise.all([
-    sb.from('suppliers').select('id,name,country').order('name'),
+  const [sRes, oRes, cRes, aRes] = await Promise.all([
+    sb.from('suppliers').select('id,name,country,is_default_distributor,default_price_per_aligner,default_currency').order('name'),
     sb.from('outsourced_orders').select('*').order('outsource_date',{ascending:false}),
-    fetchAllBloom()
+    fetchAllBloom(),
+    fetchAllAligners()
   ])
   suppliers = sRes.data||[]
   allOrders = oRes.data||[]
+  defaultSupplier = suppliers.find(s=>s.is_default_distributor) || null
+
+  // Aggregate upper/lower per case from bloom_aligner_details (TreatmentPlan preferred)
+  const aligByCase = new Map()
+  ;(aRes||[]).forEach(r=>{
+    const k=String(r.case_number||'')
+    if(!k) return
+    const up=Number(r.aligner_upper)||0, lo=Number(r.aligner_lower)||0
+    const existing=aligByCase.get(k)||{upper:0,lower:0,src:''}
+    // Prefer TreatmentPlan rows; only replace if this is TP and the existing isn't
+    if(r.order_type==='TreatmentPlan'){
+      if(existing.src!=='TreatmentPlan'){aligByCase.set(k,{upper:up,lower:lo,src:'TreatmentPlan'})}
+      else{aligByCase.set(k,{upper:existing.upper+up,lower:existing.lower+lo,src:'TreatmentPlan'})}
+    } else if(!existing.src){
+      aligByCase.set(k,{upper:up,lower:lo,src:r.order_type||'other'})
+    }
+  })
+
   // Merge bloom + outsourcing state into a unified list
   const orderByCase = new Map(allOrders.map(o=>[String(o.case_id),o]))
-  allCases = (cRes||[]).map(b=>({
-    case_id:String(b.case_id),
-    patient_name:b.patient_name||'',
-    doctor:b.doctor||'',
-    clinic:b.clinic||'',
-    current_status:b.current_status||'',
-    outsourced: orderByCase.has(String(b.case_id)),
-    order: orderByCase.get(String(b.case_id))||null
-  }))
+  allCases = (cRes||[]).map(b=>{
+    const k=String(b.case_id)
+    const a=aligByCase.get(k)||{upper:0,lower:0}
+    return{
+      case_id:k,
+      patient_name:b.patient_name||'',
+      doctor:b.doctor||'',
+      clinic:b.clinic||'',
+      current_status:b.current_status||'',
+      aligners_upper:a.upper,
+      aligners_lower:a.lower,
+      aligners_total:a.upper+a.lower,
+      outsourced: orderByCase.has(k),
+      order: orderByCase.get(k)||null
+    }
+  })
   populateSupplierDropdowns()
+  // Purge any previously-selected cases that have since been outsourced
+  selectedIds = new Set([...selectedIds].filter(id=>{
+    const c=allCases.find(x=>x.case_id===id); return c && !c.outsourced
+  }))
   computeKpis()
-  renderCases(); renderOrders(); renderReport()
+  renderCases(); renderOrders(); renderReport(); renderSelectionBar(); renderPrepared()
 }
 
 function populateSupplierDropdowns(){
-  const opts = '<option value="">All suppliers</option>' + suppliers.map(s=>`<option value="${s.id}">${s.name}${s.country?' ('+s.country+')':''}</option>`).join('')
+  const opts = '<option value="">All suppliers</option>' + suppliers.map(s=>`<option value="${s.id}">${s.name}${s.country?' ('+s.country+')':''}${s.is_default_distributor?' ★':''}</option>`).join('')
   $('fSupplier').innerHTML = opts
   $('oSupplier').innerHTML = opts
+  const pickOpts = suppliers.map(s=>`<option value="${s.id}">${s.name}${s.country?' ('+s.country+')':''}${s.is_default_distributor?' ★ default':''}</option>`).join('')
   // Modal supplier picker (required → no "All" option)
-  $('mSupplier').innerHTML = '<option value="">— Select supplier —</option>' + suppliers.map(s=>`<option value="${s.id}">${s.name}${s.country?' ('+s.country+')':''}</option>`).join('')
+  $('mSupplier').innerHTML = '<option value="">— Select supplier —</option>' + pickOpts
+  // Prepared-order supplier picker
+  if($('pSupplier')) $('pSupplier').innerHTML = '<option value="">— Select distributor —</option>' + pickOpts
 }
 
 function computeKpis(){
@@ -261,12 +485,18 @@ function computeKpis(){
   const mStart=new Date(today.getFullYear(),today.getMonth(),1)
   const isThisMonth = d => d && new Date(d)>=mStart
   const monthOrders = allOrders.filter(o=>isThisMonth(o.outsource_date))
-  const monthInhouse = allCases.filter(c=>!c.outsourced && isThisMonth(c.order?.outsource_date || today.toISOString())).length // approximation — no created_at on bloom_cases
   $('kOut').textContent = monthOrders.length
   $('kIn').textContent  = Math.max(0, allCases.filter(c=>!c.outsourced).length - (monthOrders.length)) // rough
   const pending = monthOrders.filter(o=>o.payment_status!=='paid').reduce((a,o)=>a+Number(o.total_cost||0),0)
   $('kPay').textContent = money(pending,'EUR')
-  const overdue = allOrders.filter(o=>o.payment_status!=='paid' && o.expected_return_date && new Date(o.expected_return_date)<today).length
+  // Awaiting return = not yet received
+  const awaitingRet = allOrders.filter(o=>!o.received_date)
+  $('kAwaitRet').textContent = awaitingRet.length
+  // Awaiting invoice = received but no invoice recorded
+  const awaitingInv = allOrders.filter(o=>o.received_date && !o.invoice_no)
+  $('kAwaitInv').textContent = awaitingInv.length
+  // Overdue returns = not yet received AND past expected date
+  const overdue = awaitingRet.filter(o=>o.expected_return_date && new Date(o.expected_return_date)<today).length
   $('kOver').textContent = overdue
   const aligners = monthOrders.reduce((a,o)=>a+Number(o.aligners_total||0),0)
   $('kAlig').textContent = aligners
@@ -285,57 +515,189 @@ function renderCases(){
   $('tCases').innerHTML = filtered.length ? filtered.map(c=>{
     const o=c.order
     const payCls = !o?'':o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
-    return `<tr class="${c.outsourced?'is-out':''}">
+    const sel = selectedIds.has(c.case_id)
+    const pickCell = c.outsourced
+      ? `<span title="Already outsourced" style="opacity:.4">🚚</span>`
+      : `<button class="sel-ico ${sel?'on':''}" onclick="toggleSelect('${c.case_id}')" title="${sel?'Unpick':'Pick for outsourcing'}">${sel?'✓':'＋'}</button>`
+    const rowCls = c.outsourced?'is-out':(sel?'is-sel':'')
+    return `<tr class="${rowCls}">
+      <td style="text-align:center">${pickCell}</td>
       <td class="mono" style="font-weight:700">${c.case_id}</td>
       <td>${c.patient_name||'—'}</td>
       <td style="color:var(--mu)">${c.doctor||'—'}</td>
       <td>${c.outsourced?'<span class="bdg b-p">🚚 Outsourced</span>':'<span class="bdg b-g">🏭 In-House</span>'}</td>
-      <td class="mono">${o?o.aligners_total||'—':'—'}</td>
+      <td class="mono">${c.aligners_upper||0}</td>
+      <td class="mono">${c.aligners_lower||0}</td>
+      <td class="mono" style="font-weight:700">${c.aligners_total||0}</td>
       <td>${o?.supplier_name||'—'}</td>
       <td class="mono">${o?money(o.total_cost,o.currency):'—'}</td>
       <td>${o?`<span class="bdg ${payCls}">${o.payment_status}</span>`:'—'}</td>
       <td style="text-align:right">
         ${c.outsourced
-          ? `<button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')">✏️ Edit</button>
-             <button class="btn btn-sm btn-g" onclick="unOutsource('${o.id}','${c.case_id}')">↩ Undo</button>`
-          : `<button class="btn btn-sm btn-p" onclick="openOutModal('${c.case_id}')">🚚 Outsource</button>`}
+          ? `<button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')">✏️</button>
+             <button class="btn btn-sm btn-g" onclick="unOutsource('${o.id}','${c.case_id}')">↩</button>`
+          : ''}
       </td>
     </tr>`
-  }).join('') : '<tr><td colspan="9" class="empty">No cases match these filters.</td></tr>'
+  }).join('') : '<tr><td colspan="12" class="empty">No cases match these filters.</td></tr>'
+}
+
+// ── Selection + header counter ────────────────────────────────────────
+window.toggleSelect=(caseId)=>{
+  const c=allCases.find(x=>x.case_id===String(caseId))
+  if(!c||c.outsourced) return
+  if(selectedIds.has(c.case_id)) selectedIds.delete(c.case_id)
+  else selectedIds.add(c.case_id)
+  renderCases(); renderSelectionBar(); renderPrepared()
+}
+window.clearSelection=()=>{
+  selectedIds.clear()
+  renderCases(); renderSelectionBar(); renderPrepared()
+}
+window.goToPrepared=()=>{
+  if(selectedIds.size===0){ntf('Pick at least one case first','err');return}
+  switchTab('prepared')
+}
+function selectedCases(){
+  return [...selectedIds].map(id=>allCases.find(c=>c.case_id===id)).filter(Boolean)
+}
+function renderSelectionBar(){
+  const picks=selectedCases()
+  const n=picks.length
+  const up=picks.reduce((a,c)=>a+(c.aligners_upper||0),0)
+  const lo=picks.reduce((a,c)=>a+(c.aligners_lower||0),0)
+  const tot=up+lo
+  const price=defaultSupplier?.default_price_per_aligner||0
+  const cur=defaultSupplier?.default_currency||'EUR'
+  $('selCases').textContent=n
+  $('selAlig').textContent=tot
+  $('selUp').textContent=up
+  $('selLo').textContent=lo
+  $('selAmt').textContent=money(tot*price,cur)
+  $('selBar').classList.toggle('on', n>0)
+  $('tPrepBadge').textContent=n
+  $('tPrepBadge').style.display=n>0?'inline-block':'none'
+  // Topbar compact counter
+  $('hdrCases').textContent=n
+  $('hdrAlig').textContent=tot
+  $('hdrUp').textContent=up
+  $('hdrLo').textContent=lo
+  $('hdrSel').style.display=n>0?'flex':'none'
 }
 
 // ── Orders tab ────────────────────────────────────────────────────────
 function renderOrders(){
   const pay=$('oPay').value, sup=$('oSupplier').value, from=$('oFrom').value, to=$('oTo').value
+  const life=$('oLife').value, po=($('oPO').value||'').trim().toLowerCase()
   const today=new Date().toISOString().slice(0,10)
+  const lifecycleOf = o => {
+    if(o.payment_status==='paid') return 'paid'
+    if(!o.received_date) return 'awaiting_return'
+    if(!o.invoice_no) return 'received_noinv'
+    return 'invoiced_unpaid'
+  }
   const filtered=allOrders.filter(o=>{
     if(pay && o.payment_status!==pay) return false
     if(sup && o.supplier_id!==sup) return false
     if(from && o.outsource_date<from) return false
     if(to && o.outsource_date>to) return false
+    if(po && !String(o.batch_ref||'').toLowerCase().includes(po)) return false
+    if(life && lifecycleOf(o)!==life) return false
     return true
   })
-  $('tOrders').innerHTML = filtered.length ? filtered.map(o=>{
+  // Group consecutive rows by batch_ref (after sorting by batch_ref then outsource_date)
+  const sorted=[...filtered].sort((a,b)=>{
+    const pa=a.batch_ref||'zzz', pb=b.batch_ref||'zzz'
+    if(pa!==pb) return pa<pb?-1:1
+    return (b.outsource_date||'').localeCompare(a.outsource_date||'')
+  })
+  let lastPo=null
+  $('tOrders').innerHTML = sorted.length ? sorted.map(o=>{
     const c = allCases.find(x=>x.case_id===String(o.case_id))
     const payCls = o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
-    const overdue = o.payment_status!=='paid' && o.expected_return_date && o.expected_return_date<today
+    const overdue = !o.received_date && o.expected_return_date && o.expected_return_date<today
+    const poNew = o.batch_ref && o.batch_ref!==lastPo
+    lastPo = o.batch_ref
+    const poCell = o.batch_ref
+      ? `<td class="mono" style="font-weight:700;color:var(--purple);${poNew?'border-top:2px solid var(--p100)':''}">${poNew?o.batch_ref:'·'}</td>`
+      : `<td style="color:var(--dim)">—</td>`
     return `<tr class="${overdue?'':'is-out'}" style="${overdue?'background:#fef2f2':''}">
+      ${poCell}
       <td class="mono" style="font-weight:700">${o.case_id}</td>
       <td>${c?.patient_name||'—'}</td>
       <td>${o.supplier_name||'—'}</td>
-      <td class="mono">${o.aligners_total||0}</td>
+      <td class="mono">${o.aligners_total||0} <span style="color:var(--mu);font-size:11px">(↑${o.aligners_upper||0} ↓${o.aligners_lower||0})</span></td>
       <td class="mono">${money(o.cost_per_aligner,o.currency)}</td>
       <td class="mono" style="font-weight:700">${money(o.total_cost,o.currency)}</td>
       <td class="mono">${fdt(o.outsource_date)}</td>
-      <td class="mono">${fdt(o.received_date)}</td>
-      <td class="mono">${o.invoice_no||'—'}</td>
+      <td class="mono" style="${overdue?'color:var(--red);font-weight:700':''}">${fdt(o.expected_return_date)}</td>
+      <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
+      <td class="mono">${o.invoice_no?`${o.invoice_no}${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')">✏️</button>
-        ${o.payment_status!=='paid'?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')">💰 Mark paid</button>`:''}
+        <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')" title="Edit">✏️</button>
+        ${!o.received_date?`<button class="btn btn-sm btn-b" onclick="openRecvModal('${o.id}')" title="Mark Received">📦</button>`:''}
+        ${o.received_date && !o.invoice_no?`<button class="btn btn-sm btn-b" onclick="openInvModal('${o.id}')" title="Record Invoice">🧾</button>`:''}
+        ${o.payment_status!=='paid' && o.invoice_no?`<button class="btn btn-sm btn-b" onclick="markPaid('${o.id}')" title="Mark Paid">💰</button>`:''}
       </td>
     </tr>`
-  }).join('') : '<tr><td colspan="11" class="empty">No outsourced orders yet.</td></tr>'
+  }).join('') : '<tr><td colspan="13" class="empty">No outsourced orders yet.</td></tr>'
+}
+
+// ── Receive / Invoice modals ──────────────────────────────────────────
+let recvOrderId=null, invOrderId=null
+window.openRecvModal=(id)=>{
+  const o=allOrders.find(x=>x.id===id); if(!o) return
+  recvOrderId=id
+  const c=allCases.find(x=>x.case_id===String(o.case_id))
+  $('mRecvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.batch_ref?' · PO '+o.batch_ref:''}`
+  $('rDate').value=new Date().toISOString().slice(0,10)
+  $('rInvExp').value=o.invoice_due_date||''
+  $('rErr').textContent=''
+  $('mRecv').classList.add('on')
+}
+window.closeRecvModal=()=>$('mRecv').classList.remove('on')
+window.saveReceived=async()=>{
+  $('rErr').textContent=''
+  const d=$('rDate').value
+  if(!d){$('rErr').textContent='Received date required';return}
+  const invExp=$('rInvExp').value||null
+  const{error}=await sb.from('outsourced_orders').update({
+    received_date:d, invoice_due_date:invExp, updated_at:new Date().toISOString()
+  }).eq('id',recvOrderId)
+  if(error){$('rErr').textContent=error.message;return}
+  ntf('✅ Order marked received'); closeRecvModal(); await loadAll()
+}
+
+window.openInvModal=(id)=>{
+  const o=allOrders.find(x=>x.id===id); if(!o) return
+  invOrderId=id
+  const c=allCases.find(x=>x.case_id===String(o.case_id))
+  $('mInvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.batch_ref?' · PO '+o.batch_ref:''}`
+  $('iNo').value=o.invoice_no||''
+  $('iDate').value=o.invoice_date||new Date().toISOString().slice(0,10)
+  $('iAmt').value=o.total_cost||''
+  $('iStatus').value=o.payment_status==='paid'?'approved':(o.payment_status||'pending')
+  $('iErr').textContent=''
+  $('mInv').classList.add('on')
+}
+window.closeInvModal=()=>$('mInv').classList.remove('on')
+window.saveInvoice=async()=>{
+  $('iErr').textContent=''
+  const no=$('iNo').value.trim()
+  const d=$('iDate').value
+  if(!no){$('iErr').textContent='Invoice number required';return}
+  if(!d){$('iErr').textContent='Invoice received date required';return}
+  const patch={
+    invoice_no:no, invoice_date:d,
+    payment_status:$('iStatus').value||'pending',
+    updated_at:new Date().toISOString()
+  }
+  const amt=Number($('iAmt').value||0)
+  if(amt>0) patch.total_cost=amt
+  const{error}=await sb.from('outsourced_orders').update(patch).eq('id',invOrderId)
+  if(error){$('iErr').textContent=error.message;return}
+  ntf('✅ Invoice recorded'); closeInvModal(); await loadAll()
 }
 
 // ── Report tab — Chart + supplier breakdown ───────────────────────────
@@ -497,8 +859,8 @@ window.exportCasesCsv=()=>{
   download(`cases_outsourcing_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
 }
 window.exportOrdersCsv=()=>{
-  const rows=[['Case #','Supplier','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice','Payment','Paid Amount','Paid Date','Notes']]
-  allOrders.forEach(o=>rows.push([o.case_id,o.supplier_name,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
+  const rows=[['PO #','Case #','Supplier','Upper','Lower','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice #','Invoice Expected','Invoice Received','Payment','Paid Amount','Paid Date','Notes']]
+  allOrders.forEach(o=>rows.push([o.batch_ref,o.case_id,o.supplier_name,o.aligners_upper,o.aligners_lower,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.invoice_due_date,o.invoice_date,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
   download(`outsourced_orders_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
 }
 window.exportReportCsv=()=>{
@@ -510,17 +872,141 @@ window.exportReportCsv=()=>{
   download(`outsourcing_report_${new Date().toISOString().slice(0,7)}.csv`, csv(rows))
 }
 
+// ── Prepared List Order tab ───────────────────────────────────────────
+let prepOverrides={}   // case_id → {price}  (per-row price override)
+let preparedPoNum=''
+
+function ensurePoNum(){
+  if(preparedPoNum) return preparedPoNum
+  const d=new Date()
+  const ymd=d.toISOString().slice(0,10).replace(/-/g,'')
+  const rnd=Math.floor(1000+Math.random()*9000)
+  preparedPoNum=`PO-${ymd}-${rnd}`
+  return preparedPoNum
+}
+
+function renderPrepared(){
+  const picks=selectedCases()
+  const empty=$('prepEmpty'), content=$('prepContent')
+  if(!picks.length){
+    empty.style.display='block'; content.style.display='none'
+    preparedPoNum=''
+    return
+  }
+  empty.style.display='none'; content.style.display='block'
+  $('prepCountInline').textContent=picks.length
+  $('poNumBadge').textContent=ensurePoNum()
+
+  // Auto-fill supplier + price on first open / whenever supplier value is empty
+  if(!$('pSupplier').value){
+    if(defaultSupplier) $('pSupplier').value=defaultSupplier.id
+  }
+  // If no price yet, take the selected supplier's default
+  if(!$('pPrice').value){
+    const sId=$('pSupplier').value
+    const sup=suppliers.find(s=>s.id===sId) || defaultSupplier
+    if(sup?.default_price_per_aligner!=null) $('pPrice').value=sup.default_price_per_aligner
+    if(sup?.default_currency) $('pCur').value=sup.default_currency
+  }
+
+  const basePrice=Number($('pPrice').value||0)
+  const cur=$('pCur').value||'EUR'
+  $('tPrep').innerHTML=picks.map(c=>{
+    const up=c.aligners_upper||0, lo=c.aligners_lower||0, tot=up+lo
+    const price=prepOverrides[c.case_id]?.price ?? basePrice
+    const sub=tot*price
+    return `<tr>
+      <td class="mono" style="font-weight:700">${c.case_id}</td>
+      <td>${c.patient_name||'—'}</td>
+      <td class="mono">${up}</td>
+      <td class="mono">${lo}</td>
+      <td class="mono" style="font-weight:700">${tot}</td>
+      <td><input type="number" step="0.01" min="0" value="${price}" oninput="setPrepPrice('${c.case_id}',this.value)" style="width:80px;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;font-family:var(--mono);font-size:12px"/></td>
+      <td class="mono" style="font-weight:700">${money(sub,cur)}</td>
+      <td style="text-align:right"><button class="sel-ico on" onclick="toggleSelect('${c.case_id}')" title="Remove">✕</button></td>
+    </tr>`
+  }).join('')
+
+  const totUp=picks.reduce((a,c)=>a+(c.aligners_upper||0),0)
+  const totLo=picks.reduce((a,c)=>a+(c.aligners_lower||0),0)
+  const totAl=totUp+totLo
+  const totAmt=picks.reduce((a,c)=>{
+    const price=prepOverrides[c.case_id]?.price ?? basePrice
+    return a + ((c.aligners_upper||0)+(c.aligners_lower||0))*price
+  },0)
+  $('pStatUp').textContent=totUp
+  $('pStatLo').textContent=totLo
+  $('pStatTot').textContent=totAl
+  $('pRowCases').textContent=picks.length
+  $('pRowAlig').textContent=totAl
+  $('pRowAvg').textContent=totAl>0?money(totAmt/totAl,cur):money(0,cur)
+  $('pRowTotal').textContent=money(totAmt,cur)
+}
+window.setPrepPrice=(id,val)=>{
+  const n=Number(val||0)
+  prepOverrides[id]={price:isNaN(n)?0:n}
+  renderPrepared()
+}
+// Supplier change → refresh defaults (modules run after DOM parse so bind immediately)
+$('pSupplier')?.addEventListener('change',()=>{
+  const sId=$('pSupplier').value
+  const sup=suppliers.find(s=>s.id===sId)
+  if(sup?.default_price_per_aligner!=null){$('pPrice').value=sup.default_price_per_aligner; prepOverrides={}}
+  if(sup?.default_currency){$('pCur').value=sup.default_currency}
+  renderPrepared()
+})
+;['pPrice','pCur'].forEach(id=>$(id)?.addEventListener('input',()=>{prepOverrides={}; renderPrepared()}))
+
+window.savePreparedOrder=async()=>{
+  $('pErr').textContent=''
+  const picks=selectedCases()
+  if(!picks.length){$('pErr').textContent='No cases selected';return}
+  const supId=$('pSupplier').value
+  if(!supId){$('pErr').textContent='Distributor is required';return}
+  const sup=suppliers.find(s=>s.id===supId)
+  const expected=$('pReturn').value||null
+  if(!expected){$('pErr').textContent='Expected return date is required';return}
+  const invExp=$('pInvExp').value||null
+  const basePrice=Number($('pPrice').value||0)
+  const cur=$('pCur').value||'EUR'
+  const po=ensurePoNum()
+  const today=new Date().toISOString().slice(0,10)
+  const notes=$('pNotes').value.trim()||null
+  const rows=picks.map(c=>{
+    const up=c.aligners_upper||0, lo=c.aligners_lower||0
+    const price=prepOverrides[c.case_id]?.price ?? basePrice
+    return {
+      case_id:c.case_id, supplier_id:supId, supplier_name:sup?.name||null,
+      outsource_date:today, expected_return_date:expected,
+      invoice_due_date:invExp,
+      aligners_upper:up, aligners_lower:lo,
+      cost_per_aligner:price, total_cost:(up+lo)*price, currency:cur,
+      notes:notes, created_by:user||null, payment_status:'pending',
+      batch_ref:po
+    }
+  })
+  const{error}=await sb.from('outsourced_orders').insert(rows)
+  if(error){$('pErr').textContent=error.message;return}
+  ntf(`✅ ${rows.length} case${rows.length>1?'s':''} outsourced (${po})`)
+  selectedIds.clear(); prepOverrides={}; preparedPoNum=''
+  ;['pSupplier','pPrice','pCur','pReturn','pInvExp','pNotes'].forEach(id=>{if($(id))$(id).value=''})
+  switchTab('orders')
+  await loadAll()
+}
+
 // ── Tab + filter wiring ───────────────────────────────────────────────
-document.querySelectorAll('#tabs .tab').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.remove('on'))
-  b.classList.add('on')
-  const k=b.dataset.t
+function switchTab(k){
+  document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.toggle('on', x.dataset.t===k))
   $('tab-cases').style.display=k==='cases'?'':'none'
+  $('tab-prepared').style.display=k==='prepared'?'':'none'
   $('tab-orders').style.display=k==='orders'?'':'none'
   $('tab-report').style.display=k==='report'?'':'none'
-}))
+  if(k==='prepared') renderPrepared()
+}
+window.switchTab=switchTab
+document.querySelectorAll('#tabs .tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)))
 ;['fStatus','fSupplier','fSearch'].forEach(id=>$(id).addEventListener('input',renderCases))
-;['oPay','oSupplier','oFrom','oTo'].forEach(id=>$(id).addEventListener('input',renderOrders))
+;['oPay','oSupplier','oFrom','oTo','oLife','oPO'].forEach(id=>$(id)?.addEventListener('input',renderOrders))
 
 loadAll()
 </script>
