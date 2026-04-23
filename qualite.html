@@ -1081,7 +1081,8 @@ function generatePrintReport(q){
     <div class="sig-box"><div class="sig-label">Directeur général</div><div class="sig-name" style="visibility:hidden">x</div><div style="height:40px"></div><div class="sig-line">Signature</div></div>
   </div>
   <div class="footer"><div>© CEDARWINGS SAS — Document confidentiel · ${CW_DOC_REF.qc.iso}</div><div>Généré le ${new Date().toLocaleDateString('fr-FR')} — ${CW_DOC_REF.qc.code}</div></div>
-  </div></body></html>`
+  </div><script src="table_sort.js?v=20260423a"></script>
+</body></html>`
   const w=window.open('','_blank')
   if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600)}
 }
@@ -1101,5 +1102,6 @@ load()
   <span>© 2026 <strong>Cedarwings SAS</strong> — Dental Aligner Manufacturing Platform</span>
   <span>v2.0 · ISO 13485 Compliant</span>
 </div>
+<script src="table_sort.js?v=20260423a"></script>
 </body>
 </html>
