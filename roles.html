@@ -145,7 +145,7 @@ tbody tr:hover{background:#f8fafc}
 .req-name{font-size:13px;font-weight:700}
 .req-meta{font-size:11px;color:var(--mu);margin-top:3px}
 @media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.sidebar{display:none}.content{margin-left:0}}
+@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.sidebar{display:none}.content{margin-left:0}.main{margin-left:0}}
 @media(max-width:640px){.kpi-grid{grid-template-columns:1fr 1fr}.g2e{grid-template-columns:1fr}}
 
 .main{margin-left:240px;min-height:100vh}
@@ -236,16 +236,14 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 </aside>
 <div class="main">
   <div class="topbar">
-  
     <div>
       <div style="font-size:16px;font-weight:800">🔐 Roles & Permissions</div>
       <div style="font-size:11px;color:var(--mu)">Define roles and control which pages each role can access</div>
     </div>
     <button class="btn bb" onclick="openNew()">+ Create Role</button>
   </div>
-</div>
 
-<div class="body">
+  <div class="body">
     <!-- ROLES LIST -->
     <div class="card">
       <div style="font-size:14px;font-weight:800;margin-bottom:14px">📋 All Roles</div>
@@ -333,7 +331,9 @@ const ALL_PAGES = {
     customer_feedback:    { label:"Customer Feedback",    icon:"💬", section:"Quality" },
     internal_audit:       { label:"Internal Audits",      icon:"🔍", section:"Quality" },
     inventory:            { label:"Inventory",            icon:"📦", section:"Resources" },
+    requisition:          { label:"Requisitions",         icon:"📋", section:"Resources" },
     bloom_import:         { label:"Bloom Import",         icon:"🔵", section:"Orders" },
+    outsourcing:          { label:"Outsourcing",          icon:"🚚", section:"Orders" },
     iso_compliance:       { label:"ISO 13485 Compliance", icon:"✅", section:"System" },
     settings:             { label:"Settings",             icon:"⚙",  section:"System" },
     changelog:            { label:"Changelog",            icon:"📝", section:"System" },
@@ -435,7 +435,7 @@ function buildPageGrid(selectedPages){
     html+=`<div class="section-header">${sec}</div>`;
     items.forEach(([key,info])=>{
       const checked=hasAll||selectedPages.includes(key);
-      html+=`<label class="page-check${checked?' selected':''}" onclick="togglePage(this,'${key}')">
+      html+=`<label class="page-check${checked?' selected':''}">
         <input type="checkbox" value="${key}" ${checked?'checked':''}>
         <span style="font-size:14px">${info.icon}</span>
         <span>${info.label}</span>
@@ -443,13 +443,17 @@ function buildPageGrid(selectedPages){
     });
   });
   grid.innerHTML=html;
+  // Rely on native <label>-wraps-<input> semantics: clicking the
+  // label toggles the checkbox. Sync the .selected class with the
+  // checkbox's actual state afterwards. Previous code also flipped
+  // cb.checked manually, which cancelled the native toggle — the
+  // checkbox's real state never changed.
+  grid.querySelectorAll('.page-check input[type="checkbox"]').forEach(cb=>{
+    cb.addEventListener('change',()=>{
+      cb.closest('.page-check').classList.toggle('selected', cb.checked);
+    });
+  });
 }
-
-window.togglePage=(el,key)=>{
-  el.classList.toggle('selected');
-  const cb=el.querySelector('input');
-  cb.checked=!cb.checked;
-};
 window.selectAll=(v)=>{
   document.querySelectorAll('.page-check').forEach(el=>{
     el.classList[v?'add':'remove']('selected');
