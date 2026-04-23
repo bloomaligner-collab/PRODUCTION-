@@ -6,7 +6,7 @@
 <script type="module" src="auth_guard.js?v=20260422c"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
 <script>const PAGE_KEY='outsourcing'</script>
-<script src="lang.js?v=20260422c"></script>
+<script src="lang.js?v=20260423b"></script>
 <script src="access.js?v=20260422c"></script>
 <style>
 :root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
@@ -1370,5 +1370,18 @@ loadAll()
 </script>
 
 <script src="table_sort.js?v=20260423a"></script>
+<!-- CW_HELP mount -->
+<div id="helpPanelMount"></div>
+<script>
+(function(){
+  function mountHelp(){
+    if(typeof CW_HELP==='undefined'||typeof CW_HELP.buildPanel!=='function'){setTimeout(mountHelp,50);return}
+    document.getElementById('helpPanelMount').innerHTML=CW_HELP.buildPanel('outsourcing','🚚','Sous-traitance','Outsourcing')
+    CW_HELP.init('outsourcing','🚚','Sous-traitance','Outsourcing')
+  }
+  if(document.readyState!=='loading') mountHelp()
+  else document.addEventListener('DOMContentLoaded',mountHelp)
+})();
+</script>
 </body>
 </html>
