@@ -601,13 +601,13 @@ function renderOrders(){
     if(sup && o.supplier_id!==sup) return false
     if(from && o.outsource_date<from) return false
     if(to && o.outsource_date>to) return false
-    if(po && !String(o.po_number||'').toLowerCase().includes(po)) return false
+    if(po && !String(o.batch_ref||'').toLowerCase().includes(po)) return false
     if(life && lifecycleOf(o)!==life) return false
     return true
   })
-  // Group consecutive rows by po_number (after sorting by po_number then outsource_date)
+  // Group consecutive rows by batch_ref (after sorting by batch_ref then outsource_date)
   const sorted=[...filtered].sort((a,b)=>{
-    const pa=a.po_number||'zzz', pb=b.po_number||'zzz'
+    const pa=a.batch_ref||'zzz', pb=b.batch_ref||'zzz'
     if(pa!==pb) return pa<pb?-1:1
     return (b.outsource_date||'').localeCompare(a.outsource_date||'')
   })
@@ -616,10 +616,10 @@ function renderOrders(){
     const c = allCases.find(x=>x.case_id===String(o.case_id))
     const payCls = o.payment_status==='paid'?'b-g':o.payment_status==='approved'?'b-b':o.payment_status==='disputed'?'b-r':'b-a'
     const overdue = !o.received_date && o.expected_return_date && o.expected_return_date<today
-    const poNew = o.po_number && o.po_number!==lastPo
-    lastPo = o.po_number
-    const poCell = o.po_number
-      ? `<td class="mono" style="font-weight:700;color:var(--purple);${poNew?'border-top:2px solid var(--p100)':''}">${poNew?o.po_number:'·'}</td>`
+    const poNew = o.batch_ref && o.batch_ref!==lastPo
+    lastPo = o.batch_ref
+    const poCell = o.batch_ref
+      ? `<td class="mono" style="font-weight:700;color:var(--purple);${poNew?'border-top:2px solid var(--p100)':''}">${poNew?o.batch_ref:'·'}</td>`
       : `<td style="color:var(--dim)">—</td>`
     return `<tr class="${overdue?'':'is-out'}" style="${overdue?'background:#fef2f2':''}">
       ${poCell}
@@ -632,7 +632,7 @@ function renderOrders(){
       <td class="mono">${fdt(o.outsource_date)}</td>
       <td class="mono" style="${overdue?'color:var(--red);font-weight:700':''}">${fdt(o.expected_return_date)}</td>
       <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
-      <td class="mono">${o.invoice_no?`${o.invoice_no}${o.invoice_received_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_received_date)}</span>`:''}`:'—'}</td>
+      <td class="mono">${o.invoice_no?`${o.invoice_no}${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm btn-g" onclick="editOrder('${o.id}')" title="Edit">✏️</button>
@@ -650,9 +650,9 @@ window.openRecvModal=(id)=>{
   const o=allOrders.find(x=>x.id===id); if(!o) return
   recvOrderId=id
   const c=allCases.find(x=>x.case_id===String(o.case_id))
-  $('mRecvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.po_number?' · PO '+o.po_number:''}`
+  $('mRecvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.batch_ref?' · PO '+o.batch_ref:''}`
   $('rDate').value=new Date().toISOString().slice(0,10)
-  $('rInvExp').value=o.invoice_expected_date||''
+  $('rInvExp').value=o.invoice_due_date||''
   $('rErr').textContent=''
   $('mRecv').classList.add('on')
 }
@@ -663,7 +663,7 @@ window.saveReceived=async()=>{
   if(!d){$('rErr').textContent='Received date required';return}
   const invExp=$('rInvExp').value||null
   const{error}=await sb.from('outsourced_orders').update({
-    received_date:d, invoice_expected_date:invExp, updated_at:new Date().toISOString()
+    received_date:d, invoice_due_date:invExp, updated_at:new Date().toISOString()
   }).eq('id',recvOrderId)
   if(error){$('rErr').textContent=error.message;return}
   ntf('✅ Order marked received'); closeRecvModal(); await loadAll()
@@ -673,9 +673,9 @@ window.openInvModal=(id)=>{
   const o=allOrders.find(x=>x.id===id); if(!o) return
   invOrderId=id
   const c=allCases.find(x=>x.case_id===String(o.case_id))
-  $('mInvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.po_number?' · PO '+o.po_number:''}`
+  $('mInvSub').innerHTML=`Case <strong>${o.case_id}</strong>${c?.patient_name?' · '+c.patient_name:''} · ${o.supplier_name||''}${o.batch_ref?' · PO '+o.batch_ref:''}`
   $('iNo').value=o.invoice_no||''
-  $('iDate').value=o.invoice_received_date||new Date().toISOString().slice(0,10)
+  $('iDate').value=o.invoice_date||new Date().toISOString().slice(0,10)
   $('iAmt').value=o.total_cost||''
   $('iStatus').value=o.payment_status==='paid'?'approved':(o.payment_status||'pending')
   $('iErr').textContent=''
@@ -689,7 +689,7 @@ window.saveInvoice=async()=>{
   if(!no){$('iErr').textContent='Invoice number required';return}
   if(!d){$('iErr').textContent='Invoice received date required';return}
   const patch={
-    invoice_no:no, invoice_received_date:d,
+    invoice_no:no, invoice_date:d,
     payment_status:$('iStatus').value||'pending',
     updated_at:new Date().toISOString()
   }
@@ -860,7 +860,7 @@ window.exportCasesCsv=()=>{
 }
 window.exportOrdersCsv=()=>{
   const rows=[['PO #','Case #','Supplier','Upper','Lower','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice #','Invoice Expected','Invoice Received','Payment','Paid Amount','Paid Date','Notes']]
-  allOrders.forEach(o=>rows.push([o.po_number,o.case_id,o.supplier_name,o.aligners_upper,o.aligners_lower,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.invoice_expected_date,o.invoice_received_date,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
+  allOrders.forEach(o=>rows.push([o.batch_ref,o.case_id,o.supplier_name,o.aligners_upper,o.aligners_lower,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.invoice_due_date,o.invoice_date,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
   download(`outsourced_orders_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
 }
 window.exportReportCsv=()=>{
@@ -978,11 +978,11 @@ window.savePreparedOrder=async()=>{
     return {
       case_id:c.case_id, supplier_id:supId, supplier_name:sup?.name||null,
       outsource_date:today, expected_return_date:expected,
-      invoice_expected_date:invExp,
+      invoice_due_date:invExp,
       aligners_upper:up, aligners_lower:lo,
       cost_per_aligner:price, total_cost:(up+lo)*price, currency:cur,
       notes:notes, created_by:user||null, payment_status:'pending',
-      po_number:po
+      batch_ref:po
     }
   })
   const{error}=await sb.from('outsourced_orders').insert(rows)
