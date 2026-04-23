@@ -627,15 +627,12 @@ function whenSuppliersReady(fn){
 
 let _cachedExcluded = null;
 async function loadAll(){_cachedExcluded=null // reset config cache on each load
-  // Load items via edge function — immune to any Promise.all ordering bugs
-  try{
-    const _ir = await fetch(`${SUPABASE_CONFIG.url}/functions/v1/get-inventory-items`, { headers: { apikey: SUPABASE_CONFIG.anonKey, Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}` } })
-    const _id = await _ir.json()
-    allItems = _id.data||[]
-  }catch(e){
-    const _fb = await sb.from('inventory_items').select('*').order('name')
-    allItems = _fb.data||[]
-  }
+  // Load items directly — RLS on inventory_items now allows
+  // authenticated reads. Previously this went through a
+  // service-role edge function (get-inventory-items) that
+  // bypassed RLS with verify_jwt=false.
+  const _itemsRes = await sb.from('inventory_items').select('*').order('name')
+  allItems = _itemsRes.data || []
   const[lr,rr,hr]=await Promise.all([
     sb.from('inventory_lots_enriched_view').select('*').order('item_name'),
     sb.from('inventory_requisitions').select('*').order('created_at',{ascending:false}).limit(30),
