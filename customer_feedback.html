@@ -581,8 +581,17 @@ function render(){
       const ico = done ? '✅' : overdue ? '⚠️' : dueToday ? '⏰' : '📅'
       fuHtml = `<span title="${r.follow_up_assignee || ''}" style="display:inline-flex;align-items:center;gap:4px;color:${color};font-weight:700;font-size:12px">${ico} ${fdt(r.follow_up_date)}</span>`
     }
-    return `<tr${mine?' style="background:#eef6ff"':''}>
-      <td style="font-size:16px;text-align:center" title="${envTitle}">${envIcon}</td>
+    // Build envelope tooltip with full activity trail
+    const trailParts=[envTitle]
+    if(r.notification_seen_at) trailParts.push(`📬 Seen by ${prettyAssignee(r.notification_seen_by)||'(before tracking)'} on ${fdt(r.notification_seen_at)}`)
+    else if(r.assigned_to && !isClosed) trailParts.push('📧 Assignee has not yet opened this record')
+    if(r.last_viewed_at) trailParts.push(`👁 Last viewed by ${prettyAssignee(r.last_viewed_by)||'?'} on ${fdt(r.last_viewed_at)}`)
+    if(r.last_edited_at) trailParts.push(`✏️ Last edited by ${prettyAssignee(r.last_edited_by)||'?'} on ${fdt(r.last_edited_at)}`)
+    const envTip=trailParts.join('\n')
+    // Hover/click whole row → opens the view, except when clicking inside a button
+    const rowStyle = (mine?'background:#eef6ff;':'')+'cursor:pointer'
+    return `<tr style="${rowStyle}" onclick="if(!event.target.closest('button,a')) viewRec('${r.id}')" title="Click anywhere to open this record">
+      <td style="font-size:16px;text-align:center;white-space:pre-line" title="${envTip.replace(/"/g,'&quot;')}">${envIcon}</td>
       <td class="mono" style="font-weight:700">${r.feedback_no||'—'}</td>
       <td class="mono">${fdt(r.received_date)}</td>
       <td style="font-weight:600">${r.customer_name||'—'}</td>
@@ -595,8 +604,8 @@ function render(){
       <td>${fuHtml}</td>
       <td><span class="badge ${sc}">${(r.status||'open').replace(/_/g,' ')}</span></td>
       <td style="white-space:nowrap">
-        <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="viewRec('${r.id}')">👁</button>
-        <button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="editRec('${r.id}')">✏️</button>
+        <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="event.stopPropagation();viewRec('${r.id}')" title="View">👁</button>
+        <button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();editRec('${r.id}')" title="Edit">✏️</button>
       </td>
     </tr>`
   }).join(''):'<tr><td colspan="13" class="ec">No feedback records. Log the first one.</td></tr>'
@@ -660,13 +669,17 @@ window.editRec=(id)=>{
 
 window.viewRec=async(id)=>{
   const r=all.find(x=>String(x.id)===String(id));if(!r)return
-  // If this record is assigned to current user and unseen → mark as seen
-  if(r.assigned_to===currentUser && !r.notification_seen_at){
-    try{
-      await sb.from('customer_feedback').update({notification_seen_at:new Date().toISOString()}).eq('id',id)
-      r.notification_seen_at=new Date().toISOString()
-    }catch{}
+  // Record view activity + auto-mark seen if this viewer is an assignee (user or role)
+  const nowIso=new Date().toISOString()
+  const patch={last_viewed_by:currentUser, last_viewed_at:nowIso}
+  if(assignedToMe(r.assigned_to) && !r.notification_seen_at){
+    patch.notification_seen_at=nowIso
+    patch.notification_seen_by=currentUser
   }
+  try{
+    await sb.from('customer_feedback').update(patch).eq('id',id)
+    Object.assign(r, patch)
+  }catch{}
   const tc=r.type==='complaint'?'b-r':r.type==='feedback'?'b-g':'b-b'
   const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray'
   document.getElementById('vTitle').textContent='💬 '+(r.feedback_no||'Feedback')
@@ -699,7 +712,16 @@ window.viewRec=async(id)=>{
         ${!r.follow_up_done_at?`<button onclick="markFollowUpDone('${r.id}')" style="margin-top:10px;padding:6px 14px;background:${bc};color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--f)">✓ Mark Follow-up Done</button>`:`<div style="font-size:11px;color:var(--mu);margin-top:4px">Done: ${fdt(r.follow_up_done_at)}</div>`}
       </div>`
     })():''}
-    ${r.resolved_at?`<div style="font-size:12px;color:var(--green);font-weight:700">✅ Resolved: ${fdt(r.resolved_at)}</div>`:''}`
+    ${r.resolved_at?`<div style="font-size:12px;color:var(--green);font-weight:700">✅ Resolved: ${fdt(r.resolved_at)}</div>`:''}
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bdr);font-size:11px;color:var(--mu);line-height:1.8">
+      <div style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;color:var(--dim)">Activity trail</div>
+      ${r.notification_seen_at
+        ? `<div>📬 <strong style="color:var(--txt)">Seen first</strong> · ${prettyAssignee(r.notification_seen_by)||'(before tracking)'} on ${fdt(r.notification_seen_at)}</div>`
+        : (r.assigned_to ? `<div style="color:var(--amber);font-weight:700">📧 Assignee has NOT yet opened this record</div>` : '')}
+      ${r.last_viewed_at ? `<div>👁 <strong style="color:var(--txt)">Last viewed</strong> · ${prettyAssignee(r.last_viewed_by)||'—'} on ${fdt(r.last_viewed_at)}</div>` : ''}
+      ${r.last_edited_at ? `<div>✏️ <strong style="color:var(--txt)">Last edited</strong> · ${prettyAssignee(r.last_edited_by)||'—'} on ${fdt(r.last_edited_at)}</div>` : ''}
+      <div style="color:var(--dim)">📝 Created ${fdt(r.created_at)}${r.received_by?' by '+prettyAssignee(r.received_by):''}</div>
+    </div>`
   document.getElementById('viewModal').classList.add('on')
   // Wire the Edit buttons in the view modal to open the edit modal for this record
   const openEditFromView = () => { closeView(); editRec(r.id) }
@@ -766,7 +788,15 @@ window.save=async()=>{
   // If follow-up date changed, reset the done timestamp so the reminder fires again
   if(prev && prev.follow_up_date !== fDate) rec.follow_up_done_at = null
   // Reset the "seen" flag when assignment changes so the assignee gets a fresh toast
-  if(assigneeChanged)rec.notification_seen_at=null
+  if(assigneeChanged){
+    rec.notification_seen_at=null
+    rec.notification_seen_by=null
+  }
+  // Track edit activity (only for updates — inserts are "created_at/received_by")
+  if(editId){
+    rec.last_edited_by=currentUser||null
+    rec.last_edited_at=new Date().toISOString()
+  }
   if(!editId)rec.feedback_no=refNum()
   const{error}=editId?await sb.from('customer_feedback').update(rec).eq('id',editId):await sb.from('customer_feedback').insert([rec])
   if(error){ntf('Error: '+error.message,'err');return}
