@@ -16,6 +16,8 @@ which matches apply order.
 | `20260421215505_supabase_auth_login.sql` | 2026-04-21 | Move login to Supabase Auth (bcrypt); drop plaintext password column. |
 | `20260422000850_new_project_auth_and_employees.sql` | 2026-04-22 | Project-migration setup on `cvrmadmzzualqukxxlro`: auth hooks + seed employees. |
 | `20260423162240_enable_rls_and_lock_down_definers.sql` | 2026-04-23 | Enable RLS on all 45 public tables + auth-only policy, switch 4 views to `security_invoker`, pin `search_path` on 17 functions, add `lookup_login_email` RPC. |
+| `20260423170000_restrict_sensitive_writes_to_managers.sql` | 2026-04-23 | `is_manager()` helper + swap permissive policy for (read: all authenticated) + (write: managers only) on employees / suppliers / role_templates / page_access / system_settings / notification_settings. |
+| `20260423180000_audit_log_traceability.sql` | 2026-04-23 | ISO 13485 §4.2.5 audit trail: `audit_log` table + generic `audit_trigger_fn()` + triggers on 10 regulatory-sensitive tables. Managers-read, append-only. |
 
 ## Running locally with the Supabase CLI
 
