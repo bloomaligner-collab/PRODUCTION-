@@ -193,6 +193,7 @@ tbody tr:hover{background:#f8fafc}
       <button class="prod-tab" id="tab-btn-consumption" onclick="showTab('consumption')">🔬 Consumption</button>
       <span style="width:1px;height:20px;background:var(--bdr);display:inline-block;margin:0 3px"></span>
       <a href="production.html" class="btn bgh" style="padding:5px 10px;font-size:11px">← Prod</a>
+      <button class="btn bb" id="btnEntry" style="padding:5px 10px;font-size:11px">📝 Log Production</button>
       <button class="btn bgh" id="btnYield" style="padding:5px 10px;font-size:11px">⚙ Rules</button>
     </div>
   </div>
@@ -311,7 +312,9 @@ tbody tr:hover{background:#f8fafc}
     <div style="background:#f8fafc;border-radius:12px;padding:16px;border:1px solid var(--bdr)">
       <div style="font-size:12px;font-weight:700;margin-bottom:10px">+ Add New Rule</div>
       <div class="fg3">
-    firt 
+        <div><lbl>Material</lbl>
+          <select class="fi" id="yrItem"><option value="">— Select material —</option></select>
+        </div>
         <div><lbl>Step</lbl>
           <select class="fi" id="yrStep">
             <option>Printing</option><option>Cleaning</option><option>Thermoforming</option>

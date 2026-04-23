@@ -288,6 +288,7 @@ lbl{display:block;font-size:10px;font-weight:700;color:var(--mu);text-transform:
     <div class="mos" id="mInstSub">Sélectionner la matière et entrer le numéro de lot. Le système suivra la consommation automatiquement.</div>
     <input type="hidden" id="instMid"/>
     <div class="mof">
+      <div><lbl>Supplier</lbl><select class="fi" id="instSupplier" onchange="onSupplierChange()"><option value="">— All suppliers —</option></select></div>
       <div><lbl>Item *</lbl><select class="fi" id="instItem"><option value="">— Sélectionner la matière —</option></select></div>
       <div id="instLotDiv" style="display:none"><lbl>Numéro de lot</lbl><div class="fi" id="instLotInfo" style="background:var(--a50);border-color:var(--a100);font-size:12px;min-height:44px">Select an item first</div></div>
       <div class="fg">
