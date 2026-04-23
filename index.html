@@ -17,7 +17,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .ct{font-size:18px;font-weight:800;margin-bottom:4px}
 .cs{font-size:13px;color:var(--mu);margin-bottom:24px;line-height:1.5}
 .field{margin-bottom:16px}
-lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.card label{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
 .fi{width:100%;padding:12px 14px;border:1.5px solid var(--bdr);border-radius:11px;font-family:var(--f);font-size:14px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s}
 .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,95,226,.08)}
 .fi::placeholder{color:var(--dim)}
@@ -72,14 +72,14 @@ lbl{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:
     <div class="err" id="errBox"></div>
     <div class="role-pill" id="rolePill"></div>
     <div class="field">
-      <lbl>Username</lbl>
+      <label for="username">Username</label>
       <input class="fi" id="username" placeholder="Your username" autocomplete="username" autocapitalize="off" spellcheck="false"/>
     </div>
     <div class="field">
-      <lbl>Password</lbl>
+      <label for="password">Password</label>
       <div class="pw-wrap">
         <input class="fi" id="password" type="password" placeholder="Your password" autocomplete="current-password"/>
-        <button class="pw-eye" type="button" onclick="togglePw()">👁</button>
+        <button class="pw-eye" id="pwEye" type="button" onclick="togglePw()" aria-label="Show or hide password">👁</button>
       </div>
     </div>
     <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In →</button>
