@@ -322,7 +322,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         </select>
       </div>
       <div id="fCategoryWrap"><label class="form-label">Complaint Category</label>
-        <select class="fi" id="fCategory">
+        <select class="fi" id="fCategory" onchange="onCategoryChange()">
           <option value="">— Select category —</option>
           <option value="product_quality">Product Quality (defect, fit)</option>
           <option value="delivery">Delivery / Shipping</option>
@@ -330,10 +330,12 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
           <option value="packaging">Packaging Damage</option>
           <option value="communication">Communication</option>
           <option value="documentation">Documentation / Label</option>
+          <option value="traceability">Traceability / Case ID Issue</option>
           <option value="billing">Billing</option>
           <option value="other">Other</option>
         </select>
       </div>
+      <div id="fProtocolGuide" style="grid-column:1/-1;display:none"></div>
       <div><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
       <div><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
       <div style="grid-column:1/-1"><label class="form-label">Bloom Case #</label>
@@ -421,7 +423,7 @@ let routingRules={}
 let userPrimaryRole='', userExtraRoles=[]
 const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
 const userRole=(sessionStorage.getItem('cw_role')||'').toLowerCase()
-const CATEGORY_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',billing:'Billing',other:'Other'}
+const CATEGORY_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',traceability:'Traceability',billing:'Billing',other:'Other'}
 const TYPE_LABELS={complaint:'🚫 Complaint',feedback:'👍 Feedback',suggestion:'💡 Suggestion',warranty:'🛡️ Warranty',inquiry:'❓ Inquiry',return:'📦 Return',service_request:'🛠️ Service'}
 
 // An assignee can be either a person ('Bastien') or a role ('role:quality_control').
@@ -449,7 +451,116 @@ function refNum(){const n=new Date();return`FB-${n.getFullYear()}-${String(n.get
 
 window.onTypeChange=()=>{
   const t=document.getElementById('fType').value
-  document.getElementById('fCategoryWrap').style.display=(t==='complaint'||t==='warranty'||t==='return')?'':'none'
+  const show=(t==='complaint'||t==='warranty'||t==='return')
+  document.getElementById('fCategoryWrap').style.display=show?'':'none'
+  if(!show){
+    const g=document.getElementById('fProtocolGuide')
+    if(g){ g.style.display='none'; g.innerHTML='' }
+  } else {
+    window.onCategoryChange && window.onCategoryChange()
+  }
+}
+
+const PROTOCOLS={
+  product_quality:{icon:'🔬',title:'Product Quality (defect, fit)',iso:'ISO 13485 Clause 8.3 — Non-Conformity',accent:'red',urgency:'Non-Conformity required',priority:'High or Critical',
+    steps:[
+      {t:'Open a Non-Conformity Report',d:'Any product defect requires an NC record with root cause + CAPA. The system will prompt you after saving.'},
+      {t:'Trace the affected lot',d:'Use Traceability to identify the production lot, machine, material lot, and operator involved (Clause 7.5.9).'},
+      {t:'Re-check QC checkpoints',d:'Review the 16-point QC form for that batch — dimensional accuracy, surface quality, fit (Clause 8.2.4).'},
+      {t:'Root cause + CAPA',d:'Document why it happened in the Root Cause field below. The linked NC captures the corrective/preventive action.'}
+    ],
+    links:[{l:'Non-Conformity',h:'non_conformity.html'},{l:'Traceability',h:'tracabilite.html'},{l:'Quality Control',h:'qualite.html'}]},
+  delivery:{icon:'🚚',title:'Delivery / Shipping',iso:'ISO 13485 Clause 7.5.1 — Product Preservation',accent:'amber',urgency:'Verify shipment',priority:'Medium / High',
+    steps:[
+      {t:'Check the shipment record',d:'Open Bloom Import → Shipping tab. Locate the box number, aligner count, and dispatch date for the affected case.'},
+      {t:'Is the carrier at fault?',d:'If yes, log a supplier evaluation note against the carrier in Suppliers (Clause 7.4). Repeat incidents lower their ASL score.'},
+      {t:'Arrange replacement / reship',d:'Coordinate reshipment with the customer and capture the new tracking number in the Resolution field below.'}
+    ],
+    links:[{l:'Bloom Import',h:'bloom_import.html'},{l:'Suppliers (Carriers)',h:'suppliers.html'}]},
+  fitting:{icon:'🦷',title:'Aligner Fitting',iso:'ISO 13485 Clause 8.3 + 8.2.4',accent:'red',urgency:'Non-Conformity required',priority:'High',
+    steps:[
+      {t:'Clinical verification by doctor',d:'Request photos or impressions from the doctor to confirm the fitting problem before action.'},
+      {t:'Dimensional review',d:'Re-check the dimensional accuracy checkpoint in Quality Control for the affected production lot.'},
+      {t:'Open Non-Conformity',d:'Create the NC — classify severity by the number of affected aligners (upper/lower) and patient impact.'},
+      {t:'Flag refinement if needed',d:'In Bloom Import, mark the case as RefinementOrder so the re-production cycle is tracked properly.'}
+    ],
+    links:[{l:'Non-Conformity',h:'non_conformity.html'},{l:'Quality Control',h:'qualite.html'},{l:'Bloom Cases',h:'bloom_import.html'}]},
+  packaging:{icon:'📦',title:'Packaging Damage',iso:'ISO 13485 Clause 8.3 — Non-Conformity',accent:'amber',urgency:'NC + Supplier review',priority:'Medium',
+    steps:[
+      {t:'Identify the packaging lot',d:'Open Materials & Lots and find the packaging material lot used (FEFO order) for the affected batch.'},
+      {t:'Material fault vs operator fault',d:'If the material is defective → NC + hit the supplier score in Suppliers (Clause 7.4). If operator-caused → retrain.'},
+      {t:'Add to internal audit scope',d:'If packaging defects are repeating, include Packaging in the next Internal Audit scope (Clause 8.2.2).'}
+    ],
+    links:[{l:'Materials & Lots',h:'production_materials.html'},{l:'Suppliers',h:'suppliers.html'},{l:'Non-Conformity',h:'non_conformity.html'}]},
+  communication:{icon:'💬',title:'Communication',iso:'ISO 13485 Clause 8.2.1 — Post-Market Surveillance',accent:'blue',urgency:'Log — no NC required',priority:'Low / Medium',
+    steps:[
+      {t:'Document the gap',d:'Capture the specifics of the communication issue (missed call, unclear message, slow response) in the Description.'},
+      {t:'Assign an owner',d:'Route to customer service or the distributor liaison. No Non-Conformity is required unless it becomes a pattern.'},
+      {t:'Track for audit',d:'If this is a repeat pattern, add "Customer Communication" as a topic in the next Internal Audit (Clause 8.2.2).'}
+    ],
+    links:[{l:'Internal Audits',h:'internal_audit.html'}]},
+  documentation:{icon:'📄',title:'Documentation / Label',iso:'ISO 13485 Annex C + Clause 8.3 — Regulatory',accent:'red',urgency:'Regulatory — NC mandatory',priority:'Critical',
+    steps:[
+      {t:'Open NC immediately',d:'Labelling and documentation defects are regulator-visible. A Non-Conformity report is MANDATORY under Annex C.'},
+      {t:'Isolate every affected unit',d:'Use Traceability to list every product that carries the faulty label or documentation — they may need recall.'},
+      {t:'Document control review',d:'Update the label / document template in Settings (Clause 4.2.4). Re-issue the revised version with a new revision number.'},
+      {t:'Notify distributor and doctor',d:'If any affected product has already shipped, the distributor and prescribing doctor must be formally notified.'}
+    ],
+    links:[{l:'Non-Conformity',h:'non_conformity.html'},{l:'Traceability',h:'tracabilite.html'},{l:'Settings / Docs',h:'settings.html'}]},
+  traceability:{icon:'🔗',title:'Traceability / Case ID Issue',iso:'ISO 13485 Clause 7.5.9 — Identification & Traceability',accent:'purple',urgency:'Verify + NC if confirmed',priority:'High',
+    steps:[
+      {t:'Verify the case in Bloom Import',d:'Search the case number in Bloom Import → Cases tab. Confirm the case exists and that the patient/doctor mapping is correct.'},
+      {t:'If missing, re-import',d:'Re-run the CSV or Excel import from bloomaligner.fr so the case record is created in the system.'},
+      {t:'If data is wrong, open NC',d:'Incorrect case ID, patient mapping, or aligner count is a traceability non-conformity (Clause 8.3).'},
+      {t:'Add to audit scope',d:'Flag Traceability as a scope in the next Internal Audit (Clause 8.2.2) to confirm root cause is fixed.'}
+    ],
+    links:[{l:'Bloom Import',h:'bloom_import.html'},{l:'Traceability',h:'tracabilite.html'},{l:'Non-Conformity',h:'non_conformity.html'}]},
+  billing:{icon:'💳',title:'Billing',iso:'Administrative — outside QMS scope',accent:'blue',urgency:'Route to Finance',priority:'Low',
+    steps:[
+      {t:'Route to finance / admin',d:'Assign to the finance team. No Non-Conformity is required unless fraud or regulatory invoicing is involved.'},
+      {t:'Invoice verification',d:'Cross-check the invoice against the order number in Bloom Import and the production lot records.'}
+    ],
+    links:[]},
+  other:{icon:'📋',title:'Other',iso:'Manager triage required',accent:'blue',urgency:'Manager review',priority:'Medium',
+    steps:[
+      {t:'Capture all the facts',d:'Describe the issue fully in the Description field so the manager can re-classify it into the correct category.'},
+      {t:'Assign to Manager',d:'Route to the manager for triage. They will re-categorise and decide whether an NC is required.'}
+    ],
+    links:[]}
+}
+
+window.onCategoryChange=()=>{
+  const cat=document.getElementById('fCategory').value
+  const box=document.getElementById('fProtocolGuide')
+  if(!box) return
+  if(!cat||!PROTOCOLS[cat]){ box.style.display='none'; box.innerHTML=''; return }
+  const p=PROTOCOLS[cat]
+  const A={red:{bg:'var(--r50)',bd:'var(--r100)',fg:'var(--red)'},amber:{bg:'var(--a50)',bd:'var(--a100)',fg:'var(--amber)'},blue:{bg:'var(--b50)',bd:'var(--b100)',fg:'var(--blue)'},purple:{bg:'var(--p50)',bd:'var(--p100)',fg:'var(--purple)'}}[p.accent]||{bg:'var(--b50)',bd:'var(--b100)',fg:'var(--blue)'}
+  const steps=p.steps.map((s,i)=>`
+    <div style="display:flex;gap:12px;padding:11px 13px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;margin-bottom:7px">
+      <div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:${A.fg};color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">${i+1}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:var(--txt);letter-spacing:-.1px">${s.t}</div><div style="font-size:12px;color:var(--mu);margin-top:3px;line-height:1.55">${s.d}</div></div>
+    </div>`).join('')
+  const links=p.links.length?`
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px dashed ${A.bd}">
+      <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;width:100%;margin-bottom:4px">Related pages</div>
+      ${p.links.map(l=>`<a href="${l.h}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--card);border:1px solid var(--bdr);border-radius:999px;font-size:11px;font-weight:700;color:${A.fg};text-decoration:none;transition:all .12s" onmouseover="this.style.borderColor='${A.fg}'" onmouseout="this.style.borderColor='var(--bdr)'">→ ${l.l}</a>`).join('')}
+    </div>`:''
+  box.innerHTML=`
+    <div style="background:${A.bg};border:1px solid ${A.bd};border-left:4px solid ${A.fg};border-radius:12px;padding:18px 20px;margin-top:4px">
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
+        <div style="font-size:32px;line-height:1;flex-shrink:0">${p.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:${A.fg};color:#fff;border-radius:999px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📘 Protocol Guide · ${p.urgency}</div>
+          <div style="font-size:16px;font-weight:800;color:var(--txt);letter-spacing:-.3px">${p.title}</div>
+          <div style="font-size:12px;color:var(--mu);margin-top:4px">${p.iso} · Recommended priority: <strong style="color:${A.fg}">${p.priority}</strong></div>
+        </div>
+      </div>
+      <div style="font-size:10px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Steps to follow</div>
+      ${steps}
+      ${links}
+    </div>`
+  box.style.display='block'
 }
 
 async function loadDropdowns(){
@@ -628,6 +739,7 @@ window.openNew=()=>{
   document.getElementById('fStatus').value='open'
   document.getElementById('fAssigned').value=''
   onTypeChange()
+  window.onCategoryChange && window.onCategoryChange()
   document.getElementById('modal').classList.add('on')
 }
 window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null}
@@ -664,6 +776,7 @@ window.editRec=(id)=>{
     else { const o=document.createElement('option'); o.value=fa; o.textContent=fa+' (from source)'; faEl.appendChild(o); faEl.value=fa }
   }
   onTypeChange()
+  window.onCategoryChange && window.onCategoryChange()
   document.getElementById('modal').classList.add('on')
 }
 
