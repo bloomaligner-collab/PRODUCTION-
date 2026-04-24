@@ -124,6 +124,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <div style="display:flex;gap:10px;flex-wrap:wrap" class="no-print">
       <button class="btn btn-ghost" onclick="loadAll()">↻ Refresh</button>
       <button class="btn btn-ghost" onclick="openAutoReq()">🧮 Auto-Calculate</button>
+      <button class="btn btn-ghost" onclick="exportFilteredCsv()" title="Download filtered list as CSV" style="padding:7px 14px;font-size:12px;font-weight:600">⬇ CSV</button>
       <button class="btn btn-blue" onclick="openNewReq()">+ New Requisition</button>
     </div>
   </div>
@@ -327,6 +328,20 @@ window.filterList=function(){
   renderList()
 }
 window.clearFilters=function(){$('srchReq').value='';$('fStatus').value='';filterList()}
+
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  downloadCsv(`requisitions_${todayIso()}.csv`, [
+    { header:'Req #',       get: r => r.req_no || r.req_ref || r.id || '' },
+    { header:'Title',       get: r => r.title || '' },
+    { header:'Status',      get: r => r.status || '' },
+    { header:'Created',     get: r => r.created_at || '' },
+    { header:'Approved At', get: r => r.approved_at || '' },
+    { header:'Requested By',get: r => r.requested_by || '' },
+    { header:'Approver',    get: r => r.approved_by || '' },
+    { header:'Notes',       get: r => r.notes || '' },
+  ], filteredReqs);
+};
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
 mountSavedViews({

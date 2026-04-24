@@ -207,7 +207,8 @@ tbody tr:hover{background:#f8fafc}
         <input class="srch" id="srch" placeholder="🔍  Search employees…"/>
         <select class="flt" id="roleFlt"><option value="all">All Roles</option><option value="employee">Employee</option><option value="manager">Manager</option></select>
         <select class="flt" id="statFlt"><option value="all">All Status</option><option value="active">Active</option><option value="blocked">Blocked</option></select>
-        <button class="btn bgh" id="refreshBtn" style="margin-left:auto">↻ Refresh</button>
+        <button class="btn bgh" onclick="exportFilteredCsv()" title="Download filtered employees as CSV" style="margin-left:auto">⬇ CSV</button>
+        <button class="btn bgh" id="refreshBtn">↻ Refresh</button>
       </div>
       <div class="tw">
         <table>
@@ -696,6 +697,29 @@ window.deleteEmp=async(id,name)=>{
 document.getElementById('srch').addEventListener('input',renderTable)
 document.getElementById('roleFlt').addEventListener('change',renderTable)
 document.getElementById('statFlt').addEventListener('change',renderTable)
+
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  const term=document.getElementById('srch').value.toLowerCase();
+  const rF=document.getElementById('roleFlt').value;
+  const sF=document.getElementById('statFlt').value;
+  const rows = allEmps.filter(e => {
+    const mT = !term || (e.name||'').toLowerCase().includes(term);
+    const mR = rF==='all' || e.role===rF;
+    const mS = sF==='all' || (sF==='blocked'?!e.is_active:e.is_active);
+    return mT && mR && mS;
+  });
+  downloadCsv(`employees_${todayIso()}.csv`, [
+    { header:'Name',         get: e => e.name || '' },
+    { header:'Username',     get: e => e.username || '' },
+    { header:'Email',        get: e => e.email || '' },
+    { header:'Phone',        get: e => e.phone || '' },
+    { header:'Role',         get: e => e.role || '' },
+    { header:'Custom Role',  get: e => e.custom_role || '' },
+    { header:'Active',       get: e => e.is_active ? 'yes' : 'no' },
+    { header:'Created',      get: e => e.created_at || '' },
+  ], rows);
+};
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
 mountSavedViews({

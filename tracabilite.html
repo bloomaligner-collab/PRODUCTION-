@@ -199,6 +199,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
       <div class="tb-s">Complete case traceability — ISO 13485 compliance</div>
     </div>
     <div style="display:flex;gap:8px" class="no-print">
+      <button class="btn bgh" onclick="exportFilteredCsv()" title="Download filtered cases as CSV">⬇ CSV</button>
       <button class="btn bgh" onclick="window.print()">🖨 Imprimer</button>
     </div>
   </div>
@@ -947,6 +948,36 @@ function renderMaterials(o){
 }
 
 document.getElementById('srch').addEventListener('input',renderList)
+
+// CSV — respects the current search / status / QC filters
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  const term=document.getElementById('srch').value.toLowerCase();
+  const flt=document.getElementById('fltStatus').value;
+  const fltQC=document.getElementById('fltQC').value;
+  const rows = orders.filter(o => {
+    if(!o.order_no) return false;
+    const mT = !term || String(o.order_no).toLowerCase().includes(term) || (o.patient_name||'').toLowerCase().includes(term) || (o.doctor||'').toLowerCase().includes(term);
+    const complete = isComplete(o);
+    const mS = flt==='all' || (flt==='complete' && complete) || (flt==='in_progress' && !complete);
+    const qcDone = hasQC(o.order_no);
+    const mQ = fltQC==='all' || (fltQC==='qc_done' && qcDone) || (fltQC==='qc_pending' && !qcDone);
+    return mT && mS && mQ;
+  });
+  downloadCsv(`traceability_${todayIso()}.csv`, [
+    { header:'Order #',    get: o => o.order_no || '' },
+    { header:'Case #',     get: o => o.case_number || o.case_id || '' },
+    { header:'Patient',    get: o => o.patient_name || '' },
+    { header:'Doctor',     get: o => o.doctor || '' },
+    { header:'Clinic',     get: o => o.clinic || '' },
+    { header:'Status',     get: o => isComplete(o) ? 'Complete' : 'In Progress' },
+    { header:'QC Done',    get: o => hasQC(o.order_no) ? 'yes' : 'no' },
+    { header:'Upper',      get: o => o.aligner_upper ?? '' },
+    { header:'Lower',      get: o => o.aligner_lower ?? '' },
+    { header:'Total',      get: o => o.number_of_aligners ?? '' },
+    { header:'Last Sync',  get: o => o.last_synced_at || '' },
+  ], rows);
+};
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
 mountSavedViews({
