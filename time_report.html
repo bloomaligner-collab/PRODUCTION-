@@ -278,7 +278,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 
     <!-- SESSION LOG -->
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-size:14px;font-weight:800">📋 Session Log <span id="sessCount" style="font-size:11px;color:var(--mu);font-weight:500"></span></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <input class="fi" id="searchInput" placeholder="🔍 Search employee, order…" style="width:220px;padding:7px 11px;border:1.5px solid var(--bdr);border-radius:8px;font-family:var(--f);font-size:12px;outline:none"/>
@@ -290,6 +290,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
           </select>
         </div>
       </div>
+      <!-- Saved views: inline chip row -->
+      <div id="savedViewsMount" style="margin-bottom:12px"></div>
       <div class="tw"><table>
         <thead><tr><th>Employee</th><th>Type</th><th>Step / Category</th><th>Machine</th><th>Order</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
         <tbody id="sessionsBody"><tr><td colspan="8" class="ec">Loading…</td></tr></tbody>
@@ -468,6 +470,15 @@ document.querySelectorAll('.rt').forEach(btn=>btn.addEventListener('click',()=>{
 document.getElementById('refreshBtn').addEventListener('click',load);
 document.getElementById('searchInput').addEventListener('input',applyFilter);
 document.getElementById('typeFilter').addEventListener('change',applyFilter);
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'time_report',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['searchInput','typeFilter'],
+  applyFilter: () => applyFilter(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 document.getElementById('btnNext').addEventListener('click',()=>{pg++;render();});
 load();

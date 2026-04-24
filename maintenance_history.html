@@ -277,13 +277,15 @@ tbody tr:hover{background:#f8fafc}
     </div>
 
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px">
         <div style="font-size:14px;font-weight:800">📋 Maintenance Records</div>
         <div style="position:relative">
           <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:13px">🔍</span>
           <input class="fi" id="srch" placeholder="Search machine, technician..." style="width:280px;padding-left:34px"/>
         </div>
       </div>
+      <!-- Saved views: inline chip row -->
+      <div id="savedViewsMount" style="margin-bottom:12px"></div>
       <div style="overflow-x:auto;border-radius:11px;border:1px solid var(--bdr)">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr>
@@ -515,6 +517,15 @@ window.save=async()=>{
 $('fMach').addEventListener('change',applyFilter);
 $('fType').addEventListener('change',applyFilter);
 $('srch').addEventListener('input',applyFilter);
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'maintenance_history',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['fMach','fType','srch'],
+  applyFilter: () => applyFilter(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 $('pgPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 $('pgNext').addEventListener('click',()=>{pg++;render();});
 load().then(()=>{

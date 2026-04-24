@@ -264,10 +264,12 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div class="kpi" style="border-top-color:var(--red)"><div class="kpi-val" id="kOverdue" style="color:var(--red)">—</div><div class="kpi-lbl">Overdue</div></div>
     </div>
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-size:14px;font-weight:800">📋 Audit Schedule & Records</div>
         <input class="fi" id="searchInput" placeholder="Search scope, auditor, findings..." style="width:280px"/>
       </div>
+      <!-- Saved views: inline chip row -->
+      <div id="savedViewsMount" style="margin-bottom:12px"></div>
       <div class="tw"><table>
         <thead><tr><th>Audit #</th><th>Scope / Area</th><th>Auditor</th><th>Planned Date</th><th>Actual Date</th><th>Findings</th><th>Status</th><th>Next Due</th><th></th></tr></thead>
         <tbody id="tBody"><tr><td colspan="9" class="ec">Loading...</td></tr></tbody>
@@ -485,6 +487,15 @@ window.save=async()=>{
 };
 document.getElementById('statusFilter').addEventListener('change',applyFilter);
 document.getElementById('searchInput').addEventListener('input',applyFilter);
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'internal_audit',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['statusFilter','searchInput'],
+  applyFilter: () => applyFilter(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 document.getElementById('btnNext').addEventListener('click',()=>{pg++;render();});
 load();

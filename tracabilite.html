@@ -208,6 +208,8 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
     <div class="layout">
       <!-- LEFT: ORDER LIST -->
       <div class="panel list-panel">
+        <!-- Saved views: inline chip row -->
+        <div id="savedViewsMount" style="margin-bottom:10px"></div>
         <div class="list-toolbar">
           <input class="srch" id="srch" placeholder="🔍 Search by case number…"/>
           <select class="flt" id="fltStatus">
@@ -945,6 +947,15 @@ function renderMaterials(o){
 }
 
 document.getElementById('srch').addEventListener('input',renderList)
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'tracabilite',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['srch','fltStatus','fltQC'],
+  applyFilter: () => renderList(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 document.getElementById('fltStatus').addEventListener('change',renderList)
 document.getElementById('fltQC').addEventListener('change',renderList)
 load()

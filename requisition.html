@@ -143,6 +143,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <div id="tab-list">
       <div class="card">
         <div class="card-title">📋 All Requisitions <span style="font-size:12px;font-weight:500;color:var(--mu)" id="listCount"></span></div>
+        <!-- Saved views: inline chip row -->
+        <div id="savedViewsMount" style="margin-bottom:10px"></div>
         <div class="filters no-print">
           <div class="fi-group"><div class="fi-label">Search</div><input class="fi" id="srchReq" placeholder="Req #, title..." oninput="filterList()"/></div>
           <div class="fi-group"><div class="fi-label">Status</div>
@@ -325,6 +327,15 @@ window.filterList=function(){
   renderList()
 }
 window.clearFilters=function(){$('srchReq').value='';$('fStatus').value='';filterList()}
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'requisition',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['srchReq','fStatus'],
+  applyFilter: () => filterList(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 
 window.renderList=function(){
   const total=filteredReqs.length,slice=filteredReqs.slice(listPage*PAGE,(listPage+1)*PAGE)

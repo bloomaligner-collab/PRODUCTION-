@@ -184,6 +184,8 @@ thead th.sortable.sort-desc::after{content:'▼';opacity:1;color:var(--blue)}
 
     <!-- Tab: Cases ──────────────────────────────────────────────────── -->
     <section class="card" id="tab-cases">
+      <!-- Saved views: inline chip row -->
+      <div id="savedViewsMount" style="margin-bottom:10px"></div>
       <div class="filters">
         <div><div class="fi-lbl">Status</div>
           <select class="fi" id="fStatus">
@@ -1364,6 +1366,15 @@ function switchTab(k){
 window.switchTab=switchTab
 document.querySelectorAll('#tabs .tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)))
 ;['fStatus','fSupplier','fSearch'].forEach(id=>$(id).addEventListener('input',renderCases))
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'outsourcing',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['fStatus','fSupplier','fSearch'],
+  applyFilter: () => renderCases(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 ;['oPay','oSupplier','oFrom','oTo','oLife','oPO'].forEach(id=>$(id)?.addEventListener('input',renderOrders))
 
 loadAll()
