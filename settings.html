@@ -167,6 +167,23 @@ tbody tr:last-child td{border:none}
       </div>
     </div>
 
+    <!-- TWILIO SMS INTEGRATION -->
+    <div class="card">
+      <div class="card-title">📱 Twilio SMS (optional)</div>
+      <div class="card-sub">Add SMS on top of Brevo email / WhatsApp for offline recipients. Get credentials from <strong>console.twilio.com → Account → API keys &amp; tokens</strong>. Leave blank to skip SMS entirely.</div>
+      <div class="fg">
+        <div><label class="fl">Account SID</label><input class="fi fi-pw" id="twilioSid" placeholder="AC…" autocomplete="off"/></div>
+        <div><label class="fl">Auth Token</label><input class="fi fi-pw" id="twilioToken" placeholder="32-char token" autocomplete="off"/></div>
+      </div>
+      <div class="fg">
+        <div><label class="fl">From Number (E.164)</label><input class="fi" id="twilioFrom" placeholder="+15551234567"/></div>
+        <div><label class="fl">&nbsp;</label>
+          <button class="btn bg" onclick="testTwilio()" style="width:100%">🧪 Test Send (to my phone)</button>
+        </div>
+      </div>
+      <div id="twilioStatus" style="margin-top:6px"></div>
+    </div>
+
     <!-- EU MDR REGULATORY INFO -->
     <!-- Feeds the Annex XIII per-device Declaration of Conformity
          printed from the Traceability page (STAT-XIII-BLOOMaligner-01). -->
@@ -365,6 +382,9 @@ async function load(){
     }
   }
   if(smap.brevo_api_key){document.getElementById('brevoKey').value=smap.brevo_api_key;window._brevoKey=smap.brevo_api_key}
+  if(smap.twilio_account_sid){document.getElementById('twilioSid').value=smap.twilio_account_sid}
+  if(smap.twilio_auth_token){document.getElementById('twilioToken').value=smap.twilio_auth_token}
+  if(smap.twilio_from){document.getElementById('twilioFrom').value=smap.twilio_from}
   if(smap.brevo_sender_email){document.getElementById('brevoEmail').value=smap.brevo_sender_email;window._brevoEmail=smap.brevo_sender_email}
   if(smap.brevo_sender_name){document.getElementById('brevoName').value=smap.brevo_sender_name;window._brevoName=smap.brevo_sender_name}
   if(smap.company_name)document.getElementById('companyName').value=smap.company_name
@@ -439,6 +459,9 @@ window.saveAll=async()=>{
     {key:'brevo_api_key',value:document.getElementById('brevoKey').value.trim()},
     {key:'brevo_sender_email',value:document.getElementById('brevoEmail').value.trim()},
     {key:'brevo_sender_name',value:document.getElementById('brevoName').value.trim()},
+    {key:'twilio_account_sid',value:document.getElementById('twilioSid').value.trim()},
+    {key:'twilio_auth_token',value:document.getElementById('twilioToken').value.trim()},
+    {key:'twilio_from',value:document.getElementById('twilioFrom').value.trim()},
     {key:'company_name',value:document.getElementById('companyName').value.trim()},
     {key:'daily_report_time',value:document.getElementById('reportTime').value},
     {key:'company_address',value:document.getElementById('companyAddress').value.trim()},
@@ -493,6 +516,35 @@ window.testBrevo=async()=>{
       ntf('Brevo connection failed: '+(d.message||'Invalid key'),'err')
     }
   }catch(e){document.getElementById('brevoStatus').innerHTML='<span class="status-badge sb-err">✗ Network error</span>'}
+}
+
+window.testTwilio=async()=>{
+  const sid=document.getElementById('twilioSid').value.trim()
+  const tok=document.getElementById('twilioToken').value.trim()
+  const from=document.getElementById('twilioFrom').value.trim()
+  const status=document.getElementById('twilioStatus')
+  if(!sid||!tok||!from){ntf('Fill Account SID, Auth Token and From number first','err');status.innerHTML='<span class="status-badge sb-err">Missing fields</span>';return}
+  // Resolve the current user's phone from employees — we'll SMS
+  // ourselves to prove the loop works end-to-end.
+  const me=sessionStorage.getItem('cw_current_emp')||''
+  const{data:emp}=await sb.from('employees').select('name,phone,whatsapp_phone').ilike('name',me).maybeSingle()
+  let phone=(emp?.whatsapp_phone||emp?.phone||'').toString().replace(/[^\d+]/g,'')
+  if(!phone){const p=prompt('Your employee record has no phone. Enter a number to test SMS to (E.164, e.g. +15551234567):');if(!p)return;phone=p.trim()}
+  if(!phone.startsWith('+'))phone='+'+phone
+  status.innerHTML='<span class="status-badge sb-pend">Sending test SMS…</span>'
+  try{
+    const auth=btoa(`${sid}:${tok}`)
+    const body=new URLSearchParams({From:from,To:phone,Body:'Cedarwings SMS test — your Twilio integration is working ✅'})
+    const r=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`,{method:'POST',headers:{'authorization':`Basic ${auth}`,'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body:body.toString()})
+    const d=await r.json()
+    if(r.ok){
+      status.innerHTML=`<span class="status-badge sb-ok">✓ Sent to ${phone} · sid ${(d.sid||'').slice(0,8)}…</span>`
+      ntf('Twilio test SMS sent!')
+    }else{
+      status.innerHTML=`<span class="status-badge sb-err">✗ ${d.message||'Send failed'}</span>`
+      ntf('Twilio send failed: '+(d.message||'Unknown error'),'err')
+    }
+  }catch(e){status.innerHTML='<span class="status-badge sb-err">✗ Network error</span>'}
 }
 
 // MAIN NOTIFICATION FUNCTION — used across all pages
