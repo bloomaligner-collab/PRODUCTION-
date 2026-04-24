@@ -574,11 +574,42 @@ window.saveNC=async()=>{
   if (rec.assigned_to && rec.assigned_to !== prevAssigned) {
     _notifyNcAssignee(rec.assigned_to, data || { ...rec, id: editId }).catch(e => console.warn('[nc notify]', e));
   }
+  // Closure confirmation: when status flips to closed, notify
+  // the original detector (detected_by) so they know the NC they
+  // raised was actually dealt with.
+  const prevStatus = prev.status || null;
+  const becameClosed = rec.status === 'closed' && prevStatus !== 'closed';
+  const detector = prev.detected_by || null;
+  const currentUser = sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '';
+  if (becameClosed && detector && detector !== currentUser) {
+    _notifyNcClosed(detector, data || { ...rec, id: editId }).catch(e => console.warn('[nc closed notify]', e));
+  }
   window.closeNC();load();
 };
 
 // Shared notifier wrapper for NC assignments.
 import { notifyAssignees } from './notify_assignment.js';
+function _notifyNcClosed(recipient, rec) {
+  const ref  = rec.nc_number || rec.id || '';
+  const origin = location.origin + location.pathname.replace(/[^/]+$/, '');
+  const link = `${origin}non_conformity.html`;
+  return notifyAssignees(sb, recipient, {
+    type:          'nc_closed',
+    subjectPrefix: `[Cedarwings] NC ${ref}`,
+    title:         `NC ${ref} — closed`,
+    headline:      'A non-conformity you raised has been closed',
+    iso:           'Non-Conformity register · ISO 13485 §8.3',
+    facts: [
+      ['Category',     rec.category],
+      ['Order / Lot',  rec.order_lot],
+      ['Closed Date',  rec.closed_date],
+      ['Handled By',   rec.assigned_to],
+      ['Corrective',   rec.corrective_action],
+    ],
+    body: (rec.description || '').slice(0, 200),
+    link,
+  });
+}
 function _notifyNcAssignee(assignee, rec) {
   const ref  = rec.nc_number || rec.id || '';
   const sev  = (rec.severity || 'medium');

@@ -1016,6 +1016,18 @@ window.save=async()=>{
     const savedRec = editId ? { ...rec, id: editId } : { ...rec, id: null }
     _notifyFollowupAssignee(rec.follow_up_assignee, savedRec).catch(e => console.warn('[feedback follow-up notify]', e))
   }
+  // Resolution confirmation: when status flips to resolved /
+  // closed, notify the person who originally logged the record
+  // (received_by). They often aren't the assignee, so they'd
+  // otherwise not know it was dealt with.
+  const prevStatus = prev ? (prev.status || null) : null
+  const becameResolved = (rec.status === 'resolved' || rec.status === 'closed')
+    && prevStatus !== rec.status
+  const creator = prev ? (prev.received_by || null) : null
+  if (becameResolved && creator && creator !== currentUser) {
+    const savedRec = editId ? { ...rec, id: editId } : { ...rec, id: null }
+    _notifyResolved(creator, savedRec).catch(e => console.warn('[feedback resolved notify]', e))
+  }
 
   // If complaint type or critical/high priority — show NC creation prompt
   if(!editId){
@@ -1064,6 +1076,29 @@ mountSavedViews({
 // behaviour as before (email + WhatsApp via Brevo), just shared
 // with non_conformity and internal_audit now.
 import { notifyAssignees } from './notify_assignment.js'
+function _notifyResolved(recipient, rec) {
+  const ref     = rec.feedback_no || rec.id || ''
+  const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Feedback'
+  const origin  = location.origin + location.pathname.replace(/[^/]+$/, '')
+  const link    = rec.id ? `${origin}customer_feedback.html?open=${rec.id}` : `${origin}customer_feedback.html`
+  const statusLabel = (rec.status||'').replace(/_/g,' ')
+  return notifyAssignees(sb, recipient, {
+    type:          'feedback_resolved',
+    subjectPrefix: `[Cedarwings] ${typeLbl}${ref?' '+ref:''}`,
+    title:         `${typeLbl}${ref?' '+ref:''} — ${statusLabel}`,
+    headline:      `A record you logged has been marked "${statusLabel}"`,
+    iso:           'Customer Feedback register · ISO 13485 §8.2.1',
+    facts: [
+      ['Customer',        rec.customer_name],
+      ['Case #',          rec.case_id],
+      ['Resolved Date',   rec.resolved_at],
+      ['Handled By',      rec.assigned_to],
+      ['Resolution',      rec.resolution],
+    ],
+    body: (rec.description || '').slice(0, 200),
+    link,
+  })
+}
 function _notifyFollowupAssignee(assignee, rec) {
   const ref     = rec.feedback_no || rec.id || ''
   const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Feedback'
