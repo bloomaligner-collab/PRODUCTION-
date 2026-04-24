@@ -1052,81 +1052,33 @@ mountSavedViews({
 })
 
 // ─── NOTIFICATION ON ASSIGNMENT (email + WhatsApp) ────────────
-// Resolves the target (direct name OR "role:xxx") to one or more
-// active employees and notifies each by:
-//   - email    via CW_Notify.sendEmail    (Brevo SMTP API)
-//   - WhatsApp via CW_Notify.sendWhatsApp (Brevo WhatsApp API)
-// Silent-skips whichever channel isn't configured or the target
-// is missing that contact point. The in-app toast already
-// handles the logged-in case; this covers offline users.
-import { CW_Notify } from './brevo.js'
-async function _notifyAssignees(assignee, rec) {
-  if (!assignee) return
-  let people = []
-  if (assignee.startsWith('role:')) {
-    const role = assignee.slice(5)
-    const { data } = await sb.from('employees')
-      .select('name, email, phone, whatsapp_phone, role, custom_role, extra_roles, is_active')
-      .eq('is_active', true)
-    people = (data || []).filter(e =>
-      e.role === role || e.custom_role === role ||
-      (Array.isArray(e.extra_roles) && e.extra_roles.includes(role)) ||
-      (typeof e.extra_roles === 'string' && e.extra_roles.includes(role))
-    )
-  } else {
-    const { data: emp } = await sb.from('employees')
-      .select('name, email, phone, whatsapp_phone').ilike('name', assignee).maybeSingle()
-    if (emp) people.push(emp)
-  }
-  if (!people.length) return
-
+// Delegates to the shared notify_assignment.js module. Same
+// behaviour as before (email + WhatsApp via Brevo), just shared
+// with non_conformity and internal_audit now.
+import { notifyAssignees } from './notify_assignment.js'
+function _notifyAssignees(assignee, rec) {
   const ref     = rec.feedback_no || rec.id || ''
   const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Feedback'
-  const custLbl = rec.customer_name || '—'
-  const descTxt = (rec.description || '').slice(0, 200)
-  const sev     = (rec.severity || 'medium').toUpperCase()
-  const sevCol  = rec.severity === 'critical' ? '#dc2626' : rec.severity === 'high' ? '#f97316' : rec.severity === 'low' ? '#94a3b8' : '#eab308'
+  const sev     = (rec.severity || 'medium')
+  const sevCol  = sev === 'critical' ? '#dc2626' : sev === 'high' ? '#f97316' : sev === 'low' ? '#94a3b8' : '#eab308'
   const origin  = location.origin + location.pathname.replace(/[^/]+$/, '')
   const link    = rec.id ? `${origin}customer_feedback.html?open=${rec.id}` : `${origin}customer_feedback.html`
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;max-width:560px;color:#0f172a">
-      <h2 style="margin:0 0 8px;font-size:17px">A complaint / feedback record has been assigned to you</h2>
-      <p style="margin:6px 0;color:#64748b;font-size:13px">Cedarwings SAS · Customer Feedback register · ISO 13485 §8.2.1</p>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin:14px 0">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-          <span style="background:${sevCol};color:#fff;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700">${sev}</span>
-          <strong style="font-size:14px">${typeLbl}</strong>
-          ${ref ? `<span style="color:#64748b;font-size:12px">· ${ref}</span>` : ''}
-        </div>
-        <div style="font-size:13px;color:#0f172a;margin-bottom:4px"><strong>Customer:</strong> ${custLbl}</div>
-        ${rec.doctor    ? `<div style="font-size:13px;color:#0f172a;margin-bottom:4px"><strong>Doctor:</strong> ${rec.doctor}</div>` : ''}
-        ${rec.case_id   ? `<div style="font-size:13px;color:#0f172a;margin-bottom:4px"><strong>Case #:</strong> ${rec.case_id}</div>` : ''}
-        ${descTxt ? `<div style="font-size:13px;color:#334155;margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0">${descTxt}${(rec.description||'').length>200?'…':''}</div>` : ''}
-      </div>
-      <a href="${link}" style="display:inline-block;background:#3b5fe2;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px">Open the record →</a>
-      <p style="font-size:11px;color:#94a3b8;margin-top:18px">You received this because you were assigned to this record in the Cedarwings operations platform. If you weren't expecting this, please contact your manager.</p>
-    </div>`
-  const waMsg =
-    `🔔 *Cedarwings* — ${typeLbl}${ref?' '+ref:''} assigned to you\n` +
-    `Customer: ${custLbl}\n` +
-    `Severity: ${sev}\n` +
-    (rec.case_id ? `Case: ${rec.case_id}\n` : '') +
-    (descTxt ? `\n${descTxt}${(rec.description||'').length>200?'…':''}\n` : '') +
-    `\nOpen: ${link}`
-
-  for (const p of people) {
-    const validEmail = p.email && p.email.includes('@') && !p.email.endsWith('@cedarwings.local')
-    if (validEmail) {
-      await CW_Notify.sendEmail(p.email, p.name || assignee, `[Cedarwings] ${typeLbl}${ref?' '+ref:''} assigned to you`, html, 'feedback_assignment')
-    }
-    const wa = (p.whatsapp_phone || p.phone || '').toString().replace(/[^\d+]/g, '')
-    if (wa && wa.length >= 8) {
-      // Brevo wants the number in international format (digits only, no '+').
-      const waNum = wa.replace(/^\+/, '')
-      await CW_Notify.sendWhatsApp(waNum, waMsg, 'feedback_assignment')
-    }
-  }
+  return notifyAssignees(sb, assignee, {
+    type:          'feedback_assignment',
+    subjectPrefix: `[Cedarwings] ${typeLbl}${ref?' '+ref:''}`,
+    title:         `${typeLbl}${ref?' '+ref:''} assigned to you`,
+    headline:      'A complaint / feedback record has been assigned to you',
+    iso:           'Customer Feedback register · ISO 13485 §8.2.1',
+    severity:      sev.toUpperCase(),
+    severityColor: sevCol,
+    facts: [
+      ['Customer', rec.customer_name],
+      ['Doctor',   rec.doctor],
+      ['Case #',   rec.case_id],
+    ],
+    body: (rec.description || '').slice(0, 200) + ((rec.description||'').length>200?'…':''),
+    link,
+  })
 }
 
 // Bulk actions — delegated to the shared module (bulk_actions.js)

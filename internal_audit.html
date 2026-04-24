@@ -460,6 +460,9 @@ window.viewRec=(id)=>{
 window.save=async()=>{
   const planned=document.getElementById('fPlanned').value,auditor=document.getElementById('fAuditor').value.trim();
   if(!planned||!auditor){ntf('Fill required fields (*)','err');return;}
+  // Track previous auditor so we can email the new one on change.
+  const prev = editId ? (all.find(x => String(x.id) === String(editId)) || {}) : {};
+  const prevAuditor = prev.auditor || null;
   const rec={planned_date:planned,actual_date:document.getElementById('fActual').value||null,
     audit_scope:document.getElementById('fScope').value,auditor,status:document.getElementById('fStatus').value,
     objectives:document.getElementById('fObjectives').value.trim()||null,findings:document.getElementById('fFindings').value.trim()||null,
@@ -467,8 +470,12 @@ window.save=async()=>{
     findings_count:parseInt(document.getElementById('fFindCount').value)||0,
     next_audit_due:document.getElementById('fNext').value||null,result:document.getElementById('fResult').value||null};
   if(!editId)rec.audit_number=auditNum();
-  const{error}=editId?await sb.from('internal_audits').update(rec).eq('id',editId):await sb.from('internal_audits').insert([rec]);
+  const{data,error}=editId?await sb.from('internal_audits').update(rec).eq('id',editId).select().single():await sb.from('internal_audits').insert([rec]).select().single();
   if(error){ntf('Error: '+error.message,'err');return;}
+  // Fire email + WhatsApp if the auditor was newly assigned.
+  if (rec.auditor && rec.auditor !== prevAuditor) {
+    _notifyAuditAuditor(rec.auditor, data || { ...rec, id: editId }).catch(e => console.warn('[audit notify]', e));
+  }
   // If findings were recorded — show NC creation prompt
   const hasFindings = rec.findings && (rec.result==='minor_findings'||rec.result==='major_findings'||rec.result==='critical');
   if(hasFindings){
@@ -522,13 +529,47 @@ mountBulkActions({
       patch: (ids) => {
         const who = prompt(`Change auditor for ${ids.length} audit${ids.length===1?'':'s'} to:`);
         if (who === null) return null;
-        return { auditor: who.trim() || null };
+        const value = who.trim() || null;
+        // Fire emails + WhatsApp after the UPDATE settles.
+        setTimeout(async () => {
+          if (!value) return;
+          const { data: rows } = await sb.from('internal_audits')
+            .select('id, audit_number, audit_scope, planned_date, status, next_audit_due, objectives, findings')
+            .in('id', ids);
+          for (const r of (rows || [])) {
+            _notifyAuditAuditor(value, r).catch(e => console.warn('[audit notify]', e));
+          }
+        }, 400);
+        return { auditor: value };
       },
       pastTense: 'auditor changed' },
     { label:'🗑️ Delete', danger:true, delete:true },
   ],
 });
 window.onBulkCbChange = () => {};  // legacy no-op
+
+// Shared notifier for audit auditor-change emails / WhatsApp.
+import { notifyAssignees } from './notify_assignment.js';
+function _notifyAuditAuditor(auditor, rec) {
+  const ref  = rec.audit_number || rec.id || '';
+  const origin = location.origin + location.pathname.replace(/[^/]+$/, '');
+  const link = `${origin}internal_audit.html`;
+  return notifyAssignees(sb, auditor, {
+    type:          'audit_assignment',
+    subjectPrefix: `[Cedarwings] Audit ${ref}`,
+    title:         `Audit ${ref} assigned to you`,
+    headline:      'You have been assigned as the auditor of an internal audit',
+    iso:           'Internal Audit programme · ISO 13485 §8.2.2',
+    facts: [
+      ['Scope',           rec.audit_scope],
+      ['Planned Date',    rec.planned_date],
+      ['Status',          rec.status],
+      ['Next Due',        rec.next_audit_due],
+    ],
+    body: (rec.objectives || rec.findings || '').slice(0, 200),
+    link,
+  });
+}
 
 import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
 window.exportFilteredCsv = () => {
