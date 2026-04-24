@@ -185,6 +185,25 @@ textarea.fi{resize:vertical}
 .pri-badge[data-p="medium"]{background:#fef9c3;color:#854d0e}
 .pri-badge[data-p="high"]{background:#ffedd5;color:#9a3412}
 .pri-badge[data-p="critical"]{background:#fee2e2;color:#991b1b}
+/* SAVED VIEWS */
+.fb-views{position:relative}
+.fb-views-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1.5px solid var(--bdr);border-radius:8px;background:var(--card);color:var(--txt);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;line-height:1}
+.fb-views-btn:hover{border-color:var(--blue);color:var(--blue)}
+.fb-views-btn.unsaved #viewsBtnLabel::after{content:' *';color:var(--red)}
+.fb-views-chev{color:var(--mu);font-size:10px}
+.fb-views-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--bdr);border-radius:10px;box-shadow:var(--sh2);min-width:300px;z-index:200;padding:4px;font-size:12px}
+.fb-views-menu.on{display:block}
+.fb-views-list{max-height:260px;overflow-y:auto}
+.fb-views-row{display:flex;align-items:center;gap:4px;padding:8px 10px;border-radius:7px;cursor:pointer;color:var(--txt)}
+.fb-views-row:hover{background:var(--bg)}
+.fb-views-row.active{background:var(--b50);color:var(--blue);font-weight:700}
+.fb-views-row .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-views-row .icon{width:14px;text-align:center;color:var(--mu);font-size:11px}
+.fb-views-row .action{padding:4px 7px;border-radius:5px;background:transparent;border:none;font-size:12px;cursor:pointer;color:var(--mu)}
+.fb-views-row .action:hover{background:var(--card);color:var(--txt)}
+.fb-views-row .action.del:hover{color:var(--red);background:var(--r50)}
+.fb-views-empty{padding:14px;text-align:center;color:var(--dim);font-size:11px}
+.fb-views-foot{border-top:1px solid var(--bdr);margin-top:4px;padding:7px}
 .tw{overflow-x:auto;border-radius:11px;border:1px solid var(--bdr)}
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{padding:9px 14px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;background:#f8fafc;border-bottom:1px solid var(--bdr);text-align:left;white-space:nowrap}
@@ -267,7 +286,22 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div style="font-size:16px;font-weight:800">💬 Customer Feedback</div>
       <div style="font-size:11px;color:var(--mu)">ISO 13485 Clause 8.2.1 — Customer Complaints & Feedback Register</div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <!-- Saved views (per-user, localStorage-backed) -->
+      <div class="fb-views" id="viewsWrap">
+        <button type="button" class="fb-views-btn" id="viewsBtn" onclick="toggleViewsMenu(event)">
+          <span>👁</span>
+          <span id="viewsBtnLabel">Default</span>
+          <span class="fb-views-chev">▾</span>
+        </button>
+        <div class="fb-views-menu" id="viewsMenu">
+          <div id="viewsList" class="fb-views-list"></div>
+          <div class="fb-views-foot">
+            <button type="button" class="btn bb" onclick="saveCurrentAsView()" style="width:100%;padding:7px 10px;font-size:12px">💾 Save current filters as new view…</button>
+          </div>
+        </div>
+      </div>
+
       <select class="fi" id="typeFilter" style="width:150px">
         <option value="">All Types</option>
         <option value="complaint">Complaint</option>
@@ -1024,8 +1058,161 @@ document.getElementById('searchInput').addEventListener('input',applyFilter)
 document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render()}})
 document.getElementById('btnNext').addEventListener('click',()=>{pg++;render()})
 
+// ─── SAVED VIEWS (per-user, localStorage-backed) ───
+// Keys are namespaced by currentUser so two people sharing a
+// browser (which shouldn't happen, but just in case) don't see
+// each other's saved views.
+const FB_VIEWS_KEY         = `cw_fb_views_${currentUser || 'anon'}`
+const FB_CURRENT_VIEW_KEY  = `cw_fb_current_view_${currentUser || 'anon'}`
+let fbCurrentViewId        = localStorage.getItem(FB_CURRENT_VIEW_KEY) || ''
+
+function _fbReadViews(){
+  try{ return JSON.parse(localStorage.getItem(FB_VIEWS_KEY) || '[]') }catch{ return [] }
+}
+function _fbWriteViews(list){
+  localStorage.setItem(FB_VIEWS_KEY, JSON.stringify(list || []))
+}
+function _fbCurrentFilters(){
+  return {
+    typeFilter:     document.getElementById('typeFilter').value,
+    statusFilter:   document.getElementById('statusFilter').value,
+    assignedFilter: document.getElementById('assignedFilter').value,
+    searchInput:    document.getElementById('searchInput').value,
+  }
+}
+function _fbApplyFilters(f){
+  document.getElementById('typeFilter').value     = f?.typeFilter     || ''
+  document.getElementById('statusFilter').value   = f?.statusFilter   || ''
+  document.getElementById('assignedFilter').value = f?.assignedFilter || ''
+  document.getElementById('searchInput').value    = f?.searchInput    || ''
+  applyFilter()
+}
+function _fbFiltersEqual(a,b){
+  const keys=['typeFilter','statusFilter','assignedFilter','searchInput']
+  return keys.every(k => (a?.[k]||'') === (b?.[k]||''))
+}
+function _fbUid(){ return 'v_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6) }
+function _fbEsc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+
+function _fbRenderMenu(){
+  const views  = _fbReadViews()
+  const list   = document.getElementById('viewsList')
+  const active = views.find(v => v.id === fbCurrentViewId)
+  const label  = active ? active.name : 'Default'
+  const btnLbl = document.getElementById('viewsBtnLabel'); if(btnLbl) btnLbl.textContent = label
+  // Unsaved indicator: current filters differ from the selected view's saved filters
+  const unsaved = active ? !_fbFiltersEqual(_fbCurrentFilters(), active.filters) : false
+  const btn = document.getElementById('viewsBtn'); if(btn) btn.classList.toggle('unsaved', unsaved)
+
+  if(!list) return
+  let html = ''
+  const isDefault = !active
+  html += `<div class="fb-views-row ${isDefault?'active':''}" onclick="applyView('')">
+    <span class="icon">${isDefault?'●':'○'}</span>
+    <span class="name">Default <span style="color:var(--dim);font-weight:400">· no filters</span></span>
+  </div>`
+  if(!views.length){
+    html += `<div class="fb-views-empty">No saved views yet — set filters and click “Save current filters…” below.</div>`
+  }else{
+    views.forEach(v => {
+      const isOn = v.id === fbCurrentViewId
+      html += `<div class="fb-views-row ${isOn?'active':''}" onclick="applyView('${v.id}')">
+        <span class="icon">${isOn?'●':'○'}</span>
+        <span class="name">${_fbEsc(v.name)}</span>
+        <button type="button" class="action" onclick="event.stopPropagation();renameView('${v.id}')" title="Rename">✏️</button>
+        <button type="button" class="action del" onclick="event.stopPropagation();deleteView('${v.id}')" title="Delete">🗑️</button>
+      </div>`
+    })
+  }
+  list.innerHTML = html
+}
+
+window.toggleViewsMenu = (ev) => {
+  if(ev) ev.stopPropagation()
+  const m = document.getElementById('viewsMenu')
+  const wasOpen = m.classList.contains('on')
+  m.classList.toggle('on', !wasOpen)
+  if(!wasOpen) _fbRenderMenu()
+}
+// Close menu on outside click
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('viewsWrap')
+  if(wrap && !wrap.contains(e.target)) document.getElementById('viewsMenu').classList.remove('on')
+})
+
+window.applyView = (id) => {
+  document.getElementById('viewsMenu').classList.remove('on')
+  fbCurrentViewId = id
+  localStorage.setItem(FB_CURRENT_VIEW_KEY, id)
+  if(!id){ _fbApplyFilters({}) }
+  else{
+    const v = _fbReadViews().find(x => x.id === id)
+    if(v) _fbApplyFilters(v.filters)
+  }
+  _fbRenderMenu()
+}
+
+window.saveCurrentAsView = () => {
+  const name = prompt('Name for this view:')
+  if(!name || !name.trim()) return
+  const views = _fbReadViews()
+  const v = { id: _fbUid(), name: name.trim(), filters: _fbCurrentFilters() }
+  views.push(v)
+  _fbWriteViews(views)
+  fbCurrentViewId = v.id
+  localStorage.setItem(FB_CURRENT_VIEW_KEY, v.id)
+  _fbRenderMenu()
+  document.getElementById('viewsMenu').classList.add('on')
+}
+
+window.renameView = (id) => {
+  const views = _fbReadViews()
+  const v = views.find(x => x.id === id); if(!v) return
+  const newName = prompt('Rename view:', v.name)
+  if(!newName || !newName.trim() || newName.trim() === v.name) return
+  v.name = newName.trim()
+  _fbWriteViews(views)
+  _fbRenderMenu()
+}
+
+window.deleteView = (id) => {
+  const views = _fbReadViews()
+  const v = views.find(x => x.id === id); if(!v) return
+  if(!confirm(`Delete view "${v.name}"?`)) return
+  _fbWriteViews(views.filter(x => x.id !== id))
+  if(fbCurrentViewId === id){ fbCurrentViewId = ''; localStorage.setItem(FB_CURRENT_VIEW_KEY, '') }
+  _fbRenderMenu()
+}
+
+// Keep the "unsaved" asterisk in sync whenever any filter changes
+;['typeFilter','statusFilter','assignedFilter','searchInput'].forEach(id => {
+  const el = document.getElementById(id)
+  if(!el) return
+  el.addEventListener('change', _fbRenderMenu)
+  el.addEventListener('input',  _fbRenderMenu)
+})
+
+// Initial button label
+_fbRenderMenu()
+
 ;(async()=>{
   await loadDropdowns()
+  // Restore the last-used saved view (if any) so filters persist
+  // across page reloads. Deep-link query params below still win.
+  if(fbCurrentViewId){
+    const v = _fbReadViews().find(x => x.id === fbCurrentViewId)
+    if(v){
+      const f = v.filters || {}
+      document.getElementById('typeFilter').value     = f.typeFilter     || ''
+      document.getElementById('statusFilter').value   = f.statusFilter   || ''
+      document.getElementById('assignedFilter').value = f.assignedFilter || ''
+      document.getElementById('searchInput').value    = f.searchInput    || ''
+    }else{
+      fbCurrentViewId = ''
+      localStorage.setItem(FB_CURRENT_VIEW_KEY, '')
+    }
+    _fbRenderMenu()
+  }
   // Deep-link filters from the 🔔 login modal — applied BEFORE load/render
   const qp=new URLSearchParams(location.search)
   if(qp.get('filter')==='mine'){
