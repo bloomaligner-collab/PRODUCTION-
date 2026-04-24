@@ -149,6 +149,7 @@
       <button class="btn b-pri" id="btnAI">+ Add Item</button>
       <button class="btn b-grn" id="btnAL">+ Add Stock Lot</button>
       <button class="btn b-gho" id="btnImportItems" title="Import items from an Excel file">📥 Import Items</button>
+      <button class="btn b-gho" onclick="exportFilteredCsv()" title="Download filtered stock list as CSV">⬇ CSV</button>
       <input type="file" id="itemsImportFile" accept=".xlsx,.xls,.csv" style="display:none"/>
       <button class="btn b-gho" id="btnR">↻ Refresh</button>
     </div>
@@ -824,6 +825,32 @@ document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{
   b.classList.add('on');$('tp-'+b.dataset.t).classList.add('on')
 }))
 $('sSearch').addEventListener('input',rStock);$('sStatus').addEventListener('change',rStock);$('sCat').addEventListener('change',rStock)
+
+// CSV export — respects current filters (search, status, category)
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  const term=$('sSearch').value.toLowerCase(), sf=$('sStatus').value, cf=$('sCat').value;
+  const fl=allLots.filter(r=>{
+    const st=lotSt(r), hay=`${r.item_name||''} ${r.lot_no||''} ${r.supplier_name||''} ${r.location_name||''} ${r.category_name||''}`.toLowerCase();
+    return(!term||hay.includes(term))&&(sf==='all'||st===sf)&&(cf==='all'||r.category_name===cf);
+  });
+  downloadCsv(`inventory_${todayIso()}.csv`, [
+    { header:'Item',          get: r => r.item_name || '' },
+    { header:'Category',      get: r => r.category_name || '' },
+    { header:'Lot #',         get: r => r.lot_no || '' },
+    { header:'Batch #',       get: r => r.batch_no || '' },
+    { header:'Qty available', get: r => r.available_qty ?? '' },
+    { header:'Qty initial',   get: r => r.initial_qty ?? '' },
+    { header:'Unit',          get: r => r.unit || '' },
+    { header:'Unit Cost',     get: r => r.unit_cost ?? '' },
+    { header:'Total Value',   get: r => ((Number(r.available_qty||0)*Number(r.unit_cost||0)) || 0).toFixed(2) },
+    { header:'Received',      get: r => r.received_date || '' },
+    { header:'Expiry',        get: r => r.expiry_date || '' },
+    { header:'Supplier',      get: r => r.supplier_name || '' },
+    { header:'Location',      get: r => r.location_name || r.location || '' },
+    { header:'Status',        get: r => lotSt(r) },
+  ], fl);
+};
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
 mountSavedViews({

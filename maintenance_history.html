@@ -243,6 +243,7 @@ tbody tr:hover{background:#f8fafc}
         <option value="calibration">Calibration</option>
         <option value="inspection">Inspection</option>
       </select>
+      <button class="btn btn-ghost" onclick="exportFilteredCsv()" title="Download filtered records as CSV" style="cursor:pointer;padding:7px 14px;font-size:12px;font-weight:600">⬇ CSV</button>
       <button class="btn btn-blue" onclick="openAdd()">+ Log Maintenance</button>
     </div>
   </div>
@@ -517,6 +518,19 @@ window.save=async()=>{
 $('fMach').addEventListener('change',applyFilter);
 $('fType').addEventListener('change',applyFilter);
 $('srch').addEventListener('input',applyFilter);
+
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  downloadCsv(`maintenance_${todayIso()}.csv`, [
+    { header:'Date',      get: r => r.performed_at || r.maintenance_date || '' },
+    { header:'Machine',   get: r => (r.machines && r.machines.machine_name) || r.machine_name || '' },
+    { header:'Type',      get: r => r.maintenance_type || '' },
+    { header:'Performed By', get: r => r.performed_by || '' },
+    { header:'Cost',      get: r => r.cost ?? '' },
+    { header:'Next Due',  get: r => r.next_maintenance || '' },
+    { header:'Notes',     get: r => r.notes || '' },
+  ], filtered);
+};
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
 mountSavedViews({
