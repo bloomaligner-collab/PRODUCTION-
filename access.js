@@ -128,10 +128,105 @@ const CW_ACCESS = {
           👤 ${name} <span style="font-weight:500;opacity:.7">— ${roleLabel}</span>
         </div>
         <a href="${home}" class="nl"><span class="ic">🏠</span>Home</a>
+        <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.openPasswordModal()"><span class="ic">🔑</span>Change password</a>
         <a href="index.html" class="nl" onclick="event.preventDefault();(window.cwSignOut?window.cwSignOut():(sessionStorage.clear(),location.replace('index.html')))" style="color:var(--red,#dc2626)"><span class="ic">🚪</span>Logout</a>
       `;
     }
+    CW_ACCESS._injectPasswordModal();
 
+  },
+
+  // ── Password change modal ──────────────────────────────────────
+  // Self-service. Available from every page's sidebar footer so
+  // users no longer need to ask an admin to reset for them. Uses
+  // sb.auth.updateUser() which only works on the currently-signed-
+  // in user — can't change anyone else's password via this path.
+  _injectPasswordModal() {
+    if (document.getElementById('cw-pw-modal')) return;
+    const m = document.createElement('div');
+    m.id = 'cw-pw-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px;font-family:var(--f,"DM Sans",sans-serif)';
+    m.innerHTML = `
+      <div style="background:var(--card,#fff);border-radius:16px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:800">🔑 Change password</div>
+          <button type="button" id="cw-pw-close" style="background:transparent;border:none;font-size:18px;cursor:pointer;color:var(--mu,#64748b)">✕</button>
+        </div>
+        <div id="cw-pw-msg" style="display:none;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:600;margin-bottom:12px"></div>
+        <label style="font-size:11px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">New password</label>
+        <input type="password" id="cw-pw-new" placeholder="At least 8 characters" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1.5px solid var(--bdr,#e2e8f0);border-radius:9px;font-family:inherit;font-size:13px;margin-bottom:12px;outline:none"/>
+        <label style="font-size:11px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Confirm new password</label>
+        <input type="password" id="cw-pw-conf" placeholder="Retype the new password" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1.5px solid var(--bdr,#e2e8f0);border-radius:9px;font-family:inherit;font-size:13px;margin-bottom:16px;outline:none"/>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="cw-pw-cancel" style="padding:8px 14px;background:transparent;border:1.5px solid var(--bdr,#e2e8f0);color:var(--mu,#64748b);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
+          <button type="button" id="cw-pw-save" style="padding:8px 16px;background:var(--blue,#3b5fe2);color:#fff;border:none;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Update password</button>
+        </div>
+        <div style="font-size:10px;color:var(--dim,#94a3b8);text-align:center;margin-top:12px">Password is hashed server-side (bcrypt). Supabase checks it against a compromised-password list.</div>
+      </div>
+    `;
+    document.body.appendChild(m);
+    const close = () => {
+      m.style.display = 'none';
+      document.getElementById('cw-pw-new').value = '';
+      document.getElementById('cw-pw-conf').value = '';
+      CW_ACCESS._pwMsg('');
+    };
+    document.getElementById('cw-pw-close').addEventListener('click', close);
+    document.getElementById('cw-pw-cancel').addEventListener('click', close);
+    m.addEventListener('click', e => { if (e.target === m) close(); });
+    document.getElementById('cw-pw-save').addEventListener('click', () => CW_ACCESS._pwSave());
+    document.getElementById('cw-pw-conf').addEventListener('keydown', e => {
+      if (e.key === 'Enter') CW_ACCESS._pwSave();
+    });
+  },
+  _pwMsg(text, type) {
+    const el = document.getElementById('cw-pw-msg'); if (!el) return;
+    if (!text) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.textContent = text;
+    el.style.display = 'block';
+    if (type === 'err') { el.style.background = 'var(--r50,#fef2f2)'; el.style.color = 'var(--red,#dc2626)'; el.style.border = '1px solid var(--r100,#fee2e2)'; }
+    else if (type === 'ok') { el.style.background = 'var(--g50,#f0fdf4)'; el.style.color = '#15803d'; el.style.border = '1px solid var(--g100,#dcfce7)'; }
+    else { el.style.background = 'var(--b50,#eef2ff)'; el.style.color = 'var(--blue,#3b5fe2)'; el.style.border = '1px solid var(--b100,#e0e7ff)'; }
+  },
+  async _pwSave() {
+    const np = document.getElementById('cw-pw-new').value;
+    const cp = document.getElementById('cw-pw-conf').value;
+    if (!np || np.length < 8) { this._pwMsg('Password must be at least 8 characters.', 'err'); return; }
+    if (np !== cp)            { this._pwMsg('The two passwords do not match.', 'err'); return; }
+    const btn = document.getElementById('cw-pw-save');
+    btn.disabled = true; const originalText = btn.textContent; btn.textContent = 'Updating…';
+    this._pwMsg('Contacting Supabase…', 'info');
+    try {
+      // Supabase client is page-local; load it lazily so access.js
+      // stays a plain script that works on any page.
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const { SUPABASE_CONFIG } = await import('./config.js');
+      const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      const { error } = await sb.auth.updateUser({ password: np });
+      if (error) {
+        // Supabase returns specific codes for leaked / too-short / same-as-old
+        const m = /pwned|leaked|compromised/i.test(error.message) ? 'This password appears in known-breach lists. Pick a different one.'
+                : /too short|at least/i.test(error.message)       ? 'Password must be at least 8 characters.'
+                : /same|reuse|unchanged/i.test(error.message)     ? 'New password must be different from the current one.'
+                : error.message;
+        this._pwMsg(m, 'err');
+        btn.disabled = false; btn.textContent = originalText;
+        return;
+      }
+      this._pwMsg('✅ Password updated. You can keep working.', 'ok');
+      document.getElementById('cw-pw-new').value = '';
+      document.getElementById('cw-pw-conf').value = '';
+      setTimeout(() => { document.getElementById('cw-pw-modal').style.display = 'none'; this._pwMsg(''); }, 1800);
+    } catch (e) {
+      this._pwMsg('Unexpected error: ' + (e.message || e), 'err');
+    } finally {
+      btn.disabled = false; btn.textContent = originalText;
+    }
+  },
+  openPasswordModal() {
+    this._injectPasswordModal();
+    const m = document.getElementById('cw-pw-modal');
+    if (m) { m.style.display = 'flex'; setTimeout(() => document.getElementById('cw-pw-new')?.focus(), 50); }
   }
 };
 
