@@ -271,9 +271,17 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
       <!-- Saved views: inline chip row -->
       <div id="savedViewsMount" style="margin-bottom:12px"></div>
+      <!-- Bulk-action bar -->
+      <div id="bulkBar" style="display:none;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;background:var(--b50);border:1px solid var(--b100);border-radius:10px;font-size:13px">
+        <span id="bulkCount" style="font-weight:700;color:var(--blue)">0 selected</span>
+        <span style="flex:1"></span>
+        <button class="btn bgh" onclick="bulkMarkCompleted()" style="padding:5px 12px;font-size:12px">✅ Mark completed</button>
+        <button class="btn bgh" onclick="bulkDelete()"        style="padding:5px 12px;font-size:12px;color:var(--red)">🗑️ Delete</button>
+        <button class="btn bgh" onclick="bulkClear()"         style="padding:5px 12px;font-size:12px">✕ Clear</button>
+      </div>
       <div class="tw"><table>
-        <thead><tr><th>Audit #</th><th>Scope / Area</th><th>Auditor</th><th>Planned Date</th><th>Actual Date</th><th>Findings</th><th>Status</th><th>Next Due</th><th></th></tr></thead>
-        <tbody id="tBody"><tr><td colspan="9" class="ec">Loading...</td></tr></tbody>
+        <thead><tr><th class="no-sort" style="width:28px;text-align:center"><input type="checkbox" id="bulkAllCb" title="Select all on this page" style="cursor:pointer"></th><th>Audit #</th><th>Scope / Area</th><th>Auditor</th><th>Planned Date</th><th>Actual Date</th><th>Findings</th><th>Status</th><th>Next Due</th><th></th></tr></thead>
+        <tbody id="tBody"><tr><td colspan="10" class="ec">Loading...</td></tr></tbody>
       </table></div>
       <div class="pager"><span id="pInfo"></span>
         <div style="display:flex;gap:6px">
@@ -397,6 +405,7 @@ function render(){
     const nd=r.next_audit_due?new Date(r.next_audit_due):null;
     const dueSoon=nd&&(nd-now)/86400000<=30&&(nd-now)/86400000>=0;
     return `<tr>
+      <td style="text-align:center" data-sort="0"><input type="checkbox" class="bulk-cb" value="${r.id}" onclick="event.stopPropagation();onBulkCbChange()" style="cursor:pointer"></td>
       <td class="mono" style="font-weight:700">${r.audit_number||'—'}</td>
       <td style="font-weight:600">${r.audit_scope||'—'}</td>
       <td>${r.auditor||'—'}</td>
@@ -410,7 +419,8 @@ function render(){
         <button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="editRec('${r.id}')">✏️</button>
       </td>
     </tr>`;
-  }).join(''):'<tr><td colspan="9" class="ec">No audits found. Schedule the first one.</td></tr>';
+  }).join(''):'<tr><td colspan="10" class="ec">No audits found. Schedule the first one.</td></tr>';
+  if(typeof onBulkCbChange==='function') onBulkCbChange();
   const tot=filtered.length,tp=Math.ceil(tot/PAGE)||1;
   document.getElementById('pInfo').textContent=`${tot} audits (page ${pg+1}/${tp})`;
   document.getElementById('btnPrev').disabled=pg===0;document.getElementById('btnNext').disabled=pg>=tp-1;
@@ -497,6 +507,44 @@ mountSavedViews({
   applyFilter: () => applyFilter(),
   currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
 });
+
+// ─── BULK ACTIONS ────────────────────────────────────────────
+function _selectedIds(){ return [...document.querySelectorAll('.bulk-cb:checked')].map(cb => cb.value); }
+function _ntf(msg,type){ if(typeof ntf==='function') ntf(msg,type); else alert(msg); }
+window.onBulkCbChange = () => {
+  const ids = _selectedIds();
+  const bar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = `${ids.length} selected`;
+  bar.style.display = ids.length ? 'flex' : 'none';
+  const all = document.querySelectorAll('.bulk-cb');
+  const top = document.getElementById('bulkAllCb');
+  if(top){ top.checked = all.length && ids.length === all.length; top.indeterminate = ids.length > 0 && ids.length < all.length; }
+};
+window.bulkClear = () => {
+  document.querySelectorAll('.bulk-cb:checked').forEach(cb => cb.checked = false);
+  const top = document.getElementById('bulkAllCb'); if(top){ top.checked=false; top.indeterminate=false; }
+  onBulkCbChange();
+};
+document.getElementById('bulkAllCb')?.addEventListener('change', e => {
+  document.querySelectorAll('.bulk-cb').forEach(cb => cb.checked = e.target.checked);
+  onBulkCbChange();
+});
+window.bulkMarkCompleted = async () => {
+  const ids = _selectedIds(); if(!ids.length) return;
+  if(!confirm(`Mark ${ids.length} audit${ids.length===1?'':'s'} completed? Actual Date will be stamped to today.`)) return;
+  const { error } = await sb.from('internal_audits').update({ status:'completed', actual_date: new Date().toISOString().slice(0,10) }).in('id', ids);
+  if(error){ _ntf('Bulk update failed: '+error.message, 'err'); return; }
+  _ntf(`${ids.length} audit${ids.length===1?'':'s'} marked completed`, 'ok');
+  bulkClear(); load();
+};
+window.bulkDelete = async () => {
+  const ids = _selectedIds(); if(!ids.length) return;
+  if(!confirm(`Delete ${ids.length} audit${ids.length===1?'':'s'} permanently? This cannot be undone.`)) return;
+  const { error } = await sb.from('internal_audits').delete().in('id', ids);
+  if(error){ _ntf('Bulk delete failed: '+error.message, 'err'); return; }
+  _ntf(`${ids.length} audit${ids.length===1?'':'s'} deleted`, 'ok');
+  bulkClear(); load();
+};
 
 import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
 window.exportFilteredCsv = () => {
