@@ -135,10 +135,14 @@ const CW_ACCESS = {
     }
     CW_ACCESS._injectPasswordModal();
     // Live count of items assigned to this user across registers,
-    // shown next to the My Work link. Refreshed every 2 minutes.
+    // shown next to the My Work link. Refreshed instantly via
+    // Supabase Realtime (see _subscribeMyWorkRealtime) and as a
+    // fallback every 5 minutes in case the websocket silently
+    // drops.
     CW_ACCESS._refreshMyWorkBadge();
     clearInterval(CW_ACCESS._myWorkTimer);
-    CW_ACCESS._myWorkTimer = setInterval(() => CW_ACCESS._refreshMyWorkBadge(), 120000);
+    CW_ACCESS._myWorkTimer = setInterval(() => CW_ACCESS._refreshMyWorkBadge(), 300000);
+    CW_ACCESS._subscribeMyWorkRealtime();
 
   },
 
@@ -296,6 +300,35 @@ const CW_ACCESS = {
     } catch (e) {
       // Silent — never block the page for a badge
       badge.style.display = 'none';
+    }
+  },
+
+  // ── Realtime subscription for instant badge updates ────────
+  // Subscribes to INSERT / UPDATE / DELETE events on the three
+  // tables that feed the My Work count. On any event we debounce
+  // a refresh of the badge so the count mirrors reality within
+  // ~1s of someone else editing a record. One channel per tab.
+  _myWorkChannel: null,
+  _myWorkDebounce: null,
+  async _subscribeMyWorkRealtime() {
+    const me = (sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '').trim();
+    if (!me) return;
+    if (CW_ACCESS._myWorkChannel) return; // already subscribed this tab
+    try {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const { SUPABASE_CONFIG } = await import('./config.js');
+      const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      const debouncedRefresh = () => {
+        clearTimeout(CW_ACCESS._myWorkDebounce);
+        CW_ACCESS._myWorkDebounce = setTimeout(() => CW_ACCESS._refreshMyWorkBadge(), 800);
+      };
+      CW_ACCESS._myWorkChannel = sb.channel('my_work_' + Math.random().toString(36).slice(2, 8))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'customer_feedback'      }, debouncedRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'non_conformity_reports' }, debouncedRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'internal_audits'        }, debouncedRefresh)
+        .subscribe();
+    } catch (e) {
+      // Silent fail — the 5-minute polling fallback still works
     }
   },
 };
