@@ -574,6 +574,14 @@ window.saveNC=async()=>{
   if (rec.assigned_to && rec.assigned_to !== prevAssigned) {
     _notifyNcAssignee(rec.assigned_to, data || { ...rec, id: editId }).catch(e => console.warn('[nc notify]', e));
   }
+  // High-severity escalation: new NC with severity=high pings
+  // every manager. CAPA assignment may come hours later; we
+  // don't want leadership learning about a critical
+  // production defect from the register.
+  const isNewHighSev = !editId && rec.severity === 'high';
+  if (isNewHighSev) {
+    _notifyNcEscalation(data || { ...rec, id: editId }).catch(e => console.warn('[nc escalation]', e));
+  }
   // Closure confirmation: when status flips to closed, notify
   // the original detector (detected_by) so they know the NC they
   // raised was actually dealt with.
@@ -589,6 +597,30 @@ window.saveNC=async()=>{
 
 // Shared notifier wrapper for NC assignments.
 import { notifyAssignees } from './notify_assignment.js';
+function _notifyNcEscalation(rec) {
+  const ref  = rec.nc_number || rec.id || '';
+  const sev  = (rec.severity || 'high').toUpperCase();
+  const col  = rec.severity === 'high' ? '#dc2626' : '#f97316';
+  const origin = location.origin + location.pathname.replace(/[^/]+$/, '');
+  const link = `${origin}non_conformity.html`;
+  return notifyAssignees(sb, 'role:manager', {
+    type:          'nc_escalation',
+    subjectPrefix: `[Cedarwings] HIGH NC`,
+    title:         `HIGH-severity NC ${ref}`,
+    headline:      'A high-severity non-conformity was just raised',
+    iso:           'Non-Conformity register · ISO 13485 §8.3',
+    severity:      sev,
+    severityColor: col,
+    facts: [
+      ['Category',        rec.category],
+      ['Order / Lot',     rec.order_lot],
+      ['Detected By',     rec.detected_by],
+      ['Production Step', rec.production_step],
+    ],
+    body: (rec.description || '').slice(0, 200),
+    link,
+  });
+}
 function _notifyNcClosed(recipient, rec) {
   const ref  = rec.nc_number || rec.id || '';
   const origin = location.origin + location.pathname.replace(/[^/]+$/, '');

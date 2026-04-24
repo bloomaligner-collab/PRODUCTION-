@@ -995,7 +995,7 @@ window.save=async()=>{
     rec.last_edited_at=new Date().toISOString()
   }
   if(!editId)rec.feedback_no=refNum()
-  const{error}=editId?await sb.from('customer_feedback').update(rec).eq('id',editId):await sb.from('customer_feedback').insert([rec])
+  const{data,error}=editId?await sb.from('customer_feedback').update(rec).eq('id',editId).select().single():await sb.from('customer_feedback').insert([rec]).select().single()
   if(error){ntf('Error: '+error.message,'err');return}
   ntf(editId?'Updated!':'Record logged!','ok')
   if(assigneeChanged && newAssignee && newAssignee!==currentUser){
@@ -1027,6 +1027,17 @@ window.save=async()=>{
   if (becameResolved && creator && creator !== currentUser) {
     const savedRec = editId ? { ...rec, id: editId } : { ...rec, id: null }
     _notifyResolved(creator, savedRec).catch(e => console.warn('[feedback resolved notify]', e))
+  }
+  // High-severity escalation: every new critical / high
+  // complaint pings all managers immediately, regardless of
+  // assignment. Safety-first — leadership shouldn't learn
+  // about a patient-safety complaint hours later from the
+  // register.
+  const isNewHighSev = !editId && rec.type === 'complaint'
+    && (rec.severity === 'critical' || rec.severity === 'high')
+  if (isNewHighSev) {
+    const savedRec = editId ? { ...rec, id: editId } : { ...rec, id: data?.id || null }
+    _notifyEscalation(savedRec).catch(e => console.warn('[feedback escalation]', e))
   }
 
   // If complaint type or critical/high priority — show NC creation prompt
@@ -1076,6 +1087,31 @@ mountSavedViews({
 // behaviour as before (email + WhatsApp via Brevo), just shared
 // with non_conformity and internal_audit now.
 import { notifyAssignees } from './notify_assignment.js'
+function _notifyEscalation(rec) {
+  const ref     = rec.feedback_no || rec.id || ''
+  const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Complaint'
+  const sev     = (rec.severity || 'high').toUpperCase()
+  const sevCol  = rec.severity === 'critical' ? '#dc2626' : '#f97316'
+  const origin  = location.origin + location.pathname.replace(/[^/]+$/, '')
+  const link    = rec.id ? `${origin}customer_feedback.html?open=${rec.id}` : `${origin}customer_feedback.html`
+  return notifyAssignees(sb, 'role:manager', {
+    type:          'feedback_escalation',
+    subjectPrefix: `[Cedarwings] ${sev}`,
+    title:         `${sev} ${typeLbl}${ref?' '+ref:''}`,
+    headline:      `A ${sev.toLowerCase()}-severity complaint was just logged`,
+    iso:           'Customer Feedback register · ISO 13485 §8.2.1',
+    severity:      sev,
+    severityColor: sevCol,
+    facts: [
+      ['Customer', rec.customer_name],
+      ['Doctor',   rec.doctor],
+      ['Case #',   rec.case_id],
+      ['Category', rec.category],
+    ],
+    body: (rec.description || '').slice(0, 200),
+    link,
+  })
+}
 function _notifyResolved(recipient, rec) {
   const ref     = rec.feedback_no || rec.id || ''
   const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Feedback'
