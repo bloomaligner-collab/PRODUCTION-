@@ -1204,32 +1204,64 @@ window.markPaid=async(id)=>{
 }
 
 // ── CSV exports ───────────────────────────────────────────────────────
-function csv(rows){
-  return rows.map(r=>r.map(v=>{
-    const s=String(v??''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s
-  }).join(',')).join('\n')
-}
-function download(name,text){
-  const b=new Blob([text],{type:'text/csv;charset=utf-8'})
-  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click()
-}
+// All three exports now go through the shared csv_export.js
+// module — consistent UTF-8 BOM (Excel accents), one place to
+// fix quoting bugs.
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d'
+
 window.exportCasesCsv=()=>{
-  const rows=[['Case #','Patient','Doctor','Status','Aligners','Supplier','Total Cost','Currency','Payment']]
-  allCases.forEach(c=>rows.push([c.case_id,c.patient_name,c.doctor,c.outsourced?'Outsourced':'In-House',c.order?.aligners_total||'',c.order?.supplier_name||'',c.order?.total_cost||'',c.order?.currency||'',c.order?.payment_status||'']))
-  download(`cases_outsourcing_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
+  downloadCsv(`cases_outsourcing_${todayIso()}.csv`, [
+    { header:'Case #',     get: c => c.case_id },
+    { header:'Patient',    get: c => c.patient_name },
+    { header:'Doctor',     get: c => c.doctor },
+    { header:'Status',     get: c => c.outsourced ? 'Outsourced' : 'In-House' },
+    { header:'Aligners',   get: c => c.order?.aligners_total || '' },
+    { header:'Supplier',   get: c => c.order?.supplier_name || '' },
+    { header:'Total Cost', get: c => c.order?.total_cost || '' },
+    { header:'Currency',   get: c => c.order?.currency || '' },
+    { header:'Payment',    get: c => c.order?.payment_status || '' },
+  ], allCases)
 }
 window.exportOrdersCsv=()=>{
-  const rows=[['PO #','Case #','Supplier','Upper','Lower','Aligners','Cost/Aligner','Total','Currency','Outsourced','Expected Return','Received','Invoice #','Invoice Expected','Invoice Received','Payment','Paid Amount','Paid Date','Notes']]
-  allOrders.forEach(o=>rows.push([o.batch_ref,o.case_id,o.supplier_name,o.aligners_upper,o.aligners_lower,o.aligners_total,o.cost_per_aligner,o.total_cost,o.currency,o.outsource_date,o.expected_return_date,o.received_date,o.invoice_no,o.invoice_due_date,o.invoice_date,o.payment_status,o.paid_amount,o.paid_date,o.notes]))
-  download(`outsourced_orders_${new Date().toISOString().slice(0,10)}.csv`, csv(rows))
+  downloadCsv(`outsourced_orders_${todayIso()}.csv`, [
+    { header:'PO #',             get: o => o.batch_ref },
+    { header:'Case #',           get: o => o.case_id },
+    { header:'Supplier',         get: o => o.supplier_name },
+    { header:'Upper',            get: o => o.aligners_upper },
+    { header:'Lower',            get: o => o.aligners_lower },
+    { header:'Aligners',         get: o => o.aligners_total },
+    { header:'Cost/Aligner',     get: o => o.cost_per_aligner },
+    { header:'Total',            get: o => o.total_cost },
+    { header:'Currency',         get: o => o.currency },
+    { header:'Outsourced',       get: o => o.outsource_date },
+    { header:'Expected Return',  get: o => o.expected_return_date },
+    { header:'Received',         get: o => o.received_date },
+    { header:'Invoice #',        get: o => o.invoice_no },
+    { header:'Invoice Expected', get: o => o.invoice_due_date },
+    { header:'Invoice Received', get: o => o.invoice_date },
+    { header:'Payment',          get: o => o.payment_status },
+    { header:'Paid Amount',      get: o => o.paid_amount },
+    { header:'Paid Date',        get: o => o.paid_date },
+    { header:'Notes',            get: o => o.notes },
+  ], allOrders)
 }
 window.exportReportCsv=()=>{
-  const rows=[['Supplier','Cases','Aligners','Avg €/aligner','Total Cost','Pending','Paid']]
-  document.querySelectorAll('#tSupplier tr').forEach(tr=>{
-    const cells=[...tr.querySelectorAll('td')].map(td=>td.textContent.trim())
-    if(cells.length===7) rows.push(cells)
+  // The Supplier-summary table is built into the DOM by
+  // renderReport(); pull row cells out directly.
+  const rows = []
+  document.querySelectorAll('#tSupplier tr').forEach(tr => {
+    const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.trim())
+    if (cells.length === 7) rows.push(cells)
   })
-  download(`outsourcing_report_${new Date().toISOString().slice(0,7)}.csv`, csv(rows))
+  downloadCsv(`outsourcing_report_${new Date().toISOString().slice(0,7)}.csv`, [
+    { header:'Supplier',         get: r => r[0] },
+    { header:'Cases',            get: r => r[1] },
+    { header:'Aligners',         get: r => r[2] },
+    { header:'Avg €/aligner',    get: r => r[3] },
+    { header:'Total Cost',       get: r => r[4] },
+    { header:'Pending',          get: r => r[5] },
+    { header:'Paid',             get: r => r[6] },
+  ], rows)
 }
 
 // ── Prepared List Order tab ───────────────────────────────────────────

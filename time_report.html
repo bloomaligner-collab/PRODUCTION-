@@ -455,12 +455,22 @@ function render(){
   document.getElementById('btnNext').disabled=pg>=totalPages-1;
 }
 
-// Export CSV
-document.getElementById('exportBtn').addEventListener('click',()=>{
-  const rows=[['Employee','Type','Step/Category','Machine','Order','Start','End','Duration(min)']];
-  allSess.forEach(r=>rows.push([r.employee_name||'',r.session_type||'',r.step_name||r.work_type||r.waste_category||'',r.machine||'',r.order_no||'',r.started_at||'',r.ended_at||'',r.ended_at?dur(r):'LIVE']));
-  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=`time-report-${range}-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+// Export CSV — uses the shared csv_export.js module for
+// consistent quoting, UTF-8 BOM (Excel accents), and one place
+// to maintain. Exports the currently-filtered rows (respects the
+// Search / Type filters), not every session ever.
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+document.getElementById('exportBtn').addEventListener('click', () => {
+  downloadCsv(`time-report-${range}-${todayIso()}.csv`, [
+    { header:'Employee',        get: r => r.employee_name || '' },
+    { header:'Type',            get: r => r.session_type || '' },
+    { header:'Step/Category',   get: r => r.step_name || r.work_type || r.waste_category || '' },
+    { header:'Machine',         get: r => r.machine || '' },
+    { header:'Order',           get: r => r.order_no || '' },
+    { header:'Start',           get: r => r.started_at || '' },
+    { header:'End',             get: r => r.ended_at || '' },
+    { header:'Duration (min)',  get: r => r.ended_at ? dur(r) : 'LIVE' },
+  ], filtered);
 });
 
 document.querySelectorAll('.rt').forEach(btn=>btn.addEventListener('click',()=>{
