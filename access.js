@@ -128,11 +128,17 @@ const CW_ACCESS = {
           👤 ${name} <span style="font-weight:500;opacity:.7">— ${roleLabel}</span>
         </div>
         <a href="${home}" class="nl"><span class="ic">🏠</span>Home</a>
+        <a href="manager.html#my-work" class="nl" id="cw-mywork-link" title="Open items assigned to you"><span class="ic">🎯</span>My Work <span id="cw-mywork-badge" style="margin-left:auto;background:var(--mu,#64748b);color:#fff;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;min-width:18px;text-align:center;display:none">—</span></a>
         <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.openPasswordModal()"><span class="ic">🔑</span>Change password</a>
         <a href="index.html" class="nl" onclick="event.preventDefault();(window.cwSignOut?window.cwSignOut():(sessionStorage.clear(),location.replace('index.html')))" style="color:var(--red,#dc2626)"><span class="ic">🚪</span>Logout</a>
       `;
     }
     CW_ACCESS._injectPasswordModal();
+    // Live count of items assigned to this user across registers,
+    // shown next to the My Work link. Refreshed every 2 minutes.
+    CW_ACCESS._refreshMyWorkBadge();
+    clearInterval(CW_ACCESS._myWorkTimer);
+    CW_ACCESS._myWorkTimer = setInterval(() => CW_ACCESS._refreshMyWorkBadge(), 120000);
 
   },
 
@@ -227,7 +233,71 @@ const CW_ACCESS = {
     this._injectPasswordModal();
     const m = document.getElementById('cw-pw-modal');
     if (m) { m.style.display = 'flex'; setTimeout(() => document.getElementById('cw-pw-new')?.focus(), 50); }
-  }
+  },
+
+  // ── My Work badge ──────────────────────────────────────────────
+  // Shows the number of items currently assigned to this user
+  // across customer_feedback, non_conformity and internal_audits.
+  // Red when there's work to do. Lazily loads the Supabase client
+  // so access.js stays a plain script.
+  _myWorkTimer: null,
+  async _refreshMyWorkBadge() {
+    const badge = document.getElementById('cw-mywork-badge');
+    if (!badge) return;
+    const me = (sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '').trim();
+    const primaryRole = (sessionStorage.getItem('cw_custom_role') || sessionStorage.getItem('cw_role') || '').toLowerCase();
+    if (!me) { badge.style.display = 'none'; return; }
+    try {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const { SUPABASE_CONFIG } = await import('./config.js');
+      const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+      // Resolve extra_roles once so "role:xxx" assignments match
+      let extraRoles = [];
+      try {
+        const { data: emp } = await sb.from('employees')
+          .select('extra_roles').ilike('name', me).maybeSingle();
+        if (emp) {
+          let ex = [];
+          try { ex = typeof emp.extra_roles === 'string' ? JSON.parse(emp.extra_roles) : (emp.extra_roles || []); } catch {}
+          extraRoles = (Array.isArray(ex) ? ex : []).map(s => String(s).toLowerCase());
+        }
+      } catch {}
+      const isMine = v => {
+        if (!v) return false;
+        if (String(v).startsWith('role:')) {
+          const r = String(v).slice(5).toLowerCase();
+          return r === primaryRole || extraRoles.includes(r);
+        }
+        return v === me;
+      };
+
+      const [fbRes, ncRes, iaRes] = await Promise.all([
+        sb.from('customer_feedback').select('assigned_to, follow_up_assignee, follow_up_date, follow_up_done_at, status').in('status', ['open','in_progress']).limit(500),
+        sb.from('non_conformity_reports').select('assigned_to, status').neq('status', 'closed').limit(500),
+        sb.from('internal_audits').select('auditor, status').neq('status', 'completed').limit(500),
+      ]);
+      const fbAll = fbRes.data || [];
+      const count =
+        fbAll.filter(r => isMine(r.assigned_to)).length +
+        (ncRes.data || []).filter(r => isMine(r.assigned_to)).length +
+        (iaRes.data || []).filter(r => r.auditor && r.auditor.toLowerCase() === me.toLowerCase()).length +
+        fbAll.filter(r => r.follow_up_date && !r.follow_up_done_at && isMine(r.follow_up_assignee)).length;
+
+      if (count > 0) {
+        badge.textContent = String(count);
+        badge.style.display = 'inline-block';
+        badge.style.background = 'var(--red,#dc2626)';
+      } else {
+        badge.textContent = '0';
+        badge.style.display = 'inline-block';
+        badge.style.background = 'var(--mu,#64748b)';
+      }
+    } catch (e) {
+      // Silent — never block the page for a badge
+      badge.style.display = 'none';
+    }
+  },
 };
 
 // ── Global button hover / focus affordance ───────────────────────
