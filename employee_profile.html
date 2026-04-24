@@ -307,6 +307,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <button class="tab on" data-tab="history">&#128203; Work History</button>
         <button class="tab" data-tab="steps">&#9881; By Step</button>
         <button class="tab" data-tab="calendar">&#128197; Schedule</button>
+        <button class="tab" data-tab="notify" id="notifyTabBtn" style="display:none">&#128276; Notifications</button>
         <button class="tab" data-tab="admin">&#128295; Admin Edit</button>
       </div>
       <!-- HISTORY TAB -->
@@ -374,6 +375,39 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
           <div id="calSummary" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bdr);display:flex;gap:16px;flex-wrap:wrap"></div>
         </div>
       </div>
+      <!-- NOTIFICATIONS TAB (own profile only) -->
+      <div id="tab-notify" style="display:none">
+        <div class="card">
+          <div><div class="ct">&#128276; Notification preferences</div>
+            <div class="cs">Choose which channels reach you when something is assigned, resolved, approved, or escalated. In-app toasts are always on.</div></div>
+          <div style="display:grid;grid-template-columns:1fr;gap:10px;max-width:500px;margin-top:16px">
+            <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--bdr);border-radius:10px;cursor:pointer;transition:border-color .12s" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--bdr)'">
+              <div>
+                <div style="font-weight:700;font-size:13px">📧 Email</div>
+                <div style="font-size:11px;color:var(--mu);margin-top:2px">Sent to the address on your profile</div>
+              </div>
+              <input type="checkbox" id="prefEmail" style="width:38px;height:22px;cursor:pointer"/>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--bdr);border-radius:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--bdr)'">
+              <div>
+                <div style="font-weight:700;font-size:13px">💬 WhatsApp</div>
+                <div style="font-size:11px;color:var(--mu);margin-top:2px">Sent to your WhatsApp / phone number via Brevo</div>
+              </div>
+              <input type="checkbox" id="prefWhatsapp" style="width:38px;height:22px;cursor:pointer"/>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--bdr);border-radius:10px;cursor:pointer" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--bdr)'">
+              <div>
+                <div style="font-weight:700;font-size:13px">📱 SMS</div>
+                <div style="font-size:11px;color:var(--mu);margin-top:2px">Sent to your phone via Twilio</div>
+              </div>
+              <input type="checkbox" id="prefSms" style="width:38px;height:22px;cursor:pointer"/>
+            </label>
+            <button class="btn bb" onclick="saveNotifyPrefs()" style="margin-top:8px;align-self:flex-start">💾 Save preferences</button>
+            <div id="prefStatus" style="font-size:12px;color:var(--mu)"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ADMIN EDIT TAB -->
       <div id="tab-admin" style="display:none">
         <div class="card">
@@ -612,6 +646,11 @@ function selectEmp(name){
 // LOAD PROFILE DATA
 async function loadProfile(){
   if(!emp)return
+  // Show the Notifications tab only when looking at your own
+  // profile — no one else should be able to toggle your prefs.
+  const myName = sessionStorage.getItem("cw_current_emp") || localStorage.getItem("cw_current_emp") || ""
+  const tabBtn = document.getElementById("notifyTabBtn")
+  if (tabBtn) tabBtn.style.display = (myName && myName === emp) ? "" : "none"
   const{s,e}=getRange()
   const{data}=await sb.from("time_sessions").select("*").eq("employee_name",emp).gte("started_at",s.toISOString()).order("started_at",{ascending:false}).limit(500)
   allSess=(data||[]).filter(r=>new Date(r.started_at)<=e)
@@ -811,9 +850,42 @@ document.getElementById("saveAdd").addEventListener("click",async()=>{
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));t.classList.add("on")
   const tab=t.dataset.tab
-  ;["history","steps","calendar","admin"].forEach(id=>document.getElementById("tab-"+id).style.display=id===tab?"block":"none")
+  ;["history","steps","calendar","notify","admin"].forEach(id=>document.getElementById("tab-"+id).style.display=id===tab?"block":"none")
   if(tab==="calendar")loadCalendar()
+  if(tab==="notify") loadNotifyPrefs()
 }))
+
+// Notification prefs — JSONB on employees.notification_prefs.
+// Only the signed-in user can edit their own prefs (the tab
+// button is only shown on own profile, and save() filters by name).
+async function loadNotifyPrefs(){
+  const myName = sessionStorage.getItem("cw_current_emp") || localStorage.getItem("cw_current_emp") || ""
+  if (!myName) return
+  const { data: emp } = await sb.from("employees")
+    .select("notification_prefs").ilike("name", myName).maybeSingle()
+  const prefs = emp?.notification_prefs || { email: true, whatsapp: true, sms: true }
+  document.getElementById("prefEmail").checked    = prefs.email    !== false
+  document.getElementById("prefWhatsapp").checked = prefs.whatsapp !== false
+  document.getElementById("prefSms").checked      = prefs.sms      !== false
+  document.getElementById("prefStatus").textContent = ""
+}
+window.saveNotifyPrefs = async () => {
+  const myName = sessionStorage.getItem("cw_current_emp") || localStorage.getItem("cw_current_emp") || ""
+  if (!myName) return
+  const prefs = {
+    email:    !!document.getElementById("prefEmail").checked,
+    whatsapp: !!document.getElementById("prefWhatsapp").checked,
+    sms:      !!document.getElementById("prefSms").checked,
+  }
+  const status = document.getElementById("prefStatus")
+  status.textContent = "Saving…"; status.style.color = "var(--mu)"
+  const { error } = await sb.from("employees")
+    .update({ notification_prefs: prefs }).ilike("name", myName)
+  if (error) { status.textContent = "Error: " + error.message; status.style.color = "var(--red)"; return }
+  status.textContent = "✅ Saved — applies to every future notification."
+  status.style.color = "var(--green)"
+  setTimeout(() => { status.textContent = "" }, 3500)
+}
 // DATE RANGE TABS
 document.querySelectorAll(".dr-tab").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll(".dr-tab").forEach(x=>x.classList.remove("on"));b.classList.add("on")

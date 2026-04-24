@@ -42,7 +42,7 @@ async function _resolvePeople(sb, assignee) {
   if (String(assignee).startsWith('role:')) {
     const role = String(assignee).slice(5)
     const { data } = await sb.from('employees')
-      .select('name, email, phone, whatsapp_phone, role, custom_role, extra_roles, is_active')
+      .select('name, email, phone, whatsapp_phone, notification_prefs, role, custom_role, extra_roles, is_active')
       .eq('is_active', true)
     return (data || []).filter(e =>
       e.role === role || e.custom_role === role ||
@@ -51,8 +51,15 @@ async function _resolvePeople(sb, assignee) {
     )
   }
   const { data: emp } = await sb.from('employees')
-    .select('name, email, phone, whatsapp_phone').ilike('name', assignee).maybeSingle()
+    .select('name, email, phone, whatsapp_phone, notification_prefs').ilike('name', assignee).maybeSingle()
   return emp ? [emp] : []
+}
+
+// Missing / legacy pref defaults to "enabled" — preserves
+// existing behaviour for users who never set preferences.
+function _channelEnabled(prefs, channel) {
+  if (!prefs || typeof prefs !== 'object') return true
+  return prefs[channel] !== false
 }
 
 function _buildEmailHtml(ctx) {
@@ -100,20 +107,20 @@ export async function notifyAssignees(sb, assignee, ctx) {
   const subject       = `${subjectPrefix} ${ctx.title || 'assigned to you'}`
 
   for (const p of people) {
+    const prefs = p.notification_prefs
     const validEmail = p.email && p.email.includes('@') && !p.email.endsWith('@cedarwings.local')
-    if (validEmail) {
+    if (validEmail && _channelEnabled(prefs, 'email')) {
       await CW_Notify.sendEmail(p.email, p.name || assignee, subject, html, type)
     }
     // Phone numbers are tried against WhatsApp (Brevo) AND SMS
     // (Twilio). Each channel skips silently if it isn't
-    // configured in Settings, so the same person receives the
-    // message over whichever of the two is on.
+    // configured in Settings OR the user has opted out.
     const raw = (p.whatsapp_phone || p.phone || '').toString().replace(/[^\d+]/g, '')
     if (raw && raw.length >= 8) {
-      const waNum = raw.replace(/^\+/, '')    // Brevo WhatsApp wants digits only
-      const smsNum = raw.startsWith('+') ? raw : ('+' + raw)  // Twilio wants E.164
-      await CW_Notify.sendWhatsApp(waNum, wa, type)
-      await CW_Notify.sendSms(smsNum, wa, type)
+      const waNum  = raw.replace(/^\+/, '')                 // Brevo WhatsApp wants digits only
+      const smsNum = raw.startsWith('+') ? raw : ('+' + raw) // Twilio wants E.164
+      if (_channelEnabled(prefs, 'whatsapp')) await CW_Notify.sendWhatsApp(waNum, wa, type)
+      if (_channelEnabled(prefs, 'sms'))      await CW_Notify.sendSms(smsNum, wa, type)
     }
   }
 }
