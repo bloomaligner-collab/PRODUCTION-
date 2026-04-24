@@ -191,6 +191,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div class="kpi"><div class="ki">&#9888;</div><div class="kl">Maint. Due Soon</div><div class="kv" id="kD" style="color:#dc2626">0</div></div>
       <div class="kpi"><div class="ki">&#9889;</div><div class="kl">Sessions Today</div><div class="kv" id="kS">0</div></div>
     </div>
+    <!-- Saved views: inline chip row -->
+    <div id="savedViewsMount" style="margin-bottom:12px"></div>
     <div class="mg" id="grid"><div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:40px">Loading machines&hellip;</div></div>
     <div class="card" style="margin-bottom:16px">
       <div style="font-size:15px;font-weight:700;margin-bottom:14px">&#128295; Maintenance History</div>
@@ -335,7 +337,11 @@ async function load(){
   let r=0,i=0,m=0,d=0
   machines.forEach(x=>{const st=byM[x.machine_name]?'running':x.status;if(st==='running')r++;else if(st==='maintenance')m++;else if(st!=='offline')i++;const dd=du(x.next_maintenance);if(dd!==null&&dd<=7)d++})
   document.getElementById('kR').textContent=r;document.getElementById('kI').textContent=i;document.getElementById('kM').textContent=m;document.getElementById('kD').textContent=d;document.getElementById('kS').textContent=sess.length
-  document.getElementById('grid').innerHTML=machines.length?machines.map(x=>{
+  // Type filter: if a type is picked in the topbar, render only
+  // that type of machine. KPIs above stay fleet-wide.
+  const typeFilter=document.getElementById('fType')?.value||''
+  const displayMachines=typeFilter?machines.filter(x=>(x.machine_type||'')===typeFilter):machines
+  document.getElementById('grid').innerHTML=displayMachines.length?displayMachines.map(x=>{
     const a=byM[x.machine_name],st=a?'running':x.status,s=stM[x.machine_name]||{n:0,p:0}
     const pct=Math.min(100,Math.round(s.p/(8*60)*100)),bc=pct>=70?'#16a34a':pct>=40?'#d97706':'#94a3b8'
     const dc=st==='running'?'ld-g':st==='maintenance'?'ld-a':st==='offline'?'ld-r':'ld-gray'
@@ -389,7 +395,7 @@ ${a?`<div class="sec"><div class="sec-t">&#128994; Active Session</div><div styl
 ${cl.length?cl.map(c=>{const p=c.qty_installed>0?Math.round(c.qty_remaining/c.qty_installed*100):0;return`<div class="cr-row"><div><div style="font-weight:600;font-size:11px">${c.item_name}${c.supplier_name?` <span style="color:var(--blue);font-size:10px">[${c.supplier_name}]</span>`:''}</div><div style="font-size:10px;color:var(--dim)">Lot: ${c.lot_no||'—'} · ${new Date(c.installed_at).toLocaleDateString()} · By: ${c.installed_by||'—'}</div></div><div style="text-align:right"><div style="font-weight:700;font-family:var(--mono);font-size:12px;color:${p<20?'var(--red)':p<40?'var(--amber)':'var(--green)'}">${c.qty_remaining}/${c.qty_installed} ${c.unit||''}</div><div style="font-size:10px;margin-top:2px"><span style="color:#d97706;font-weight:700">${c.aligners_produced_since_install||0}</span> aligners · <span style="color:#7c3aed;font-weight:700">${c.cases_completed_since_install||0}</span> cases since install</div><div class="crb"><div class="crf" style="width:${p}%;background:${p<20?'#dc2626':p<40?'#d97706':'#16a34a'}"></div></div></div></div>`}).join(''):`<div style="color:var(--dim);font-size:11px;text-align:center;padding:4px">No materials installed.</div>`}
 </div>
 </div></div>`
-  }).join(''):`<div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:40px">No machines found. Run fix_machines_v2.sql first.</div>`
+  }).join(''):`<div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:40px">${typeFilter?`No machines of type "${typeFilter}". Clear the filter to see all.`:'No machines found. Run fix_machines_v2.sql first.'}</div>`
   act.forEach(s=>{const e=document.getElementById('el'+s.id);if(e)setInterval(()=>{e.textContent=hms(Date.now()-new Date(s.started_at).getTime())},1000)})
 
   // Orders per machine — from order_step_tracking + session machine links
@@ -637,6 +643,18 @@ document.getElementById('svInst').addEventListener('click',async()=>{
 })
 document.getElementById('btnRef').addEventListener('click',load)
 load();setInterval(load,20000)
+// Wire the machine-type filter (was unbound — select did nothing)
+document.getElementById('fType')?.addEventListener('change',load)
+
+// Saved views: type filter presets, per-user, cross-device
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'machines',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['fType'],
+  applyFilter: () => load(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 </script>
 <!-- HELP PANEL PLACEHOLDER - filled by lang.js CW_HELP -->
 <div id="helpPanelMount"></div>

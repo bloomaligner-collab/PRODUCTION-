@@ -350,6 +350,12 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
       <div><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
       <div><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
+      <div><label class="form-label">Assigned To</label>
+        <select class="fi" id="fAssigned">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+      <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
       <div style="grid-column:1/-1"><label class="form-label">Description *</label><textarea class="fi" id="fDesc" rows="3" placeholder="Describe the feedback or complaint..."></textarea></div>
     </div>
 
@@ -400,12 +406,6 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         </div>
         <div class="fw"><label class="form-label">Root Cause</label><textarea class="fi" id="fRoot" rows="2" placeholder="Why did this happen?"></textarea></div>
         <div class="fw"><label class="form-label">Resolution / Response</label><textarea class="fi" id="fAction" rows="2" placeholder="What was done to address this?"></textarea></div>
-        <div><label class="form-label">Assigned To</label>
-          <select class="fi" id="fAssigned">
-            <option value="">— Unassigned —</option>
-          </select>
-        </div>
-        <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
       </div>
     </details>
 
