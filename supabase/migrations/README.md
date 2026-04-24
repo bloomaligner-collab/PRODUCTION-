@@ -20,6 +20,7 @@ which matches apply order.
 | `20260423180000_audit_log_traceability.sql` | 2026-04-23 | ISO 13485 §4.2.5 audit trail: `audit_log` table + generic `audit_trigger_fn()` + triggers on 10 regulatory-sensitive tables. Managers-read, append-only. |
 | `20260423190000_user_views_cross_device_saved_filters.sql` | 2026-04-23 | `user_views` table (id, user_id, page, name, filters) for per-user saved filter presets. RLS: owner-only read/write. Replaces localStorage-only storage on the Customer Feedback page. |
 | `20260423200000_realtime_my_work_tables.sql` | 2026-04-23 | Adds customer_feedback / non_conformity_reports / internal_audits to the `supabase_realtime` publication so the sidebar "My Work" badge updates in ~1s instead of polling every 2 minutes. |
+| `20260423210000_realtime_full_replica_identity.sql` | 2026-04-23 | Sets REPLICA IDENTITY FULL on the three realtime tables so UPDATE events carry the complete `old` row. Lets the realtime toast logic distinguish "just assigned to me" from "already mine, some other field changed". |
 
 ## Running locally with the Supabase CLI
 

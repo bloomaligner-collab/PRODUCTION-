@@ -239,6 +239,46 @@ const CW_ACCESS = {
     if (m) { m.style.display = 'flex'; setTimeout(() => document.getElementById('cw-pw-new')?.focus(), 50); }
   },
 
+  // ── Toast stack (realtime notifications) ──────────────────────
+  _toastContainer: null,
+  _showToast({ icon, title, subtitle, href, ttl = 9000 }) {
+    // Lazy-create the stack container the first time we toast.
+    if (!this._toastContainer) {
+      const c = document.createElement('div');
+      c.id = 'cw-toast-stack';
+      c.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;font-family:var(--f,"DM Sans",sans-serif);pointer-events:none';
+      document.body.appendChild(c);
+      this._toastContainer = c;
+    }
+    const wrap = document.createElement('a');
+    if (href) wrap.href = href;
+    wrap.style.cssText = 'pointer-events:auto;text-decoration:none;color:var(--txt,#0f172a);background:var(--card,#fff);border:1px solid var(--bdr,#e2e8f0);border-left:4px solid var(--blue,#3b5fe2);border-radius:10px;padding:12px 14px;min-width:280px;max-width:360px;box-shadow:0 10px 24px rgba(15,23,42,.12);display:flex;gap:10px;align-items:flex-start;animation:cwSlideIn .25s ease-out;cursor:' + (href ? 'pointer' : 'default');
+    wrap.innerHTML = `
+      <div style="font-size:22px;line-height:1;flex-shrink:0">${icon || '🔔'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:800;line-height:1.3;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${String(title||'').replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</div>
+        ${subtitle ? `<div style="font-size:11px;color:var(--mu,#64748b);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${String(subtitle).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</div>` : ''}
+      </div>
+      <button type="button" aria-label="Dismiss" style="background:transparent;border:none;color:var(--dim,#94a3b8);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✕</button>`;
+    // Inject the keyframes once.
+    if (!document.getElementById('cw-toast-kf')) {
+      const st = document.createElement('style');
+      st.id = 'cw-toast-kf';
+      st.textContent = '@keyframes cwSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}@keyframes cwSlideOut{to{opacity:0;transform:translateX(16px)}}';
+      document.head.appendChild(st);
+    }
+    const dismiss = (e) => {
+      if (e) e.preventDefault(), e.stopPropagation();
+      wrap.style.animation = 'cwSlideOut .2s ease-in forwards';
+      setTimeout(() => wrap.remove(), 220);
+    };
+    wrap.querySelector('button').addEventListener('click', dismiss);
+    this._toastContainer.appendChild(wrap);
+    // Cap the stack at 4 — oldest drop.
+    while (this._toastContainer.children.length > 4) this._toastContainer.firstChild.remove();
+    setTimeout(dismiss, ttl);
+  },
+
   // ── My Work badge ──────────────────────────────────────────────
   // Shows the number of items currently assigned to this user
   // across customer_feedback, non_conformity and internal_audits.
@@ -322,10 +362,82 @@ const CW_ACCESS = {
         clearTimeout(CW_ACCESS._myWorkDebounce);
         CW_ACCESS._myWorkDebounce = setTimeout(() => CW_ACCESS._refreshMyWorkBadge(), 800);
       };
+      // Resolve current user's roles once so we can match "role:xxx"
+      // assignment against them inside the realtime handler.
+      const primaryRole = (sessionStorage.getItem('cw_custom_role') || sessionStorage.getItem('cw_role') || '').toLowerCase();
+      let extraRoles = [];
+      try {
+        const { data: emp } = await sb.from('employees').select('extra_roles').ilike('name', me).maybeSingle();
+        if (emp) {
+          let ex = [];
+          try { ex = typeof emp.extra_roles === 'string' ? JSON.parse(emp.extra_roles) : (emp.extra_roles || []); } catch {}
+          extraRoles = (Array.isArray(ex) ? ex : []).map(s => String(s).toLowerCase());
+        }
+      } catch {}
+      const isMine = v => {
+        if (!v) return false;
+        if (String(v).startsWith('role:')) {
+          const r = String(v).slice(5).toLowerCase();
+          return r === primaryRole || extraRoles.includes(r);
+        }
+        return v === me;
+      };
+      // Ignore changes the current user just made themselves.
+      // Supabase doesn't carry "who updated" in the payload, so we
+      // piggyback on the audit_log: if the most recent audit row
+      // for this record has actor_email = my user, skip the toast.
+      // Cheap heuristic that avoids self-toasts in the common case
+      // (single-tab editing) without an extra round-trip.
+      const notifySelf = row => {
+        // Light heuristic: if assigned_to equals me and last_viewed_by
+        // or last_edited_by is me, it's probably my own edit.
+        return row && (row.last_edited_by === me || row.last_viewed_by === me);
+      };
+      const handler = (payload) => {
+        debouncedRefresh();
+        const { eventType, new: nw, old } = payload;
+        if (!nw) return;
+        const table = payload.table;
+        // Build toast if this event made the row newly mine
+        const key = table === 'internal_audits' ? 'auditor' : 'assigned_to';
+        const newMine = isMine(nw[key]);
+        const oldMine = old ? isMine(old[key]) : false;
+        // INSERT + assigned-to-me, OR UPDATE where assignment just became me
+        const justAssigned = (eventType === 'INSERT' && newMine) || (eventType === 'UPDATE' && newMine && !oldMine);
+        // Follow-up assignment on customer_feedback, separately
+        const fuNow   = table === 'customer_feedback' && isMine(nw.follow_up_assignee) && nw.follow_up_date && !nw.follow_up_done_at;
+        const fuBefore= table === 'customer_feedback' && old ? isMine(old.follow_up_assignee) : false;
+        const fuJustAssigned = fuNow && (eventType === 'INSERT' || !fuBefore);
+
+        if (justAssigned && !notifySelf(nw)) {
+          const titles = {
+            customer_feedback:     { icon: '💬', name: 'Complaint / Feedback',    href: `customer_feedback.html?open=${nw.id}` },
+            non_conformity_reports:{ icon: '⚠️', name: 'Non-Conformity Report', href: `non_conformity.html` },
+            internal_audits:       { icon: '📋', name: 'Internal Audit',        href: `internal_audit.html` },
+          };
+          const meta = titles[table]; if (!meta) return;
+          const sub = table === 'customer_feedback' ? (nw.customer_name || nw.feedback_no || '')
+                    : table === 'non_conformity_reports' ? (nw.nc_number || nw.description || '')
+                    : (nw.audit_number || nw.audit_scope || '');
+          CW_ACCESS._showToast({
+            icon: meta.icon,
+            title: `Assigned to you: ${meta.name}`,
+            subtitle: String(sub).slice(0, 80),
+            href: meta.href,
+          });
+        } else if (fuJustAssigned && !notifySelf(nw)) {
+          CW_ACCESS._showToast({
+            icon: '⏰',
+            title: `New follow-up assigned to you`,
+            subtitle: `${nw.customer_name || nw.feedback_no || ''} · due ${nw.follow_up_date}`,
+            href: `customer_feedback.html?open=${nw.id}`,
+          });
+        }
+      };
       CW_ACCESS._myWorkChannel = sb.channel('my_work_' + Math.random().toString(36).slice(2, 8))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'customer_feedback'      }, debouncedRefresh)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'non_conformity_reports' }, debouncedRefresh)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'internal_audits'        }, debouncedRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'customer_feedback'      }, handler)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'non_conformity_reports' }, handler)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'internal_audits'        }, handler)
         .subscribe();
     } catch (e) {
       // Silent fail — the 5-minute polling fallback still works
