@@ -113,6 +113,7 @@ tbody tr:hover{background:var(--b50)}
       <input class="fi" id="fTo" type="date" title="To date"/>
       <input class="fi" id="fPk" placeholder="Record id (record_pk)…" style="min-width:200px"/>
       <button class="btn-ghost" onclick="resetFilters()">✕ Clear</button>
+      <button class="btn-ghost" onclick="exportFilteredCsv()" title="Download ALL matching entries as CSV">⬇ CSV</button>
     </div>
     <div id="savedViewsMount" style="margin-bottom:12px"></div>
     <div class="tw"><table>
@@ -300,6 +301,35 @@ mountSavedViews({
   applyFilter: () => load(),
   currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
 })
+
+// CSV export: re-runs the query WITHOUT the pagination range so
+// managers get every matching entry, not just the current page.
+// Capped at 5000 to avoid accidentally pulling the whole log on
+// a filter-less click.
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d'
+window.exportFilteredCsv = async () => {
+  const f = currentFilters()
+  let q = sb.from('audit_log').select('*').order('at', { ascending:false }).limit(5000)
+  if(f.fTable) q = q.eq('table_name', f.fTable)
+  if(f.fOp)    q = q.eq('op', f.fOp)
+  if(f.fActor) q = q.ilike('actor_email', `%${f.fActor}%`)
+  if(f.fFrom)  q = q.gte('at', f.fFrom)
+  if(f.fTo)    q = q.lte('at', f.fTo + 'T23:59:59')
+  if(f.fPk)    q = q.eq('record_pk', f.fPk)
+  const { data, error } = await q
+  if(error){ alert('Export failed: ' + error.message); return }
+  downloadCsv(`audit_log_${todayIso()}.csv`, [
+    { header:'When',       get: r => r.at || '' },
+    { header:'Actor UID',  get: r => r.actor_uid || '' },
+    { header:'Actor',      get: r => r.actor_email || '' },
+    { header:'Role',       get: r => r.actor_role || '' },
+    { header:'Table',      get: r => r.table_name || '' },
+    { header:'Record',     get: r => r.record_pk || '' },
+    { header:'Op',         get: r => r.op || '' },
+    { header:'Old Data',   get: r => r.old_data ? JSON.stringify(r.old_data) : '' },
+    { header:'New Data',   get: r => r.new_data ? JSON.stringify(r.new_data) : '' },
+  ], data || [])
+}
 
 await loadKpis()
 await load()

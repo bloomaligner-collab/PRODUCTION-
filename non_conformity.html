@@ -251,6 +251,7 @@ tbody tr:hover{background:#f8fafc}
         <option value="medium">🟡 Medium</option>
         <option value="low">🔵 Low</option>
       </select>
+      <button class="btn btn-ghost" onclick="exportFilteredCsv()" title="Download current view as CSV" style="cursor:pointer;padding:7px 14px;font-size:12px;font-weight:600">⬇ CSV</button>
       <button class="btn btn-blue" onclick="openNew()">+ New NC Report</button>
     </div>
   </div>
@@ -608,6 +609,26 @@ mountSavedViews({
   applyFilter: () => applyFilter(),
   currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
 });
+
+// CSV export of current filters — ISO 13485 §8.3 evidence pack
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  downloadCsv(`non_conformity_${todayIso()}.csv`, [
+    { header:'NC #',           get: r => r.nc_number || '' },
+    { header:'Date',           get: r => r.date_raised || r.created_at || '' },
+    { header:'Severity',       get: r => r.severity || '' },
+    { header:'Status',         get: r => r.status || '' },
+    { header:'Category',       get: r => r.category || '' },
+    { header:'Step',           get: r => r.step || '' },
+    { header:'Order',          get: r => r.order_no || '' },
+    { header:'Case',           get: r => r.case_id || '' },
+    { header:'Description',    get: r => r.description || '' },
+    { header:'Root Cause',     get: r => r.root_cause || '' },
+    { header:'Corrective',     get: r => r.corrective_action || '' },
+    { header:'Assigned To',    get: r => r.assigned_to || '' },
+    { header:'Closed At',      get: r => r.closed_at || '' },
+  ], filtered);
+};
 $('pgPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 $('pgNext').addEventListener('click',()=>{pg++;render();});
 load().then(()=>{

@@ -293,6 +293,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <option value="__followup_overdue__">⚠️ Overdue follow-ups</option>
         <option value="__open_unread__">📧 Open &amp; unread</option>
       </select>
+      <button class="btn bgh" onclick="exportFilteredCsv()" title="Download current view as CSV">⬇ CSV</button>
       <button class="btn bb" onclick="openNew()">+ Log Feedback</button>
     </div>
   </div>
@@ -1037,6 +1038,30 @@ mountSavedViews({
   ntf:         (m, t) => ntf(m, t),
   currentUser,
 })
+
+// CSV export of the currently-filtered rows — feeds directly into
+// ISO 13485 external audits (complaints register export).
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d'
+window.exportFilteredCsv = () => {
+  downloadCsv(`feedback_${todayIso()}.csv`, [
+    { header:'Ref #',             get: r => r.feedback_no || '' },
+    { header:'Date',              get: r => r.received_date || '' },
+    { header:'Type',              get: r => TYPE_LABELS[r.type] || r.type || '' },
+    { header:'Category',          get: r => CATEGORY_LABELS[r.category] || r.category || '' },
+    { header:'Customer',          get: r => r.customer_name || '' },
+    { header:'Doctor',            get: r => r.doctor || '' },
+    { header:'Case #',            get: r => r.case_id || r.order_no || '' },
+    { header:'Priority',          get: r => r.severity || '' },
+    { header:'Status',            get: r => r.status || '' },
+    { header:'Assigned To',       get: r => r.assigned_to || '' },
+    { header:'Follow-up Date',    get: r => r.follow_up_date || '' },
+    { header:'Follow-up Owner',   get: r => r.follow_up_assignee || '' },
+    { header:'Resolved Date',     get: r => r.resolved_at || '' },
+    { header:'Description',       get: r => r.description || '' },
+    { header:'Root Cause',        get: r => r.notes || '' },
+    { header:'Resolution',        get: r => r.resolution || '' },
+  ], filtered)
+}
 
 ;(async()=>{
   await loadDropdowns()

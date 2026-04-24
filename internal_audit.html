@@ -252,6 +252,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <option value="completed">Completed</option>
         <option value="overdue">Overdue</option>
       </select>
+      <button class="btn bgh" onclick="exportFilteredCsv()" title="Download current view as CSV">⬇ CSV</button>
       <button class="btn bb" onclick="openNew()">+ Schedule Audit</button>
     </div>
   </div>
@@ -496,6 +497,20 @@ mountSavedViews({
   applyFilter: () => applyFilter(),
   currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
 });
+
+import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
+window.exportFilteredCsv = () => {
+  downloadCsv(`internal_audits_${todayIso()}.csv`, [
+    { header:'Audit #',       get: r => r.audit_number || r.id || '' },
+    { header:'Scope',         get: r => r.scope || '' },
+    { header:'Auditor',       get: r => r.auditor || '' },
+    { header:'Planned Date',  get: r => r.planned_date || '' },
+    { header:'Completed At',  get: r => r.completed_at || '' },
+    { header:'Status',        get: r => r.status || '' },
+    { header:'Findings',      get: r => r.findings || '' },
+    { header:'Actions',       get: r => r.actions || '' },
+  ], filtered);
+};
 document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render();}});
 document.getElementById('btnNext').addEventListener('click',()=>{pg++;render();});
 load();
