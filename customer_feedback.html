@@ -268,9 +268,6 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div style="font-size:11px;color:var(--mu)">ISO 13485 Clause 8.2.1 — Customer Complaints & Feedback Register</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <!-- Saved views (per-user, cross-device via public.user_views) -->
-      <div id="savedViewsMount"></div>
-
       <select class="fi" id="typeFilter" style="width:150px">
         <option value="">All Types</option>
         <option value="complaint">Complaint</option>
@@ -309,10 +306,12 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div class="kpi" style="border-top-color:var(--mu)"><div class="kpi-val" id="kTotal">—</div><div class="kpi-lbl">Total Records</div></div>
     </div>
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-size:14px;font-weight:800">📋 Feedback & Complaints Register</div>
         <input class="fi" id="searchInput" placeholder="Search customer, order, description..." style="width:280px"/>
       </div>
+      <!-- Saved views: inline chip row (per-user, cross-device via public.user_views) -->
+      <div id="savedViewsMount" style="margin-bottom:12px"></div>
       <div class="tw"><table>
         <thead><tr><th></th><th>Ref #</th><th>Date</th><th>Customer / Distributor</th><th>Type</th><th>Category</th><th>Case #</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>⏰ Follow-up</th><th>Status</th><th></th></tr></thead>
         <tbody id="tBody"><tr><td colspan="13" class="ec">Loading...</td></tr></tbody>
@@ -734,7 +733,7 @@ function render(){
       const dueToday = !done && r.follow_up_date === today
       const color = done ? 'var(--green)' : overdue ? 'var(--red)' : dueToday ? 'var(--amber)' : 'var(--blue)'
       const ico = done ? '✅' : overdue ? '⚠️' : dueToday ? '⏰' : '📅'
-      fuHtml = `<span title="${r.follow_up_assignee || ''}" style="display:inline-flex;align-items:center;gap:4px;color:${color};font-weight:700;font-size:12px">${ico} ${fdt(r.follow_up_date)}</span>`
+      fuHtml = `<span data-sort="${r.follow_up_date||''}" title="${r.follow_up_assignee || ''}" style="display:inline-flex;align-items:center;gap:4px;color:${color};font-weight:700;font-size:12px">${ico} ${fdt(r.follow_up_date)}</span>`
     }
     // Build envelope tooltip with full activity trail
     const trailParts=[envTitle]
@@ -748,15 +747,15 @@ function render(){
     return `<tr style="${rowStyle}" onclick="if(!event.target.closest('button,a')) viewRec('${r.id}')" title="Click anywhere to open this record">
       <td style="font-size:16px;text-align:center;white-space:pre-line" title="${envTip.replace(/"/g,'&quot;')}">${envIcon}</td>
       <td class="mono" style="font-weight:700">${r.feedback_no||'—'}</td>
-      <td class="mono">${fdt(r.received_date)}</td>
+      <td class="mono" data-sort="${r.received_date||''}">${fdt(r.received_date)}</td>
       <td style="font-weight:600">${r.customer_name||'—'}</td>
       <td><span class="badge ${tc}">${TYPE_LABELS[r.type]||r.type||'—'}</span></td>
       <td>${CATEGORY_LABELS[r.category]||'—'}</td>
       <td class="mono">${r.case_id||r.order_no||'—'}</td>
       <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
-      <td><span class="pri-badge" data-p="${r.severity||'medium'}">${r.severity||'—'}</span></td>
+      <td data-sort="${({low:1,medium:2,high:3,critical:4})[r.severity]||0}"><span class="pri-badge" data-p="${r.severity||'medium'}">${r.severity||'—'}</span></td>
       <td style="font-size:12px">${assigneeCell}</td>
-      <td>${fuHtml}</td>
+      <td data-sort="${r.follow_up_date||''}">${fuHtml}</td>
       <td><span class="badge ${sc}">${(r.status||'open').replace(/_/g,' ')}</span></td>
       <td style="white-space:nowrap">
         <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="event.stopPropagation();viewRec('${r.id}')" title="View">👁</button>

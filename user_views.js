@@ -1,18 +1,21 @@
-// user_views.js — shared per-user saved-filter-views control.
+// user_views.js — shared per-user saved-filter-views control,
+// rendered as a horizontal row of chip buttons. Each chip is a
+// saved view; the active one is highlighted. A trailing "+"
+// chip saves the current filters as a new view.
+//
 // Rows live in public.user_views (RLS: owner-only). Each page
-// that wants saved views calls mountSavedViews(config) once,
-// after its filter inputs and mount container exist in the DOM.
+// calls mountSavedViews(config) once, after its filter inputs
+// and mount container exist in the DOM.
 //
 // Example:
 //   import { mountSavedViews } from './user_views.js'
 //   mountSavedViews({
-//     sb,                              // authenticated supabase client
-//     page:        'customer_feedback',
+//     sb, page: 'customer_feedback',
 //     mountEl:     document.getElementById('savedViewsMount'),
 //     filterIds:   ['typeFilter','statusFilter','assignedFilter','searchInput'],
-//     applyFilter: () => applyFilter(),   // called after fields are written
-//     ntf:         (msg,type) => ntf(msg,type), // optional toast helper
-//     currentUser: currentUser,
+//     applyFilter: () => applyFilter(),
+//     ntf:         (m, t) => ntf(m, t),
+//     currentUser,
 //   })
 
 let _cssInjected = false
@@ -20,24 +23,20 @@ function _injectCssOnce() {
   if (_cssInjected) return
   _cssInjected = true
   const css = `
-  .sv-wrap{position:relative}
-  .sv-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1.5px solid var(--bdr);border-radius:8px;background:var(--card);color:var(--txt);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;line-height:1}
-  .sv-btn:hover{border-color:var(--blue);color:var(--blue)}
-  .sv-btn.unsaved .sv-label::after{content:' *';color:var(--red,#dc2626)}
-  .sv-chev{color:var(--mu);font-size:10px}
-  .sv-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--bdr);border-radius:10px;box-shadow:var(--sh2,0 6px 24px rgba(0,0,0,.09));min-width:300px;z-index:200;padding:4px;font-size:12px}
-  .sv-menu.on{display:block}
-  .sv-list{max-height:260px;overflow-y:auto}
-  .sv-row{display:flex;align-items:center;gap:4px;padding:8px 10px;border-radius:7px;cursor:pointer;color:var(--txt)}
-  .sv-row:hover{background:var(--bg)}
-  .sv-row.active{background:var(--b50,#eef2ff);color:var(--blue,#3b5fe2);font-weight:700}
-  .sv-row .sv-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sv-row .sv-icon{width:14px;text-align:center;color:var(--mu);font-size:11px}
-  .sv-action{padding:4px 7px;border-radius:5px;background:transparent;border:none;font-size:12px;cursor:pointer;color:var(--mu)}
-  .sv-action:hover{background:var(--card);color:var(--txt)}
-  .sv-action.del:hover{color:var(--red,#dc2626);background:var(--r50,#fef2f2)}
-  .sv-empty{padding:14px;text-align:center;color:var(--dim);font-size:11px}
-  .sv-foot{border-top:1px solid var(--bdr);margin-top:4px;padding:7px}
+  .sv-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0}
+  .sv-chip{position:relative;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border:1.5px solid var(--bdr);border-radius:999px;background:var(--card);color:var(--mu);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;transition:all .12s;line-height:1.4;white-space:nowrap}
+  .sv-chip:hover{border-color:var(--blue,#3b5fe2);color:var(--blue,#3b5fe2);background:var(--b50,#eef2ff)}
+  .sv-chip.active{background:var(--blue,#3b5fe2);border-color:var(--blue,#3b5fe2);color:#fff}
+  .sv-chip.active:hover{background:#2e4fc7;border-color:#2e4fc7;color:#fff}
+  .sv-chip.unsaved::after{content:'•';color:var(--red,#dc2626);font-size:14px;line-height:1;margin-left:2px}
+  .sv-chip.active.unsaved::after{color:#fff}
+  .sv-chip-actions{display:none;margin-left:2px;gap:2px}
+  .sv-chip:hover .sv-chip-actions{display:inline-flex}
+  .sv-act{border:none;background:transparent;padding:1px 3px;border-radius:4px;cursor:pointer;color:inherit;font-size:11px;opacity:.8}
+  .sv-act:hover{background:rgba(255,255,255,.25);opacity:1}
+  .sv-chip:not(.active) .sv-act:hover{background:rgba(59,95,226,.12)}
+  .sv-chip.add{border-style:dashed;color:var(--mu);background:transparent;font-weight:700}
+  .sv-chip.add:hover{border-style:solid;color:var(--blue,#3b5fe2);background:var(--b50,#eef2ff)}
   `
   const tag = document.createElement('style')
   tag.textContent = css
@@ -55,34 +54,14 @@ export async function mountSavedViews(opts) {
   }
   const ntf = typeof opts.ntf === 'function' ? opts.ntf : (() => {})
   const currentViewKey = `cw_sv_current_${page}_${currentUser || 'anon'}`
-  const legacyKey      = `cw_fb_views_${currentUser || 'anon'}`  // pre-module localStorage
+  const legacyKey      = `cw_fb_views_${currentUser || 'anon'}`  // pre-module localStorage (customer_feedback only)
   let currentViewId    = localStorage.getItem(currentViewKey) || ''
   let cache            = []
 
   _injectCssOnce()
 
-  // Build the UI inside the caller-supplied mount element.
-  mountEl.innerHTML = `
-    <div class="sv-wrap">
-      <button type="button" class="sv-btn">
-        <span>👁</span>
-        <span class="sv-label">Default</span>
-        <span class="sv-chev">▾</span>
-      </button>
-      <div class="sv-menu">
-        <div class="sv-list"></div>
-        <div class="sv-foot">
-          <button type="button" class="btn bb sv-save-new" style="width:100%;padding:7px 10px;font-size:12px">💾 Save current filters as new view…</button>
-        </div>
-      </div>
-    </div>
-  `
-  const wrap   = mountEl.querySelector('.sv-wrap')
-  const btn    = mountEl.querySelector('.sv-btn')
-  const label  = mountEl.querySelector('.sv-label')
-  const menu   = mountEl.querySelector('.sv-menu')
-  const list   = mountEl.querySelector('.sv-list')
-  const saveNew = mountEl.querySelector('.sv-save-new')
+  mountEl.innerHTML = `<div class="sv-chips"></div>`
+  const row = mountEl.querySelector('.sv-chips')
 
   function readFilters() {
     const out = {}
@@ -114,8 +93,7 @@ export async function mountSavedViews(opts) {
   }
 
   async function migrateLegacy() {
-    // Only migrates views from the customer_feedback page —
-    // that's the only place the old localStorage key ever lived.
+    // Only the customer_feedback page ever used the old localStorage key.
     if (page !== 'customer_feedback') return
     let legacy
     try { legacy = JSON.parse(localStorage.getItem(legacyKey) || '[]') } catch { legacy = [] }
@@ -133,34 +111,26 @@ export async function mountSavedViews(opts) {
 
   function render() {
     const active = cache.find(v => v.id === currentViewId)
-    label.textContent = active ? active.name : 'Default'
     const unsaved = active ? !filtersEqual(readFilters(), active.filters) : false
-    btn.classList.toggle('unsaved', unsaved)
 
     let html = ''
     const isDefault = !active
-    html += `<div class="sv-row ${isDefault ? 'active' : ''}" data-action="apply" data-id="">
-      <span class="sv-icon">${isDefault ? '●' : '○'}</span>
-      <span class="sv-name">Default <span style="color:var(--dim);font-weight:400">· no filters</span></span>
-    </div>`
-    if (!cache.length) {
-      html += `<div class="sv-empty">No saved views yet — set filters and click “Save current filters…” below.</div>`
-    } else {
-      for (const v of cache) {
-        const isOn = v.id === currentViewId
-        html += `<div class="sv-row ${isOn ? 'active' : ''}" data-action="apply" data-id="${v.id}">
-          <span class="sv-icon">${isOn ? '●' : '○'}</span>
-          <span class="sv-name">${_esc(v.name)}</span>
-          <button type="button" class="sv-action" data-action="rename" data-id="${v.id}" title="Rename">✏️</button>
-          <button type="button" class="sv-action del" data-action="delete" data-id="${v.id}" title="Delete">🗑️</button>
-        </div>`
-      }
+    html += `<button type="button" class="sv-chip sv-default ${isDefault ? 'active' : ''}" data-action="apply" data-id="">Default</button>`
+    for (const v of cache) {
+      const isOn = v.id === currentViewId
+      html += `<button type="button" class="sv-chip ${isOn ? 'active' : ''} ${isOn && unsaved ? 'unsaved' : ''}" data-action="apply" data-id="${v.id}">
+        <span>${_esc(v.name)}</span>
+        <span class="sv-chip-actions">
+          <button type="button" class="sv-act" data-action="rename" data-id="${v.id}" title="Rename">✏️</button>
+          <button type="button" class="sv-act" data-action="delete" data-id="${v.id}" title="Delete">🗑️</button>
+        </span>
+      </button>`
     }
-    list.innerHTML = html
+    html += `<button type="button" class="sv-chip add" data-action="save-new" title="Save current filters as a new view">＋ Save current</button>`
+    row.innerHTML = html
   }
 
   async function apply(id) {
-    menu.classList.remove('on')
     currentViewId = id
     localStorage.setItem(currentViewKey, id)
     if (!id) writeFilters({})
@@ -182,7 +152,6 @@ export async function mountSavedViews(opts) {
     currentViewId = data.id
     localStorage.setItem(currentViewKey, data.id)
     render()
-    menu.classList.add('on')
   }
 
   async function renameView(id) {
@@ -205,34 +174,28 @@ export async function mountSavedViews(opts) {
     render()
   }
 
-  // Event wiring
-  btn.addEventListener('click', e => {
+  // Delegated click handler for the whole chip row
+  row.addEventListener('click', e => {
+    const el = e.target.closest('[data-action]')
+    if (!el) return
     e.stopPropagation()
-    const was = menu.classList.contains('on')
-    menu.classList.toggle('on', !was)
-    if (!was) render()
-  })
-  document.addEventListener('click', e => {
-    if (!wrap.contains(e.target)) menu.classList.remove('on')
-  })
-  list.addEventListener('click', e => {
-    const el = e.target.closest('[data-action]'); if (!el) return
     const action = el.dataset.action
     const id     = el.dataset.id || ''
-    if (action === 'apply')  { apply(id) }
-    else if (action === 'rename') { e.stopPropagation(); renameView(id) }
-    else if (action === 'delete') { e.stopPropagation(); deleteView(id) }
+    if      (action === 'apply')    apply(id)
+    else if (action === 'rename')   renameView(id)
+    else if (action === 'delete')   deleteView(id)
+    else if (action === 'save-new') saveCurrentAsNew()
   })
-  saveNew.addEventListener('click', saveCurrentAsNew)
 
-  // Keep unsaved indicator in sync
+  // Keep the "unsaved •" marker in sync when any filter changes
   for (const id of filterIds) {
     const el = document.getElementById(id); if (!el) continue
     el.addEventListener('change', render)
     el.addEventListener('input',  render)
   }
 
-  // Initial fetch + restore-last-view
+  // Initial: render placeholder, then fetch, migrate, restore, re-render
+  render()
   await loadFromDB()
   await migrateLegacy()
   if (currentViewId) {
@@ -242,7 +205,5 @@ export async function mountSavedViews(opts) {
   }
   render()
 
-  // Return a small api so callers can re-render if they add new
-  // views through some custom path later.
   return { refresh: async () => { await loadFromDB(); render() } }
 }
