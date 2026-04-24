@@ -101,8 +101,10 @@ export function mountBulkActions(opts) {
 
     // Reassign flow: ask user to pick a new target from a list.
     let reassignChoice = null
+    let reassignCfg    = null
     if (typeof a.reassign === 'function') {
       const cfg = a.reassign() || {}
+      reassignCfg = cfg
       const options = cfg.options || []
       if (!options.length) { ntf('No targets available.', 'err'); return }
       const menu = options.map((o, i) => `${i}: ${o.t || '—'}`).join('\n')
@@ -144,6 +146,11 @@ export function mountBulkActions(opts) {
     if (result.error) { ntf('Bulk action failed: ' + result.error.message, 'err'); return }
     const verb = a.delete ? 'deleted' : reassignChoice ? `reassigned to ${reassignChoice.label}` : (a.pastTense || 'updated')
     ntf(`${ids.length} record${ids.length===1?'':'s'} ${verb}`, 'ok')
+    // Optional afterValue hook — reassign flows use this to fire
+    // post-update side effects (notification emails / WhatsApp).
+    if (reassignChoice && reassignCfg && typeof reassignCfg.afterValue === 'function') {
+      try { await reassignCfg.afterValue(reassignChoice.value, ids) } catch (e) { console.warn('[bulk_actions] afterValue threw:', e) }
+    }
     clearSelection()
     if (typeof onComplete === 'function') await onComplete()
   }
