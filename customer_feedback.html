@@ -1058,20 +1058,49 @@ document.getElementById('searchInput').addEventListener('input',applyFilter)
 document.getElementById('btnPrev').addEventListener('click',()=>{if(pg>0){pg--;render()}})
 document.getElementById('btnNext').addEventListener('click',()=>{pg++;render()})
 
-// ─── SAVED VIEWS (per-user, localStorage-backed) ───
-// Keys are namespaced by currentUser so two people sharing a
-// browser (which shouldn't happen, but just in case) don't see
-// each other's saved views.
-const FB_VIEWS_KEY         = `cw_fb_views_${currentUser || 'anon'}`
+// ─── SAVED VIEWS (per-user, Supabase-backed, cross-device) ───
+// Stored in public.user_views (RLS: each user sees only their own).
+// localStorage is used only to remember which view was last
+// active in THIS browser so the button picks the same view again
+// on reload. The views themselves follow the user across devices.
+const FB_VIEWS_PAGE        = 'customer_feedback'
 const FB_CURRENT_VIEW_KEY  = `cw_fb_current_view_${currentUser || 'anon'}`
+const FB_LEGACY_VIEWS_KEY  = `cw_fb_views_${currentUser || 'anon'}`  // pre-Supabase localStorage, migrated once
 let fbCurrentViewId        = localStorage.getItem(FB_CURRENT_VIEW_KEY) || ''
+let fbViewsCache           = []   // populated by _fbLoadFromDB()
 
-function _fbReadViews(){
-  try{ return JSON.parse(localStorage.getItem(FB_VIEWS_KEY) || '[]') }catch{ return [] }
+function _fbReadViews(){ return fbViewsCache }
+
+async function _fbLoadFromDB(){
+  const { data, error } = await sb.from('user_views')
+    .select('id, name, filters')
+    .eq('page', FB_VIEWS_PAGE)
+    .order('created_at', { ascending: true })
+  if(error){ console.warn('[user_views] load failed:', error.message); return }
+  fbViewsCache = (data || []).map(r => ({ id: r.id, name: r.name, filters: r.filters || {} }))
 }
-function _fbWriteViews(list){
-  localStorage.setItem(FB_VIEWS_KEY, JSON.stringify(list || []))
+
+// One-shot migration of any pre-Supabase views that were stashed
+// in localStorage. Runs once per browser; clears the legacy key
+// on success so we never re-upload.
+async function _fbMigrateLegacyViews(){
+  let legacy
+  try{ legacy = JSON.parse(localStorage.getItem(FB_LEGACY_VIEWS_KEY) || '[]') }catch{ legacy = [] }
+  if(!Array.isArray(legacy) || !legacy.length) return
+  if(fbViewsCache.length) { localStorage.removeItem(FB_LEGACY_VIEWS_KEY); return }
+  const rows = legacy.map(v => ({ page: FB_VIEWS_PAGE, name: v.name || 'Untitled view', filters: v.filters || {} }))
+  const { error } = await sb.from('user_views').insert(rows)
+  if(error){ console.warn('[user_views] legacy migration failed:', error.message); return }
+  localStorage.removeItem(FB_LEGACY_VIEWS_KEY)
+  await _fbLoadFromDB()
+  // If the old current-view id was a legacy localStorage id, it
+  // won't match any DB uuid — drop it so the user starts on the
+  // Default view rather than "unsaved" state.
+  if(fbCurrentViewId && !fbViewsCache.some(v => v.id === fbCurrentViewId)){
+    fbCurrentViewId = ''; localStorage.setItem(FB_CURRENT_VIEW_KEY, '')
+  }
 }
+
 function _fbCurrentFilters(){
   return {
     typeFilter:     document.getElementById('typeFilter').value,
@@ -1091,7 +1120,6 @@ function _fbFiltersEqual(a,b){
   const keys=['typeFilter','statusFilter','assignedFilter','searchInput']
   return keys.every(k => (a?.[k]||'') === (b?.[k]||''))
 }
-function _fbUid(){ return 'v_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6) }
 function _fbEsc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
 
 function _fbRenderMenu(){
@@ -1100,7 +1128,6 @@ function _fbRenderMenu(){
   const active = views.find(v => v.id === fbCurrentViewId)
   const label  = active ? active.name : 'Default'
   const btnLbl = document.getElementById('viewsBtnLabel'); if(btnLbl) btnLbl.textContent = label
-  // Unsaved indicator: current filters differ from the selected view's saved filters
   const unsaved = active ? !_fbFiltersEqual(_fbCurrentFilters(), active.filters) : false
   const btn = document.getElementById('viewsBtn'); if(btn) btn.classList.toggle('unsaved', unsaved)
 
@@ -1134,7 +1161,6 @@ window.toggleViewsMenu = (ev) => {
   m.classList.toggle('on', !wasOpen)
   if(!wasOpen) _fbRenderMenu()
 }
-// Close menu on outside click
 document.addEventListener('click', e => {
   const wrap = document.getElementById('viewsWrap')
   if(wrap && !wrap.contains(e.target)) document.getElementById('viewsMenu').classList.remove('on')
@@ -1152,39 +1178,40 @@ window.applyView = (id) => {
   _fbRenderMenu()
 }
 
-window.saveCurrentAsView = () => {
+window.saveCurrentAsView = async () => {
   const name = prompt('Name for this view:')
   if(!name || !name.trim()) return
-  const views = _fbReadViews()
-  const v = { id: _fbUid(), name: name.trim(), filters: _fbCurrentFilters() }
-  views.push(v)
-  _fbWriteViews(views)
-  fbCurrentViewId = v.id
-  localStorage.setItem(FB_CURRENT_VIEW_KEY, v.id)
+  const { data, error } = await sb.from('user_views')
+    .insert({ page: FB_VIEWS_PAGE, name: name.trim(), filters: _fbCurrentFilters() })
+    .select('id, name, filters').single()
+  if(error){ ntf('Save failed: '+error.message,'err'); return }
+  fbViewsCache.push({ id: data.id, name: data.name, filters: data.filters || {} })
+  fbCurrentViewId = data.id
+  localStorage.setItem(FB_CURRENT_VIEW_KEY, data.id)
   _fbRenderMenu()
   document.getElementById('viewsMenu').classList.add('on')
 }
 
-window.renameView = (id) => {
-  const views = _fbReadViews()
-  const v = views.find(x => x.id === id); if(!v) return
+window.renameView = async (id) => {
+  const v = _fbReadViews().find(x => x.id === id); if(!v) return
   const newName = prompt('Rename view:', v.name)
   if(!newName || !newName.trim() || newName.trim() === v.name) return
+  const { error } = await sb.from('user_views').update({ name: newName.trim() }).eq('id', id)
+  if(error){ ntf('Rename failed: '+error.message,'err'); return }
   v.name = newName.trim()
-  _fbWriteViews(views)
   _fbRenderMenu()
 }
 
-window.deleteView = (id) => {
-  const views = _fbReadViews()
-  const v = views.find(x => x.id === id); if(!v) return
+window.deleteView = async (id) => {
+  const v = _fbReadViews().find(x => x.id === id); if(!v) return
   if(!confirm(`Delete view "${v.name}"?`)) return
-  _fbWriteViews(views.filter(x => x.id !== id))
+  const { error } = await sb.from('user_views').delete().eq('id', id)
+  if(error){ ntf('Delete failed: '+error.message,'err'); return }
+  fbViewsCache = fbViewsCache.filter(x => x.id !== id)
   if(fbCurrentViewId === id){ fbCurrentViewId = ''; localStorage.setItem(FB_CURRENT_VIEW_KEY, '') }
   _fbRenderMenu()
 }
 
-// Keep the "unsaved" asterisk in sync whenever any filter changes
 ;['typeFilter','statusFilter','assignedFilter','searchInput'].forEach(id => {
   const el = document.getElementById(id)
   if(!el) return
@@ -1192,11 +1219,15 @@ window.deleteView = (id) => {
   el.addEventListener('input',  _fbRenderMenu)
 })
 
-// Initial button label
 _fbRenderMenu()
 
 ;(async()=>{
   await loadDropdowns()
+  // Pull saved views from Supabase + migrate any pre-existing
+  // localStorage views on first run.
+  await _fbLoadFromDB()
+  await _fbMigrateLegacyViews()
+  _fbRenderMenu()
   // Restore the last-used saved view (if any) so filters persist
   // across page reloads. Deep-link query params below still win.
   if(fbCurrentViewId){
