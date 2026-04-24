@@ -28,7 +28,7 @@
     "no-unknown-elements": "error",
     "no-dup-id": "error",
     "valid-id": "error",
-    "close-order": "warn",
+    "close-order": "error",
     "void-content": "error",
     "no-missing-references": "error"
   }
