@@ -32,6 +32,7 @@ const CW_ACCESS = {
     { section: 'System' },
     { key: 'settings',             label: 'Settings',            icon: '⚙',  file: 'settings.html' },
     { key: 'roles',                label: 'Roles',               icon: '🔑', file: 'roles.html' },
+    { key: 'audit_log',            label: 'Audit Log',           icon: '📜', file: 'audit_log.html' },
     { key: 'changelog',            label: 'Changelog',           icon: '📝', file: 'changelog.html' },
     { key: 'iso_compliance',       label: 'ISO Compliance',      icon: '🏅', file: 'iso_compliance.html' },
     { section: 'Terminal' },
@@ -70,7 +71,7 @@ const CW_ACCESS = {
       maintenance_history: 'maintenance_history.html',
       employees: 'employees.html', employee_profile: 'employee_profile.html',
       time_report: 'time_report.html',
-      settings: 'settings.html', roles: 'roles.html',
+      settings: 'settings.html', roles: 'roles.html', audit_log: 'audit_log.html',
       changelog: 'changelog.html', iso_compliance: 'iso_compliance.html',
       bloom_import: 'bloom_import.html', outsourcing: 'outsourcing.html', clocking: 'clocking.html'
     };

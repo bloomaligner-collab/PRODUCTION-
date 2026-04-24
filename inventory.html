@@ -198,6 +198,8 @@
       <div class="g2">
         <div>
           <div class="card">
+            <!-- Saved views: inline chip row -->
+            <div id="savedViewsMount" style="margin-bottom:10px"></div>
             <div class="tbar">
               <input class="si" id="sSearch" placeholder="🔍  Search item, lot…"/>
               <select class="fsel" id="sStatus"><option value="all">All Status</option><option value="available">Available</option><option value="low">Low Stock</option><option value="out">Out of Stock</option><option value="near_expiry">Near Expiry</option><option value="expired">Expired</option></select>
@@ -822,6 +824,15 @@ document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{
   b.classList.add('on');$('tp-'+b.dataset.t).classList.add('on')
 }))
 $('sSearch').addEventListener('input',rStock);$('sStatus').addEventListener('change',rStock);$('sCat').addEventListener('change',rStock)
+
+import { mountSavedViews } from './user_views.js?v=20260423d';
+mountSavedViews({
+  sb, page: 'inventory',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['sSearch','sStatus','sCat'],
+  applyFilter: () => rStock(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+});
 $('btnR').addEventListener('click',loadAll)
 
 // ════════════════════════════════════════════════════════

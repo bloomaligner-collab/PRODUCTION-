@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings SAS — Audit Log</title>
+<script type="module" src="auth_guard.js?v=20260422c"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
+  --blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;
+  --green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;
+  --amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;
+  --red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;
+  --purple:#7c3aed;--p50:#f5f3ff;
+  --f:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);
+  --sh2:0 6px 24px rgba(0,0,0,.09),0 0 0 1px rgba(0,0,0,.04)
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:50}
+.title{font-size:18px;font-weight:800}
+.sub{font-size:11px;color:var(--mu);margin-top:2px}
+.back{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border:1.5px solid var(--bdr);border-radius:8px;font-size:13px;font-weight:600;color:var(--mu);text-decoration:none;transition:all .12s}
+.back:hover{border-color:var(--blue);color:var(--blue)}
+.body{padding:20px 28px 80px;max-width:1400px;margin:0 auto}
+.card{background:var(--card);border-radius:12px;padding:16px 18px;box-shadow:var(--sh);margin-bottom:14px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:var(--card);border-radius:12px;box-shadow:var(--sh);padding:14px 16px;border-top:3px solid var(--bdr)}
+.kpi-val{font-size:26px;font-weight:800;letter-spacing:-.5px}
+.kpi-lbl{font-size:11px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.fi{padding:7px 11px;border:1.5px solid var(--bdr);border-radius:8px;font-family:var(--f);font-size:12px;background:var(--card);outline:none;color:var(--txt)}
+.fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,95,226,.1)}
+.tw{overflow-x:auto;border-radius:10px;border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#f8fafc;padding:10px 12px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);border-bottom:1px solid var(--bdr)}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--bdr);vertical-align:top}
+tbody tr{cursor:pointer;transition:background .1s}
+tbody tr:hover{background:var(--b50)}
+.mono{font-family:var(--mono);font-size:11px;color:var(--mu)}
+.badge{display:inline-flex;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700}
+.op-INSERT{background:var(--g100);color:#15803d}
+.op-UPDATE{background:var(--b100);color:#1e40af}
+.op-DELETE{background:var(--r100);color:#991b1b}
+.empty{padding:30px;text-align:center;color:var(--dim)}
+.pager{display:flex;justify-content:space-between;align-items:center;padding:10px 4px 0;font-size:12px;color:var(--mu)}
+.btn-ghost{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-size:12px;font-weight:600;border:1px solid var(--bdr);background:var(--card);color:var(--mu);border-radius:7px;cursor:pointer;font-family:var(--f)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--blue)}
+.btn-ghost:disabled{opacity:.5;cursor:not-allowed}
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:600;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.on{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:820px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh2)}
+.diff-row{display:grid;grid-template-columns:160px 1fr 1fr;gap:10px;padding:8px 10px;border-bottom:1px solid var(--bdr);font-size:12px;align-items:start}
+.diff-row:nth-child(even){background:#f8fafc}
+.diff-field{font-weight:700;color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+.diff-old{color:#991b1b;background:var(--r50);padding:4px 8px;border-radius:5px;font-family:var(--mono);font-size:11px;word-break:break-word;min-height:20px}
+.diff-new{color:#15803d;background:var(--g50);padding:4px 8px;border-radius:5px;font-family:var(--mono);font-size:11px;word-break:break-word;min-height:20px}
+.diff-unchanged .diff-old,.diff-unchanged .diff-new{color:var(--mu);background:#f8fafc}
+.notice{padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.notice.warn{background:var(--a50);border:1px solid var(--a100);color:#92400e}
+.notice.err{background:var(--r50);border:1px solid var(--r100);color:#991b1b}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="title">📜 Audit Log</div>
+    <div class="sub">ISO 13485 §4.2.5 — traceability of record changes. Manager-only view.</div>
+  </div>
+  <a href="manager.html" class="back">← Back to Dashboard</a>
+</div>
+
+<div class="body">
+  <div id="gate" class="notice warn" style="display:none">
+    ⚠️ You must be signed in as a manager to view the audit log. If this is unexpected, ask an admin to promote your role.
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi" style="border-top-color:var(--blue)"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Entries (last 30d)</div></div>
+    <div class="kpi" style="border-top-color:var(--green)"><div class="kpi-val" id="kpiToday">—</div><div class="kpi-lbl">Today</div></div>
+    <div class="kpi" style="border-top-color:var(--amber)"><div class="kpi-val" id="kpiUsers">—</div><div class="kpi-lbl">Active Users (30d)</div></div>
+    <div class="kpi" style="border-top-color:var(--red)"><div class="kpi-val" id="kpiDeletes">—</div><div class="kpi-lbl">Deletes (30d)</div></div>
+  </div>
+
+  <div class="card">
+    <div class="filters">
+      <select class="fi" id="fTable" style="min-width:180px">
+        <option value="">All tables</option>
+        <option value="employees">employees</option>
+        <option value="role_templates">role_templates</option>
+        <option value="system_settings">system_settings</option>
+        <option value="production_records">production_records</option>
+        <option value="production_lots">production_lots</option>
+        <option value="quality_controls">quality_controls</option>
+        <option value="non_conformity_reports">non_conformity_reports</option>
+        <option value="traceability">traceability</option>
+        <option value="customer_feedback">customer_feedback</option>
+        <option value="internal_audits">internal_audits</option>
+      </select>
+      <select class="fi" id="fOp" style="min-width:140px">
+        <option value="">All operations</option>
+        <option value="INSERT">INSERT</option>
+        <option value="UPDATE">UPDATE</option>
+        <option value="DELETE">DELETE</option>
+      </select>
+      <input class="fi" id="fActor" placeholder="Actor email contains…" style="min-width:220px"/>
+      <input class="fi" id="fFrom" type="date" title="From date"/>
+      <input class="fi" id="fTo" type="date" title="To date"/>
+      <input class="fi" id="fPk" placeholder="Record id (record_pk)…" style="min-width:200px"/>
+      <button class="btn-ghost" onclick="resetFilters()">✕ Clear</button>
+    </div>
+    <div id="savedViewsMount" style="margin-bottom:12px"></div>
+    <div class="tw"><table>
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Actor</th>
+          <th>Role</th>
+          <th>Table</th>
+          <th>Record</th>
+          <th>Op</th>
+          <th>Preview</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+    <div class="pager">
+      <span id="pInfo">—</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost" id="btnPrev">‹ Prev</button>
+        <button class="btn-ghost" id="btnNext">Next ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIFF MODAL -->
+<div class="modal-bg" id="diffModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:800" id="dmTitle">Audit entry</div>
+        <div style="font-size:11px;color:var(--mu)" id="dmMeta">—</div>
+      </div>
+      <button class="btn-ghost" onclick="closeDiff()">✕</button>
+    </div>
+    <div id="dmBody"></div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SUPABASE_CONFIG } from './config.js'
+const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+
+const $ = id => document.getElementById(id)
+const PAGE_SIZE = 50
+let page = 0
+let rows = []
+
+function fmtDate(iso){
+  if(!iso) return '—'
+  const d = new Date(iso)
+  if(isNaN(d.getTime())) return iso
+  return d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+function preview(r){
+  // Short one-line summary of the change
+  if(r.op==='INSERT') return 'created new row'
+  if(r.op==='DELETE') return 'row deleted'
+  // UPDATE — list keys that changed
+  const old = r.old_data||{}, nw = r.new_data||{}
+  const keys = new Set([...Object.keys(old), ...Object.keys(nw)])
+  const changed = [...keys].filter(k => JSON.stringify(old[k]) !== JSON.stringify(nw[k]) && !['updated_at','last_synced_at'].includes(k))
+  if(!changed.length) return 'no visible field changes'
+  return 'changed: ' + changed.slice(0,4).join(', ') + (changed.length>4?` (+${changed.length-4})`:'')
+}
+
+async function loadKpis(){
+  const now = new Date(); const from30 = new Date(now.getTime() - 30*24*3600*1000).toISOString()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+  const [{ count: total }, { count: today }, { data: users }, { count: dels }] = await Promise.all([
+    sb.from('audit_log').select('id', { count:'exact', head:true }).gte('at', from30),
+    sb.from('audit_log').select('id', { count:'exact', head:true }).gte('at', todayStart),
+    sb.from('audit_log').select('actor_uid').gte('at', from30),
+    sb.from('audit_log').select('id', { count:'exact', head:true }).gte('at', from30).eq('op','DELETE'),
+  ])
+  $('kpiTotal').textContent   = total ?? '—'
+  $('kpiToday').textContent   = today ?? '—'
+  $('kpiUsers').textContent   = users ? new Set((users||[]).map(u=>u.actor_uid).filter(Boolean)).size : '—'
+  $('kpiDeletes').textContent = dels ?? '—'
+}
+
+function currentFilters(){
+  return {
+    fTable:  $('fTable').value,
+    fOp:     $('fOp').value,
+    fActor:  $('fActor').value.trim(),
+    fFrom:   $('fFrom').value,
+    fTo:     $('fTo').value,
+    fPk:     $('fPk').value.trim(),
+  }
+}
+
+async function load(){
+  page = 0
+  await render()
+}
+async function render(){
+  $('tbody').innerHTML = '<tr><td colspan="7" class="empty">Loading…</td></tr>'
+  const f = currentFilters()
+  let q = sb.from('audit_log').select('*').order('at', { ascending:false })
+  if(f.fTable) q = q.eq('table_name', f.fTable)
+  if(f.fOp)    q = q.eq('op', f.fOp)
+  if(f.fActor) q = q.ilike('actor_email', `%${f.fActor}%`)
+  if(f.fFrom)  q = q.gte('at', f.fFrom)
+  if(f.fTo)    q = q.lte('at', f.fTo + 'T23:59:59')
+  if(f.fPk)    q = q.eq('record_pk', f.fPk)
+  q = q.range(page*PAGE_SIZE, page*PAGE_SIZE + PAGE_SIZE - 1)
+  const { data, error } = await q
+  if(error){
+    const isDenied = /(permission|policy|row-level)/i.test(error.message||'')
+    $('tbody').innerHTML = `<tr><td colspan="7" class="empty" style="color:var(--red)">${isDenied ? '🔒 You must be a manager to view the audit log.' : esc(error.message)}</td></tr>`
+    $('gate').style.display = isDenied ? 'block' : 'none'
+    return
+  }
+  $('gate').style.display = 'none'
+  rows = data || []
+  if(!rows.length){
+    $('tbody').innerHTML = `<tr><td colspan="7" class="empty">No audit entries match the current filters.</td></tr>`
+  } else {
+    $('tbody').innerHTML = rows.map((r,i) => `
+      <tr onclick="showDiff(${i})">
+        <td class="mono">${fmtDate(r.at)}</td>
+        <td>${esc(r.actor_email||'(system)')}</td>
+        <td>${esc(r.actor_role||'—')}</td>
+        <td class="mono">${esc(r.table_name)}</td>
+        <td class="mono">${esc(r.record_pk||'—').slice(0,16)}${(r.record_pk||'').length>16?'…':''}</td>
+        <td><span class="badge op-${r.op}">${r.op}</span></td>
+        <td style="color:var(--mu);font-size:11px">${esc(preview(r))}</td>
+      </tr>
+    `).join('')
+  }
+  $('pInfo').textContent = `Page ${page+1} · ${rows.length} entries shown`
+  $('btnPrev').disabled = page === 0
+  $('btnNext').disabled = rows.length < PAGE_SIZE
+}
+
+window.showDiff = (i) => {
+  const r = rows[i]; if(!r) return
+  $('dmTitle').textContent = `${r.op} on public.${r.table_name}`
+  $('dmMeta').textContent  = `${fmtDate(r.at)} · ${r.actor_email || '(system)'} · ${r.actor_role || '—'} · record ${r.record_pk || '—'}`
+  const old = r.old_data || {}, nw = r.new_data || {}
+  const keys = [...new Set([...Object.keys(old), ...Object.keys(nw)])].sort()
+  if(!keys.length){
+    $('dmBody').innerHTML = '<div class="empty">No data captured.</div>'
+  } else {
+    let html = `<div class="diff-row" style="font-weight:700;border-bottom:2px solid var(--bdr);background:var(--card)"><div>Field</div><div style="color:#991b1b">Before</div><div style="color:#15803d">After</div></div>`
+    for(const k of keys){
+      const a = JSON.stringify(old[k] ?? '—')
+      const b = JSON.stringify(nw[k] ?? '—')
+      const unchanged = a === b
+      html += `<div class="diff-row ${unchanged?'diff-unchanged':''}">
+        <div class="diff-field">${esc(k)}</div>
+        <div class="diff-old">${esc(a)}</div>
+        <div class="diff-new">${esc(b)}</div>
+      </div>`
+    }
+    $('dmBody').innerHTML = html
+  }
+  $('diffModal').classList.add('on')
+}
+window.closeDiff = () => $('diffModal').classList.remove('on')
+$('diffModal').addEventListener('click', e => { if(e.target.id === 'diffModal') closeDiff() })
+
+;['fTable','fOp','fActor','fFrom','fTo','fPk'].forEach(id => {
+  const el = $(id); if(!el) return
+  el.addEventListener('change', load)
+  el.addEventListener('input',  load)
+})
+window.resetFilters = () => {
+  ['fTable','fOp','fActor','fFrom','fTo','fPk'].forEach(id => $(id).value = '')
+  load()
+}
+$('btnPrev').addEventListener('click', () => { if(page>0){ page--; render() } })
+$('btnNext').addEventListener('click', () => { page++; render() })
+
+// Saved views chip row
+import { mountSavedViews } from './user_views.js?v=20260423d'
+mountSavedViews({
+  sb, page: 'audit_log',
+  mountEl: document.getElementById('savedViewsMount'),
+  filterIds: ['fTable','fOp','fActor','fFrom','fTo','fPk'],
+  applyFilter: () => load(),
+  currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
+})
+
+await loadKpis()
+await load()
+</script>
+</body>
+</html>
