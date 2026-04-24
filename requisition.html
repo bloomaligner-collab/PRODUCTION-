@@ -472,16 +472,101 @@ window.viewReq=function(id){
   $('viewModal').classList.add('open')
 }
 
-window.submitReq=async function(id){const{error}=await sb.from('requisitions').update({status:'pending_approval',updated_at:new Date().toISOString()}).eq('id',id);if(error){toast('❌ '+error.message,'red');return};toast('📤 Submitted for approval');loadAll()}
-window.confirmApprove=async function(id){const by=$('approvedBy').value.trim();if(!by){toast('❌ Enter approver name','red');return};const{error}=await sb.from('requisitions').update({status:'approved',approved_by:by,notes:$('approvalNotes').value||null,approved_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);if(error){toast('❌ '+error.message,'red');return};closeModal('viewModal');toast('✅ Approved!');loadAll()}
-window.cancelReq=async function(id){if(!confirm('Reject this requisition?'))return;await sb.from('requisitions').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',id);toast('❌ Rejected');loadAll()}
+window.submitReq=async function(id){
+  const{error}=await sb.from('requisitions').update({status:'pending_approval',updated_at:new Date().toISOString()}).eq('id',id)
+  if(error){toast('❌ '+error.message,'red');return}
+  toast('📤 Submitted for approval')
+  // Ping every manager that there's something to approve.
+  const { data: r } = await sb.from('requisitions').select('id,title,req_no,generated_by,notes').eq('id',id).maybeSingle()
+  if (r) _notifyReqApprovers(r).catch(e => console.warn('[req notify]', e))
+  loadAll()
+}
+window.confirmApprove=async function(id){
+  const by=$('approvedBy').value.trim();if(!by){toast('❌ Enter approver name','red');return}
+  const{error}=await sb.from('requisitions').update({status:'approved',approved_by:by,notes:$('approvalNotes').value||null,approved_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id)
+  if(error){toast('❌ '+error.message,'red');return}
+  closeModal('viewModal');toast('✅ Approved!')
+  // Tell the submitter their requisition was approved.
+  const { data: r } = await sb.from('requisitions').select('*').eq('id',id).maybeSingle()
+  if (r) _notifyReqDecision(r, 'approved').catch(e => console.warn('[req notify]', e))
+  loadAll()
+}
+window.cancelReq=async function(id){
+  if(!confirm('Reject this requisition?'))return
+  await sb.from('requisitions').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',id)
+  toast('❌ Rejected')
+  const { data: r } = await sb.from('requisitions').select('*').eq('id',id).maybeSingle()
+  if (r) _notifyReqDecision(r, 'cancelled').catch(e => console.warn('[req notify]', e))
+  loadAll()
+}
+
+// Shared notifier for requisition workflow events.
+import { notifyAssignees } from './notify_assignment.js';
+function _reqLink(r){
+  const origin = location.origin + location.pathname.replace(/[^/]+$/, '')
+  return `${origin}requisition.html`
+}
+function _notifyReqApprovers(r) {
+  const ref = r.req_no || r.id || ''
+  return notifyAssignees(sb, 'role:manager', {
+    type:          'requisition_pending',
+    subjectPrefix: `[Cedarwings] Requisition ${ref}`,
+    title:         `Requisition ${ref} awaiting approval`,
+    headline:      'A new requisition is waiting for your approval',
+    iso:           'Purchasing · ISO 13485 §7.4',
+    facts: [
+      ['Title',         r.title],
+      ['Submitted by',  r.generated_by],
+      ['Notes',         r.notes],
+    ],
+    body: 'Open the Requisitions page to approve or reject.',
+    link: _reqLink(r),
+  })
+}
+function _notifyReqDecision(r, decision) {
+  const ref = r.req_no || r.id || ''
+  const headline = decision === 'approved'
+    ? 'A requisition you submitted has been approved'
+    : 'A requisition you submitted has been rejected'
+  const color = decision === 'approved' ? '#16a34a' : '#dc2626'
+  const submitter = r.generated_by || null
+  if (!submitter) return Promise.resolve()
+  return notifyAssignees(sb, submitter, {
+    type:          'requisition_' + decision,
+    subjectPrefix: `[Cedarwings] Requisition ${ref}`,
+    title:         `Requisition ${ref} — ${decision}`,
+    headline,
+    iso:           'Purchasing · ISO 13485 §7.4',
+    severity:      decision.toUpperCase(),
+    severityColor: color,
+    facts: [
+      ['Title',          r.title],
+      ['Decision',       decision],
+      ['Approver',       r.approved_by],
+      ['Approved Date',  r.approved_at],
+      ['Notes',          r.notes],
+    ],
+    body: '',
+    link: _reqLink(r),
+  })
+}
 window.markSent=async function(id){await sb.from('requisitions').update({status:'sent',sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);toast('📬 Marked as sent');loadAll()}
 window.markReceived=async function(id){await sb.from('requisitions').update({status:'received',updated_at:new Date().toISOString()}).eq('id',id);toast('📦 Received!');loadAll()}
 
 window.openNewReq=function(){manualLines=[{name:'',unit:'',qty:''}];$('nTitle').value='';$('nNotes').value='';renderManualLines();$('newReqModal').classList.add('open')}
 window.addManualLine=function(){manualLines.push({name:'',unit:'',qty:''});renderManualLines()}
 function renderManualLines(){$('nLineItems').innerHTML=manualLines.map((l,i)=>`<div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px"><div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end"><div><label class="form-label">Material</label><input class="form-input" value="${l.name}" oninput="manualLines[${i}].name=this.value" placeholder="Film Sheet"/></div><div><label class="form-label">Unit</label><input class="form-input" value="${l.unit}" oninput="manualLines[${i}].unit=this.value" placeholder="sheet"/></div><div><label class="form-label">Qty</label><input class="form-input" type="number" value="${l.qty}" oninput="manualLines[${i}].qty=this.value" placeholder="100"/></div><button class="btn btn-ghost btn-sm" style="align-self:end;color:var(--red)" onclick="manualLines.splice(${i},1);renderManualLines()">✕</button></div></div>`).join('')}
-window.saveReqAs=async function(status){const title=$('nTitle').value.trim();if(!title){toast('❌ Title required','red');return};const vl=manualLines.filter(l=>l.name.trim());if(!vl.length){toast('❌ Add at least one material','red');return};const emp=CW_ACCESS.getName()||'Manager';const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,notes:$('nNotes').value||null,updated_at:new Date().toISOString()}).select().single();if(error){toast('❌ '+error.message,'red');return};await sb.from('requisition_lines').insert(vl.map(l=>({requisition_id:req.id,material_name:l.name.trim(),unit:l.unit.trim()||null,qty_to_order:parseFloat(l.qty)||null,qty_needed:parseFloat(l.qty)||null})));closeModal('newReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted!');loadAll()}
+window.saveReqAs=async function(status){
+  const title=$('nTitle').value.trim();if(!title){toast('❌ Title required','red');return}
+  const vl=manualLines.filter(l=>l.name.trim());if(!vl.length){toast('❌ Add at least one material','red');return}
+  const emp=CW_ACCESS.getName()||'Manager'
+  const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,notes:$('nNotes').value||null,updated_at:new Date().toISOString()}).select().single()
+  if(error){toast('❌ '+error.message,'red');return}
+  await sb.from('requisition_lines').insert(vl.map(l=>({requisition_id:req.id,material_name:l.name.trim(),unit:l.unit.trim()||null,qty_to_order:parseFloat(l.qty)||null,qty_needed:parseFloat(l.qty)||null})))
+  closeModal('newReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted!')
+  if (status === 'pending_approval') _notifyReqApprovers(req).catch(e => console.warn('[req notify]', e))
+  loadAll()
+}
 
 window.openAutoReq=async function(){
   autoReqLines=[];$('arResults').style.display='none';$('arSaveDraft').style.display='none';$('arSubmit').style.display='none'
@@ -516,7 +601,9 @@ window.saveAutoReq=async function(status){
   const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,aligners_base:window._arRem||0,notes:$('arNotes').value||null,updated_at:new Date().toISOString()}).select().single()
   if(error){toast('❌ '+error.message,'red');return}
   await sb.from('requisition_lines').insert(autoReqLines.map(l=>({requisition_id:req.id,bom_id:l.bom_id,material_name:l.material_name,unit:l.unit,qty_needed:l.qty_needed,qty_in_stock:l.qty_in_stock,qty_to_order:l.qty_to_order,pack_size:l.pack_size,packs_to_order:l.packs_to_order})))
-  closeModal('autoReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted for approval!');loadAll()
+  closeModal('autoReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted for approval!')
+  if (status === 'pending_approval') _notifyReqApprovers(req).catch(e => console.warn('[req notify]', e))
+  loadAll()
 }
 
 function sc(s){return s==='received'?'b-g':s==='approved'?'b-t':s==='sent'?'b-b':s==='pending_approval'?'b-p':s==='cancelled'?'b-r':'b-gray'}

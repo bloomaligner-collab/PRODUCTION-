@@ -476,6 +476,13 @@ window.save=async()=>{
   if (rec.auditor && rec.auditor !== prevAuditor) {
     _notifyAuditAuditor(rec.auditor, data || { ...rec, id: editId }).catch(e => console.warn('[audit notify]', e));
   }
+  // Completion: when the audit flips to 'completed', notify
+  // every manager so leadership sees the finding without having
+  // to poll the register.
+  const prevStatus = prev.status || null;
+  if (rec.status === 'completed' && prevStatus !== 'completed') {
+    _notifyAuditCompleted(data || { ...rec, id: editId }).catch(e => console.warn('[audit completed notify]', e));
+  }
   // If findings were recorded — show NC creation prompt
   const hasFindings = rec.findings && (rec.result==='minor_findings'||rec.result==='major_findings'||rec.result==='critical');
   if(hasFindings){
@@ -550,6 +557,32 @@ window.onBulkCbChange = () => {};  // legacy no-op
 
 // Shared notifier for audit auditor-change emails / WhatsApp.
 import { notifyAssignees } from './notify_assignment.js';
+function _notifyAuditCompleted(rec) {
+  const ref  = rec.audit_number || rec.id || '';
+  const origin = location.origin + location.pathname.replace(/[^/]+$/, '');
+  const link = `${origin}internal_audit.html`;
+  const result = (rec.result || '').replace(/_/g,' ');
+  const hasFindings = /minor|major|critical/.test(rec.result || '');
+  return notifyAssignees(sb, 'role:manager', {
+    type:          'audit_completed',
+    subjectPrefix: `[Cedarwings] Audit ${ref}`,
+    title:         `Audit ${ref} — completed${hasFindings?' (findings)':''}`,
+    headline:      'An internal audit has been completed',
+    iso:           'Internal Audit programme · ISO 13485 §8.2.2',
+    severity:      hasFindings ? result.toUpperCase() : null,
+    severityColor: hasFindings ? '#f97316' : null,
+    facts: [
+      ['Scope',         rec.audit_scope],
+      ['Auditor',       rec.auditor],
+      ['Actual Date',   rec.actual_date],
+      ['Findings Count',rec.findings_count],
+      ['Result',        result],
+      ['Next Due',      rec.next_audit_due],
+    ],
+    body: (rec.findings || '').slice(0, 200),
+    link,
+  });
+}
 function _notifyAuditAuditor(auditor, rec) {
   const ref  = rec.audit_number || rec.id || '';
   const origin = location.origin + location.pathname.replace(/[^/]+$/, '');
