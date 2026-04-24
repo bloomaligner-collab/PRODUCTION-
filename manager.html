@@ -317,6 +317,20 @@ tbody tr:hover{background:#f8fafc}
       </a>
     </div>
 
+    <!-- 🎯 MY WORK — items assigned to the current user across registers -->
+    <div class="card" id="myWorkCard" style="margin-top:16px">
+      <div class="section-hdr" style="margin-bottom:10px">
+        <div>
+          <div class="section-title">🎯 My Work <span id="myWorkTotal" style="font-size:12px;color:var(--mu);font-weight:500">—</span></div>
+          <div class="section-sub">Open items assigned to you across every register · overdue follow-ups flagged in red</div>
+        </div>
+        <button class="btn-ghost" id="myWorkRefresh" style="padding:5px 12px;font-size:12px" title="Refresh">↻</button>
+      </div>
+      <div id="myWorkGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:20px;font-size:13px">Loading your assignments…</div>
+      </div>
+    </div>
+
     <!-- CHARTS ROW 1: trend + doughnut -->
     <div class="g2">
       <div class="card">
@@ -1036,6 +1050,145 @@ document.getElementById('refreshBtn').addEventListener('click',load)
 document.getElementById('sessSearch').addEventListener('input',renderSessions)
 document.getElementById('sessFilter').addEventListener('change',renderSessions)
 document.getElementById('pageDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+
+// ─── MY WORK ─────────────────────────────────────────────
+// Consolidates items assigned to the current user across the
+// registers so a manager / operator has one place to look
+// instead of hunting through each page. Matches both direct
+// user-name assignment ("monica") and role-prefix assignment
+// ("role:quality_control") for the caller's role(s).
+const myWorkUser = sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || ''
+const myWorkPrimaryRole = (sessionStorage.getItem('cw_custom_role') || sessionStorage.getItem('cw_role') || '').toLowerCase()
+let myWorkExtraRoles = []
+function myRoleAssignees(){
+  const out = []
+  if(myWorkPrimaryRole) out.push('role:'+myWorkPrimaryRole)
+  for(const r of myWorkExtraRoles) if(r) out.push('role:'+String(r).toLowerCase())
+  return [...new Set(out)]
+}
+function assignedToMeDash(v){
+  if(!v) return false
+  if(String(v).startsWith('role:')){
+    const r = String(v).slice(5).toLowerCase()
+    return r === myWorkPrimaryRole || myWorkExtraRoles.includes(r)
+  }
+  return v === myWorkUser
+}
+
+async function loadMyWork(){
+  const grid  = document.getElementById('myWorkGrid')
+  const total = document.getElementById('myWorkTotal')
+  if(!grid) return
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:20px;font-size:13px">Loading your assignments…</div>'
+
+  // Resolve extra_roles once so the is-mine check works for people
+  // with multiple roles.
+  if(myWorkUser && !myWorkExtraRoles.length){
+    try{
+      const { data: emp } = await sb.from('employees')
+        .select('extra_roles, custom_role, role')
+        .ilike('name', myWorkUser)
+        .maybeSingle()
+      if(emp){
+        let ex = []
+        try{ ex = typeof emp.extra_roles === 'string' ? JSON.parse(emp.extra_roles) : (emp.extra_roles || []) }catch{}
+        myWorkExtraRoles = (Array.isArray(ex) ? ex : []).map(s => String(s).toLowerCase())
+      }
+    }catch{}
+  }
+
+  const todayIso = new Date().toISOString().slice(0,10)
+
+  // Fetch open items across registers and filter client-side
+  // (simpler + correct against both direct-name and "role:xxx"
+  // assignment conventions). Volumes are small (open items only)
+  // so the bandwidth cost is trivial.
+  const [fbRes, ncRes, iaRes] = await Promise.all([
+    sb.from('customer_feedback')
+      .select('id, feedback_no, received_date, customer_name, severity, status, assigned_to, follow_up_date, follow_up_note, follow_up_assignee, follow_up_done_at')
+      .in('status', ['open','in_progress'])
+      .order('received_date', { ascending: false }).limit(500),
+    sb.from('non_conformity_reports')
+      .select('id, nc_number, date_raised, description, severity, status, assigned_to')
+      .neq('status', 'closed')
+      .order('date_raised', { ascending: false }).limit(500),
+    sb.from('internal_audits')
+      .select('id, audit_number, scope, planned_date, status, auditor')
+      .neq('status', 'completed')
+      .order('planned_date', { ascending: true }).limit(500),
+  ])
+
+  const fbAll = fbRes.data || []
+  const fb = fbAll.filter(r => assignedToMeDash(r.assigned_to))
+  const nc = (ncRes.data || []).filter(r => assignedToMeDash(r.assigned_to))
+  const ia = (iaRes.data || []).filter(r => r.auditor && myWorkUser && r.auditor.toLowerCase() === myWorkUser.toLowerCase())
+  // Follow-ups come out of the same customer_feedback fetch — any
+  // row with a pending follow-up assigned to me (may be a different
+  // person than assigned_to on the main record).
+  const fu = fbAll.filter(r => r.follow_up_date && !r.follow_up_done_at && assignedToMeDash(r.follow_up_assignee))
+    .sort((a,b) => String(a.follow_up_date).localeCompare(String(b.follow_up_date)))
+
+  const sum = fb.length + nc.length + ia.length + fu.length
+  total.textContent = sum ? `· ${sum} open item${sum===1?'':'s'}` : '· all clear 🎉'
+
+  const card = (title, icon, href, items, renderRow, emptyMsg) => `
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;min-height:140px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <a href="${href}" style="font-size:12px;font-weight:800;color:var(--txt);text-decoration:none;display:inline-flex;align-items:center;gap:6px">${icon} ${title}
+          <span style="background:${items.length?'var(--red)':'var(--mu)'};color:#fff;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">${items.length}</span>
+        </a>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;overflow:hidden">
+        ${items.length ? items.slice(0,4).map(renderRow).join('') : `<div style="color:var(--dim);font-size:11px;text-align:center;padding:12px 0">${emptyMsg}</div>`}
+      </div>
+      ${items.length>4?`<a href="${href}" style="text-align:right;font-size:10px;color:var(--mu);margin-top:4px;text-decoration:none">+${items.length-4} more →</a>`:''}
+    </div>`
+
+  const esc = (s) => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+  const sevColor = s => s==='critical' ? 'var(--red)' : s==='high' ? 'var(--amber)' : 'var(--mu)'
+  const rowLink = (href, title, sub, meta, color='var(--txt)') => `
+    <a href="${href}" style="display:block;padding:6px 8px;border-radius:6px;background:var(--card);border:1px solid var(--bdr);text-decoration:none;color:${color};font-size:11px;line-height:1.4">
+      <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(title)}</div>
+      <div style="color:var(--mu);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(sub)}</div>
+      ${meta?`<div style="color:var(--dim);font-size:10px;margin-top:2px">${esc(meta)}</div>`:''}
+    </a>`
+
+  document.getElementById('myWorkGrid').innerHTML = [
+    card('Complaints / Feedback', '💬', 'customer_feedback.html?filter=mine', fb,
+      r => rowLink(`customer_feedback.html?open=${r.id}`,
+            `${r.customer_name || '—'}${r.feedback_no?' · '+r.feedback_no:''}`,
+            r.received_date || '',
+            `${r.severity?r.severity.toUpperCase()+' · ':''}${(r.status||'').replace('_',' ')}`,
+            sevColor(r.severity)),
+      'No complaints or feedback assigned.'),
+    card('Non-Conformity', '⚠️', 'non_conformity.html', nc,
+      r => rowLink(`non_conformity.html`,
+            `${r.nc_number || r.description || '—'}`,
+            r.date_raised || '',
+            `${r.severity?r.severity.toUpperCase()+' · ':''}${r.status||''}`,
+            sevColor(r.severity)),
+      'No NC reports assigned.'),
+    card('Internal Audits', '📋', 'internal_audit.html', ia,
+      r => rowLink(`internal_audit.html`,
+            `${r.audit_number || r.scope || '—'}`,
+            r.planned_date || '',
+            r.status || ''),
+      'No audits scheduled.'),
+    card('Follow-ups Due', '⏰', 'customer_feedback.html?filter=mine', fu,
+      r => {
+        const overdue = r.follow_up_date && r.follow_up_date <= todayIso
+        return rowLink(`customer_feedback.html?open=${r.id}`,
+               `${r.customer_name || '—'}${r.feedback_no?' · '+r.feedback_no:''}`,
+               r.follow_up_note || '',
+               `${overdue?'⚠ overdue · ':''}due ${r.follow_up_date || '—'}`,
+               overdue ? 'var(--red)' : 'var(--txt)')
+      },
+      'No open follow-ups.'),
+  ].join('')
+}
+document.getElementById('myWorkRefresh')?.addEventListener('click', loadMyWork)
+loadMyWork()
+
 load()
 setInterval(load,30000)
 
