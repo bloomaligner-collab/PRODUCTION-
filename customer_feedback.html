@@ -1008,6 +1008,14 @@ window.save=async()=>{
     const savedRec = editId ? { ...rec, id: editId } : { ...rec, id: null }
     _notifyAssignees(newAssignee, savedRec).catch(e => console.warn('[feedback notify]', e))
   }
+  // Follow-up assignee also gets email/SMS/WhatsApp if it's
+  // a new or changed assignment. Self-targeted follow-ups
+  // ("Me") are skipped to avoid pinging yourself.
+  const prevFu = prev ? (prev.follow_up_assignee || null) : null
+  if (rec.follow_up_assignee && rec.follow_up_assignee !== prevFu && rec.follow_up_assignee !== currentUser) {
+    const savedRec = editId ? { ...rec, id: editId } : { ...rec, id: null }
+    _notifyFollowupAssignee(rec.follow_up_assignee, savedRec).catch(e => console.warn('[feedback follow-up notify]', e))
+  }
 
   // If complaint type or critical/high priority — show NC creation prompt
   if(!editId){
@@ -1056,6 +1064,27 @@ mountSavedViews({
 // behaviour as before (email + WhatsApp via Brevo), just shared
 // with non_conformity and internal_audit now.
 import { notifyAssignees } from './notify_assignment.js'
+function _notifyFollowupAssignee(assignee, rec) {
+  const ref     = rec.feedback_no || rec.id || ''
+  const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Feedback'
+  const origin  = location.origin + location.pathname.replace(/[^/]+$/, '')
+  const link    = rec.id ? `${origin}customer_feedback.html?open=${rec.id}` : `${origin}customer_feedback.html`
+  return notifyAssignees(sb, assignee, {
+    type:          'feedback_followup_assignment',
+    subjectPrefix: `[Cedarwings] Follow-up`,
+    title:         `Follow-up due ${rec.follow_up_date || ''}${ref?' · '+ref:''}`,
+    headline:      'A follow-up reminder has been assigned to you',
+    iso:           'Customer Feedback register · ISO 13485 §8.2.1',
+    facts: [
+      ['Customer',      rec.customer_name],
+      ['Case #',        rec.case_id],
+      ['Follow-up Date',rec.follow_up_date],
+      ['Note',          rec.follow_up_note],
+    ],
+    body: (rec.description || '').slice(0, 200),
+    link,
+  })
+}
 function _notifyAssignees(assignee, rec) {
   const ref     = rec.feedback_no || rec.id || ''
   const typeLbl = TYPE_LABELS[rec.type] || rec.type || 'Feedback'

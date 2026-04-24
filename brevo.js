@@ -45,6 +45,32 @@ export const CW_Notify={
     }catch(e){return{ok:false,error:e.message}}
   },
 
+  // SMS via Twilio (Brevo also supports SMS but teams already
+  // paying Twilio for voice / WhatsApp often reuse that account).
+  // Configure in Settings: twilio_account_sid, twilio_auth_token,
+  // twilio_from (E.164 number, e.g. +15551234567).
+  async sendSms(phone,message,type="system"){
+    const s=await _getSettings()
+    if(!s.twilio_account_sid||!s.twilio_auth_token||!s.twilio_from){
+      return{ok:false,error:"Twilio not configured"}
+    }
+    try{
+      const auth=btoa(`${s.twilio_account_sid}:${s.twilio_auth_token}`)
+      const body=new URLSearchParams({From:s.twilio_from,To:phone,Body:String(message).slice(0,1600)})
+      const r=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(s.twilio_account_sid)}/Messages.json`,{
+        method:"POST",
+        headers:{"authorization":`Basic ${auth}`,"content-type":"application/x-www-form-urlencoded","accept":"application/json"},
+        body:body.toString()
+      })
+      const d=await r.json()
+      await _sb.from("notification_log").insert([{type,channel:"sms",recipient:phone,message:String(message).slice(0,200),status:r.ok?"sent":"failed",error_msg:r.ok?null:(d.message||JSON.stringify(d))}])
+      return{ok:r.ok,data:d}
+    }catch(e){
+      await _sb.from("notification_log").insert([{type,channel:"sms",recipient:phone,status:"failed",error_msg:e.message}])
+      return{ok:false,error:e.message}
+    }
+  },
+
   async notifyAll(subject,htmlMsg,textMsg,type){
     const{data:rs}=await _sb.from("notification_settings").select("*").eq("is_active",true)
     if(!rs?.length)return

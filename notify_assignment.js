@@ -104,10 +104,16 @@ export async function notifyAssignees(sb, assignee, ctx) {
     if (validEmail) {
       await CW_Notify.sendEmail(p.email, p.name || assignee, subject, html, type)
     }
+    // Phone numbers are tried against WhatsApp (Brevo) AND SMS
+    // (Twilio). Each channel skips silently if it isn't
+    // configured in Settings, so the same person receives the
+    // message over whichever of the two is on.
     const raw = (p.whatsapp_phone || p.phone || '').toString().replace(/[^\d+]/g, '')
     if (raw && raw.length >= 8) {
-      const num = raw.replace(/^\+/, '')
-      await CW_Notify.sendWhatsApp(num, wa, type)
+      const waNum = raw.replace(/^\+/, '')    // Brevo WhatsApp wants digits only
+      const smsNum = raw.startsWith('+') ? raw : ('+' + raw)  // Twilio wants E.164
+      await CW_Notify.sendWhatsApp(waNum, wa, type)
+      await CW_Notify.sendSms(smsNum, wa, type)
     }
   }
 }
