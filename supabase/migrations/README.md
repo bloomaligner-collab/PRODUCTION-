@@ -19,6 +19,7 @@ which matches apply order.
 | `20260423170000_restrict_sensitive_writes_to_managers.sql` | 2026-04-23 | `is_manager()` helper + swap permissive policy for (read: all authenticated) + (write: managers only) on employees / suppliers / role_templates / page_access / system_settings / notification_settings. |
 | `20260423180000_audit_log_traceability.sql` | 2026-04-23 | ISO 13485 §4.2.5 audit trail: `audit_log` table + generic `audit_trigger_fn()` + triggers on 10 regulatory-sensitive tables. Managers-read, append-only. |
 | `20260423190000_user_views_cross_device_saved_filters.sql` | 2026-04-23 | `user_views` table (id, user_id, page, name, filters) for per-user saved filter presets. RLS: owner-only read/write. Replaces localStorage-only storage on the Customer Feedback page. |
+| `20260423200000_realtime_my_work_tables.sql` | 2026-04-23 | Adds customer_feedback / non_conformity_reports / internal_audits to the `supabase_realtime` publication so the sidebar "My Work" badge updates in ~1s instead of polling every 2 minutes. |
 
 ## Running locally with the Supabase CLI
 
