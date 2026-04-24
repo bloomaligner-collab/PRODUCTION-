@@ -313,15 +313,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
       <!-- Saved views: inline chip row (per-user, cross-device via public.user_views) -->
       <div id="savedViewsMount" style="margin-bottom:12px"></div>
-      <!-- Bulk-action bar: appears when any row checkbox is ticked. -->
-      <div id="bulkBar" style="display:none;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;background:var(--b50);border:1px solid var(--b100);border-radius:10px;font-size:13px">
-        <span id="bulkCount" style="font-weight:700;color:var(--blue)">0 selected</span>
-        <span style="flex:1"></span>
-        <button class="btn bgh" onclick="bulkMarkResolved()" style="padding:5px 12px;font-size:12px">✅ Mark resolved</button>
-        <button class="btn bgh" onclick="bulkReassign()"     style="padding:5px 12px;font-size:12px">👤 Reassign…</button>
-        <button class="btn bgh" onclick="bulkDelete()"       style="padding:5px 12px;font-size:12px;color:var(--red)">🗑️ Delete</button>
-        <button class="btn bgh" onclick="bulkClear()"        style="padding:5px 12px;font-size:12px">✕ Clear</button>
-      </div>
+      <!-- Bulk-action bar mount (rendered by bulk_actions.js) -->
+      <div id="bulkBarMount"></div>
       <div class="tw"><table>
         <thead><tr>
           <th class="no-sort" style="width:28px;text-align:center"><input type="checkbox" id="bulkAllCb" title="Select all on this page" style="cursor:pointer"></th>
@@ -1052,72 +1045,32 @@ mountSavedViews({
   currentUser,
 })
 
-// ─── BULK ACTIONS ────────────────────────────────────────────
-// Multi-row select → one-click Mark resolved / Reassign / Delete.
-function _selectedIds(){
-  return [...document.querySelectorAll('.bulk-cb:checked')].map(cb => cb.value)
-}
-function _updateBulkBar(){
-  const ids = _selectedIds()
-  const bar = document.getElementById('bulkBar')
-  document.getElementById('bulkCount').textContent = `${ids.length} selected`
-  bar.style.display = ids.length ? 'flex' : 'none'
-  // Sync the header "select all" tri-state
-  const all = document.querySelectorAll('.bulk-cb')
-  const top = document.getElementById('bulkAllCb')
-  if(top){
-    top.checked = all.length && ids.length === all.length
-    top.indeterminate = ids.length > 0 && ids.length < all.length
-  }
-}
-window.onBulkCbChange = _updateBulkBar
-window.bulkClear = () => {
-  document.querySelectorAll('.bulk-cb:checked').forEach(cb => cb.checked = false)
-  const top = document.getElementById('bulkAllCb'); if(top){ top.checked=false; top.indeterminate=false }
-  _updateBulkBar()
-}
-document.getElementById('bulkAllCb')?.addEventListener('change', e => {
-  document.querySelectorAll('.bulk-cb').forEach(cb => { cb.checked = e.target.checked })
-  _updateBulkBar()
+// Bulk actions — delegated to the shared module (bulk_actions.js)
+import { mountBulkActions } from './bulk_actions.js?v=20260423e'
+mountBulkActions({
+  table:     'customer_feedback',
+  sb,
+  ntf:       (m,t) => ntf(m,t),
+  mountEl:   document.getElementById('bulkBarMount'),
+  headerCb:  document.getElementById('bulkAllCb'),
+  tableBody: document.getElementById('tBody'),
+  onComplete: () => load(),
+  actions: [
+    { label:'✅ Mark resolved', pastTense:'marked resolved',
+      confirm: n => `Mark ${n} record${n===1?'':'s'} as resolved? Resolved Date will be stamped to today.`,
+      patch: { status:'resolved', resolved_at: () => new Date().toISOString() } },
+    { label:'👤 Reassign…',
+      reassign: () => {
+        const src = document.getElementById('fAssigned')
+        return {
+          column: 'assigned_to',
+          options: src ? [...src.options].map(o => ({ v:o.value, t:o.text })) : [],
+        }
+      } },
+    { label:'🗑️ Delete', danger:true, delete:true },
+  ],
 })
-
-window.bulkMarkResolved = async () => {
-  const ids = _selectedIds(); if(!ids.length) return
-  if(!confirm(`Mark ${ids.length} record${ids.length===1?'':'s'} as resolved? This also stamps Resolved Date to today.`)) return
-  const patch = { status:'resolved', resolved_at: new Date().toISOString() }
-  const { error } = await sb.from('customer_feedback').update(patch).in('id', ids)
-  if(error){ ntf('Bulk update failed: '+error.message,'err'); return }
-  ntf(`${ids.length} record${ids.length===1?'':'s'} marked resolved`,'ok')
-  bulkClear(); load()
-}
-
-window.bulkDelete = async () => {
-  const ids = _selectedIds(); if(!ids.length) return
-  if(!confirm(`Delete ${ids.length} record${ids.length===1?'':'s'} permanently? This cannot be undone.`)) return
-  const { error } = await sb.from('customer_feedback').delete().in('id', ids)
-  if(error){ ntf('Bulk delete failed: '+error.message,'err'); return }
-  ntf(`${ids.length} record${ids.length===1?'':'s'} deleted`,'ok')
-  bulkClear(); load()
-}
-
-window.bulkReassign = async () => {
-  const ids = _selectedIds(); if(!ids.length) return
-  // Build an option list from the existing assignee dropdown (same
-  // population as the Log Feedback modal, so people + roles).
-  const src = document.getElementById('fAssigned')
-  if(!src || src.options.length <= 1){ ntf('Assignee list not yet loaded — try again in a moment.','err'); return }
-  const options = [...src.options].map(o => ({ v:o.value, t:o.text }))
-  const menu = options.map((o,i)=>`${i}: ${o.t||'— Unassigned —'}`).join('\n')
-  const pick = prompt(`Reassign ${ids.length} record${ids.length===1?'':'s'} to:\n\n${menu}\n\nEnter the number:`)
-  if(pick==null) return
-  const idx = parseInt(pick, 10)
-  if(!Number.isFinite(idx) || idx < 0 || idx >= options.length){ ntf('Not a valid choice','err'); return }
-  const newAssignee = options[idx].v || null
-  const { error } = await sb.from('customer_feedback').update({ assigned_to: newAssignee }).in('id', ids)
-  if(error){ ntf('Bulk reassign failed: '+error.message,'err'); return }
-  ntf(`${ids.length} record${ids.length===1?'':'s'} reassigned`,'ok')
-  bulkClear(); load()
-}
+window.onBulkCbChange = () => {}  // legacy no-op — inline onclick still fires
 
 // CSV export of the currently-filtered rows — feeds directly into
 // ISO 13485 external audits (complaints register export).
