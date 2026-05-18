@@ -260,6 +260,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { SUPABASE_CONFIG } from './config.js'
 const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
 
+// Shared chat prefs/seen API from access.js (loaded before this module).
+const CHAT = (window.CW_ACCESS && CW_ACCESS.chat) || null
+
 const $ = id => document.getElementById(id)
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 function ntf(msg, kind){
@@ -341,7 +344,6 @@ let messages      = []        // currently displayed conversation
 let realtimeChan  = null
 let unread        = new Map()  // conversation key → unread count
 
-const CHAT = (window.CW_ACCESS && CW_ACCESS.chat) || null
 function convoSeenArgs(c){ return c.type === 'group' ? ['group', null] : ['dm', c.id] }
 function convoKey(c){ return c.type === 'group' ? 'group' : 'dm:' + c.id }
 function markConvoSeen(c, iso){ if (CHAT) CHAT.markSeen(...convoSeenArgs(c), iso) }
