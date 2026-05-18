@@ -17,6 +17,7 @@ const CW_ACCESS = {
     { key: 'employees',            label: 'Employees',           icon: '👥', file: 'employees.html' },
     { key: 'employee_profile',     label: 'Employee Profile',    icon: '👤', file: 'employee_profile.html' },
     { key: 'time_report',          label: 'Time Report',         icon: '📈', file: 'time_report.html' },
+    { key: 'chat',                 label: 'Team Chat',           icon: '💬', file: 'chat.html' },
     { section: 'Quality' },
     { key: 'tracabilite',          label: 'Traceability',        icon: '🔖', file: 'tracabilite.html' },
     { key: 'qualite',              label: 'Quality Control',     icon: '✅', file: 'qualite.html' },
@@ -70,7 +71,7 @@ const CW_ACCESS = {
       production: 'production.html', machines: 'machines.html',
       maintenance_history: 'maintenance_history.html',
       employees: 'employees.html', employee_profile: 'employee_profile.html',
-      time_report: 'time_report.html',
+      time_report: 'time_report.html', chat: 'chat.html',
       settings: 'settings.html', roles: 'roles.html', audit_log: 'audit_log.html',
       changelog: 'changelog.html', iso_compliance: 'iso_compliance.html',
       bloom_import: 'bloom_import.html', outsourcing: 'outsourcing.html', clocking: 'clocking.html'
