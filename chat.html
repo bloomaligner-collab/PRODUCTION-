@@ -179,7 +179,11 @@ a{color:inherit;text-decoration:none}
     box-shadow:0 2px 8px rgba(59,95,226,.3);
   }
 }
-.menu-btn,.back-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;background:var(--card);border:1px solid var(--bdr);cursor:pointer;font-size:16px;flex-shrink:0;font-family:inherit}
+.menu-btn,.back-btn,.mute-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;background:var(--card);border:1px solid var(--bdr);cursor:pointer;font-size:16px;flex-shrink:0;font-family:inherit}
+.mute-btn{display:inline-flex}
+.mute-btn:hover{background:var(--bg)}
+.convo-unread{margin-left:auto;background:var(--blue);color:#fff;border-radius:999px;font-size:10px;font-weight:800;min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.convo-item.active .convo-unread{background:#fff;color:var(--blue)}
 </style>
 </head>
 <body>
@@ -205,6 +209,7 @@ a{color:inherit;text-decoration:none}
         <div class="tb-sub"><span class="online-dot"></span>Live messaging between staff</div>
       </div>
     </div>
+    <button class="mute-btn" id="muteBtn" type="button" title="Notification alerts">🔔</button>
   </div>
 
   <div class="chat-shell" id="chatShell">
@@ -299,6 +304,32 @@ $('menuBtn').addEventListener('click', e => {
 })
 $('backBtn').addEventListener('click', () => $('chatShell').classList.remove('viewing'))
 
+// Notification alerts toggle — cycles: all on → sound off → all off.
+function muteState(){
+  if (!CHAT) return 0
+  if (CHAT.muteToast()) return 2          // everything off
+  if (CHAT.muteSound()) return 1          // toasts only, no sound
+  return 0                                // all on
+}
+function paintMute(){
+  const b = $('muteBtn'); if (!b) return
+  const s = muteState()
+  b.textContent = s === 2 ? '🔕' : s === 1 ? '🔈' : '🔔'
+  b.title = s === 2 ? 'Alerts off — click to enable'
+          : s === 1 ? 'Pop-ups only (sound off) — click to mute all'
+          : 'Sound + pop-up alerts on — click for sound off'
+}
+$('muteBtn').addEventListener('click', () => {
+  if (!CHAT) return
+  const s = (muteState() + 1) % 3
+  CHAT.setMuteSound(s >= 1)
+  CHAT.setMuteToast(s === 2)
+  paintMute()
+  ntf(s === 2 ? 'Chat alerts muted' : s === 1 ? 'Sound off — pop-ups still shown' : 'Chat alerts on', 'ok')
+})
+window.addEventListener('cw-chat-pref', paintMute)
+paintMute()
+
 // ════════════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════════════
@@ -308,6 +339,34 @@ let employeeById  = new Map() // id → employee (used to show sender names + av
 let currentConvo  = { type: 'group', id: null }   // group | dm
 let messages      = []        // currently displayed conversation
 let realtimeChan  = null
+let unread        = new Map()  // conversation key → unread count
+
+const CHAT = (window.CW_ACCESS && CW_ACCESS.chat) || null
+function convoSeenArgs(c){ return c.type === 'group' ? ['group', null] : ['dm', c.id] }
+function convoKey(c){ return c.type === 'group' ? 'group' : 'dm:' + c.id }
+function markConvoSeen(c, iso){ if (CHAT) CHAT.markSeen(...convoSeenArgs(c), iso) }
+// Recompute per-conversation unread from one lightweight query.
+async function refreshUnread(){
+  if (!CHAT || !me) return
+  try {
+    const { data } = await sb.from('chat_messages')
+      .select('id,sender_id,recipient_id,case_id,created_at')
+      .or(`and(recipient_id.is.null,case_id.is.null),recipient_id.eq.${me.id}`)
+      .order('created_at', { ascending: false }).limit(500)
+    const next = new Map()
+    for (const m of (data || [])) {
+      if (m.sender_id === me.id) continue
+      let key, kind, kid
+      if (m.recipient_id == null) { key = 'group'; kind = 'group'; kid = null }
+      else { key = 'dm:' + m.sender_id; kind = 'dm'; kid = m.sender_id }
+      // The open conversation is always considered read.
+      if (key === convoKey(currentConvo)) continue
+      if (CHAT.isNewer(m.created_at, kind, kid)) next.set(key, (next.get(key) || 0) + 1)
+    }
+    unread = next
+    renderConvoList($('convoSearch').value)
+  } catch {}
+}
 
 // ════════════════════════════════════════════════════════════════
 //  BOOTSTRAP — figure out who I am
@@ -347,6 +406,15 @@ async function bootstrap(){
     await openConversation({ type: 'group', id: null })
   }
   subscribeRealtime()
+  refreshUnread()
+  // Returning to the tab marks the open conversation read.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && messages.length) {
+      markConvoSeen(currentConvo, messages[messages.length - 1].created_at)
+      unread.delete(convoKey(currentConvo))
+      renderConvoList($('convoSearch').value)
+    }
+  })
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -360,21 +428,25 @@ function renderConvoList(filter = ''){
     .filter(e => !q || e.name.toLowerCase().includes(q) || (e.email||'').toLowerCase().includes(q))
     .map(e => {
       const active = currentConvo.type === 'dm' && currentConvo.id === e.id
+      const u = unread.get('dm:' + e.id) || 0
       return `<div class="convo-item ${active?'active':''}" data-type="dm" data-id="${esc(e.id)}">
         <div class="convo-av" style="background:${avatarColor(e.name)}">${esc(initials(e.name))}</div>
         <div class="convo-info">
           <div class="convo-name">${esc(e.name)}</div>
           <div class="convo-sub">${esc(e.email || '')}</div>
         </div>
+        ${u ? `<span class="convo-unread">${u>99?'99+':u}</span>` : ''}
       </div>`
     }).join('')
 
+  const gu = unread.get('group') || 0
   const groupRow = matchesGroup ? `<div class="convo-item ${currentConvo.type==='group'?'active':''}" data-type="group">
     <div class="convo-av group">🌐</div>
     <div class="convo-info">
       <div class="convo-name">All Team</div>
       <div class="convo-sub">Everyone — group chat</div>
     </div>
+    ${gu ? `<span class="convo-unread">${gu>99?'99+':gu}</span>` : ''}
   </div>` : ''
 
   if (!groupRow && !dmRows) {
@@ -432,6 +504,11 @@ async function openConversation(c){
   if (error) { ntf('Could not load messages: ' + error.message, 'err'); return }
   messages = data || []
   renderMessages()
+  // Opening a conversation marks it read up to its latest message.
+  const last = messages[messages.length - 1]
+  markConvoSeen(c, last ? last.created_at : undefined)
+  unread.delete(convoKey(c))
+  renderConvoList($('convoSearch').value)
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -490,14 +567,24 @@ function subscribeRealtime(){
       if (!m) return
       // Already in DOM? (we appended optimistically when sending)
       if (document.querySelector(`[data-msg-id="${m.id}"]`)) return
-      // Relevant to current conversation?
-      const relevant = currentConvo.type === 'group'
-        ? (m.recipient_id === null && m.case_id == null)
+      if (m.case_id) return   // case threads live on the feedback page
+      const inOpen = currentConvo.type === 'group'
+        ? (m.recipient_id === null)
         : ((m.sender_id === me.id && m.recipient_id === currentConvo.id) ||
            (m.sender_id === currentConvo.id && m.recipient_id === me.id))
-      if (!relevant) return
-      messages.push(m)
-      renderMessages()
+      if (inOpen) {
+        messages.push(m)
+        renderMessages()
+        if (document.visibilityState === 'visible' && m.sender_id !== me.id)
+          markConvoSeen(currentConvo, m.created_at)
+        return
+      }
+      if (m.sender_id === me.id) return
+      const key = m.recipient_id === null ? 'group'
+                : m.recipient_id === me.id ? 'dm:' + m.sender_id : null
+      if (!key) return
+      unread.set(key, (unread.get(key) || 0) + 1)
+      renderConvoList($('convoSearch').value)
     })
     .subscribe()
 }

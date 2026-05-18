@@ -445,6 +445,36 @@ const CW_ACCESS = {
     }
   },
 
+  // ── Chat prefs + read-state (per device, localStorage) ─────────
+  // Shared by access.js (badge + notifier), chat.html and the
+  // per-case chat so "seen"/"muted" mean the same thing everywhere.
+  chat: {
+    muteSound() { return localStorage.getItem('cw_chat_mute_sound') === '1'; },
+    muteToast() { return localStorage.getItem('cw_chat_mute_toast') === '1'; },
+    setMuteSound(v) { localStorage.setItem('cw_chat_mute_sound', v ? '1' : '0'); try { window.dispatchEvent(new CustomEvent('cw-chat-pref')); } catch {} },
+    setMuteToast(v) { localStorage.setItem('cw_chat_mute_toast', v ? '1' : '0'); try { window.dispatchEvent(new CustomEvent('cw-chat-pref')); } catch {} },
+    // One-time baseline so pre-existing history isn't all "unread".
+    baseline() {
+      let b = localStorage.getItem('cw_chat_baseline');
+      if (!b) { b = new Date().toISOString(); localStorage.setItem('cw_chat_baseline', b); }
+      return b;
+    },
+    _key(kind, id) { return 'cw_chat_seen:' + kind + (id ? (':' + id) : ''); },
+    _ms(v) { const t = Date.parse(v); return isNaN(t) ? 0 : t; },
+    getSeen(kind, id) {
+      const s = localStorage.getItem(this._key(kind, id)) || '';
+      const b = this.baseline();
+      return this._ms(s) > this._ms(b) ? s : b;
+    },
+    isNewer(iso, kind, id) { return this._ms(iso) > this._ms(this.getSeen(kind, id)); },
+    markSeen(kind, id, iso) {
+      const cur = localStorage.getItem(this._key(kind, id)) || '';
+      const t = iso || new Date().toISOString();
+      if (!cur || this._ms(t) > this._ms(cur)) localStorage.setItem(this._key(kind, id), t);
+      try { window.dispatchEvent(new CustomEvent('cw-chat-seen', { detail: { kind, id: id || null } })); } catch {}
+    },
+  },
+
   // ── Global chat notifications ──────────────────────────────────
   // On EVERY authenticated page: a sound + on-screen toast the moment
   // a chat message arrives for this user — the team feed, a direct
@@ -532,6 +562,51 @@ const CW_ACCESS = {
         return v === myName;
       };
       const caseAssignCache = new Map();
+
+      // ── Sidebar "Team Chat" unread badge ──────────────────────
+      const badgeEl = () => {
+        const link = document.querySelector('.sb-nav a[href="chat.html"]');
+        if (!link) return null;
+        let b = link.querySelector('#cw-chat-badge');
+        if (!b) {
+          b = document.createElement('span');
+          b.id = 'cw-chat-badge';
+          b.style.cssText = 'margin-left:auto;background:var(--red,#dc2626);color:#fff;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;min-width:18px;text-align:center;display:none';
+          link.appendChild(b);
+        }
+        return b;
+      };
+      let badgeTimer = null;
+      const refreshBadge = async () => {
+        try {
+          const { data } = await sb.from('chat_messages')
+            .select('id,sender_id,recipient_id,case_id,created_at')
+            .or(`and(recipient_id.is.null,case_id.is.null),recipient_id.eq.${myId}`)
+            .order('created_at', { ascending: false })
+            .limit(500);
+          let n = 0;
+          for (const m of (data || [])) {
+            if (m.sender_id === myId) continue;
+            if (m.recipient_id == null) {
+              if (CW_ACCESS.chat.isNewer(m.created_at, 'group')) n++;
+            } else if (m.recipient_id === myId) {
+              if (CW_ACCESS.chat.isNewer(m.created_at, 'dm', m.sender_id)) n++;
+            }
+          }
+          const b = badgeEl();
+          if (b) {
+            if (n > 0) { b.textContent = n > 99 ? '99+' : String(n); b.style.display = ''; }
+            else { b.style.display = 'none'; }
+          }
+        } catch {}
+      };
+      CW_ACCESS._refreshChatBadge = refreshBadge;
+      const badgeSoon = () => { clearTimeout(badgeTimer); badgeTimer = setTimeout(refreshBadge, 600); };
+      window.addEventListener('cw-chat-seen', badgeSoon);
+      window.addEventListener('cw-chat-pref', badgeSoon);
+      window.addEventListener('storage', e => { if (e.key && e.key.indexOf('cw_chat_seen') === 0) badgeSoon(); });
+      refreshBadge();
+
       const onMsg = async (m) => {
         if (!m || m.sender_id === myId) return;
         const onChatPage = /(^|\/)chat\.html/.test(location.pathname);
@@ -550,33 +625,37 @@ const CW_ACCESS = {
           href = `customer_feedback.html?open=${m.case_id}`;
         } else if (m.recipient_id == null) {
           relevant = true;                       // team / all
+          badgeSoon();
           if (onChatPage && document.visibilityState === 'visible') return;
         } else if (m.recipient_id === myId) {
           relevant = true;                       // direct message to me
           href = `chat.html?convo=dm&partner=${m.sender_id}`;
+          badgeSoon();
           if (onChatPage && document.visibilityState === 'visible') return;
         }
         if (!relevant) return;
         const from = nameById.get(m.sender_id) || 'Teammate';
         const where = m.case_id ? ' · case discussion'
                     : (m.recipient_id ? ' · direct message' : ' · team chat');
-        CW_ACCESS._chatBeep();
-        CW_ACCESS._showToast({
-          icon: '💬',
-          title: `New message from ${from}`,
-          subtitle: String(m.body || '').slice(0, 90) + where,
-          href,
-          ttl: 8000,
-        });
-        try {
-          if ('Notification' in window && Notification.permission === 'granted'
-              && document.visibilityState !== 'visible') {
-            new Notification(`💬 ${from}`, {
-              body: String(m.body || '').slice(0, 120),
-              tag: 'cw-chat-' + m.id,
-            });
-          }
-        } catch {}
+        if (!CW_ACCESS.chat.muteSound()) CW_ACCESS._chatBeep();
+        if (!CW_ACCESS.chat.muteToast()) {
+          CW_ACCESS._showToast({
+            icon: '💬',
+            title: `New message from ${from}`,
+            subtitle: String(m.body || '').slice(0, 90) + where,
+            href,
+            ttl: 8000,
+          });
+          try {
+            if ('Notification' in window && Notification.permission === 'granted'
+                && document.visibilityState !== 'visible') {
+              new Notification(`💬 ${from}`, {
+                body: String(m.body || '').slice(0, 120),
+                tag: 'cw-chat-' + m.id,
+              });
+            }
+          } catch {}
+        }
       };
       CW_ACCESS._chatChannel = sb.channel('chat_notify_' + Math.random().toString(36).slice(2, 8))
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' },

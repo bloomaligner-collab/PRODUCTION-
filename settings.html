@@ -149,6 +149,36 @@ tbody tr:last-child td{border:none}
 </div>
 <div class="body">
 
+    <!-- CHAT NOTIFICATION ALERTS (per device) -->
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <div class="card-title">💬 Chat Alerts</div>
+      <div class="card-sub">Controls the sound and pop-up shown on every page when a chat message arrives for you (team, direct, or a case you're assigned). Saved on <strong>this device only</strong>.</div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px">
+        <input type="checkbox" id="chatMuteSound" style="width:16px;height:16px;cursor:pointer"/>
+        Mute the notification <strong>sound</strong>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="chatMuteToast" style="width:16px;height:16px;cursor:pointer"/>
+        Hide the on-screen <strong>pop-up</strong> &amp; OS notification
+      </label>
+      <div style="font-size:11px;color:var(--mu);margin-top:10px">Tip: a quick toggle is also in the Team Chat top bar.</div>
+    </div>
+    <script>
+    (function(){
+      function wire(){
+        var C = window.CW_ACCESS && CW_ACCESS.chat;
+        var s = document.getElementById('chatMuteSound');
+        var t = document.getElementById('chatMuteToast');
+        if (!C || !s || !t) { return setTimeout(wire, 120); }
+        s.checked = C.muteSound(); t.checked = C.muteToast();
+        s.addEventListener('change', function(){ C.setMuteSound(s.checked); });
+        t.addEventListener('change', function(){ C.setMuteToast(t.checked); });
+        window.addEventListener('cw-chat-pref', function(){ s.checked = C.muteSound(); t.checked = C.muteToast(); });
+      }
+      document.addEventListener('DOMContentLoaded', wire);
+    })();
+    </script>
+
     <!-- BREVO INTEGRATION -->
     <div class="card">
       <div class="card-title">📧 Brevo Integration (Email + WhatsApp)</div>
