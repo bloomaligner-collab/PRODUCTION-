@@ -76,7 +76,12 @@ const CW_ACCESS = {
       changelog: 'changelog.html', iso_compliance: 'iso_compliance.html',
       bloom_import: 'bloom_import.html', outsourcing: 'outsourcing.html', clocking: 'clocking.html'
     };
-    for (const key of a) if (map[key]) return map[key];
+    // First real module — skip the shared Clocking Terminal and the
+    // generic profile so users with real pages don't land on the kiosk.
+    const skip = { clocking: 1, employee_profile: 1 };
+    for (const key of a) if (map[key] && !skip[key]) return map[key];
+    if (a.includes('employee_profile')) return 'employee_profile.html';
+    if (a.includes('clocking')) return 'clocking.html';
     return 'employee_profile.html';
   },
 

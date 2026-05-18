@@ -131,13 +131,21 @@ const PAGE_MAP={
 }
 
 function getHomePage(pageAccess, customRole){
-  if(!pageAccess||pageAccess.length===0)return"clocking.html"
-  if(pageAccess.includes("all"))return"manager.html"
-  // Custom role determines home page
-  if(customRole&&PAGE_MAP[customRole])return PAGE_MAP[customRole]
-  // Otherwise use first page in access list
-  const first=pageAccess[0]
-  return PAGE_MAP[first]||"clocking.html"
+  const pages=(Array.isArray(pageAccess)?pageAccess:[]).filter(Boolean)
+  if(pages.includes("all"))return"manager.html"
+  // The role's own landing — but only if the user actually has that page,
+  // so a base "employee" role can't override real granted access.
+  if(customRole&&PAGE_MAP[customRole]&&pages.includes(customRole))return PAGE_MAP[customRole]
+  // First real module the user can open. The shared Clocking Terminal
+  // and the generic profile are NOT real destinations — skip them so
+  // people with actual pages don't get dumped on the clocking kiosk.
+  const skip={clocking:1,employee_profile:1}
+  const mod=pages.find(p=>PAGE_MAP[p]&&!skip[p])
+  if(mod)return PAGE_MAP[mod]
+  // Otherwise their own profile (their account), not the kiosk.
+  if(pages.includes("employee_profile"))return"employee_profile.html"
+  if(pages.includes("clocking"))return"clocking.html"
+  return"employee_profile.html"
 }
 
 document.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()})
@@ -189,7 +197,7 @@ window.doLogin=async()=>{
     }
     // 2. Fetch the linked employee profile (role, page access, etc.)
     const{data:user,error:profileErr}=await sb.from("employees")
-      .select("id,name,role,is_active,page_access,custom_role")
+      .select("id,name,role,is_active,page_access,custom_role,extra_roles")
       .eq("auth_user_id",authData.user.id).single()
     if(profileErr||!user){
       await sb.auth.signOut()
@@ -201,9 +209,31 @@ window.doLogin=async()=>{
       showErr("Your account is blocked. Contact your administrator.")
       btn.disabled=false;btn.textContent="Sign In →";return
     }
-    // 3. Populate sessionStorage so the other pages keep working unchanged
-    const pageAccess=user.page_access||(user.role==="manager"?["all"]:["clocking","employee_profile"])
+    // 3. Resolve page access. Prefer the employee's own page_access; if
+    //    it's empty, derive it from their assigned role template(s) so
+    //    assigning a role in the Roles screen is enough on its own.
+    const asArr=v=>{ try{ return Array.isArray(v)?v:JSON.parse(v||"[]") }catch{ return [] } }
+    let pageAccess=asArr(user.page_access)
     const customRole=user.custom_role||user.role
+    if(!pageAccess.length){
+      if(user.role==="manager"){ pageAccess=["all"] }
+      else{
+        const names=[customRole,user.role,...asArr(user.extra_roles)]
+          .filter(Boolean).map(String)
+        if(names.length){
+          const{data:rts}=await sb.from("role_templates")
+            .select("name,page_access").in("name",names)
+          const set=new Set(); let all=false
+          ;(rts||[]).forEach(rt=>{
+            const pa=asArr(rt.page_access)
+            if(pa.includes("all")) all=true
+            else pa.forEach(p=>set.add(p))
+          })
+          pageAccess=all?["all"]:[...set]
+        }
+      }
+      if(!pageAccess.length) pageAccess=["clocking","employee_profile"]
+    }
     sessionStorage.setItem(EK,user.name)
     sessionStorage.setItem(RK,user.role)
     sessionStorage.setItem(PK,JSON.stringify(pageAccess))
