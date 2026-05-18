@@ -4,7 +4,7 @@
 // Static assets: stale-while-revalidate for instant loads.
 // Same-origin only — Supabase / esm.sh / fonts are never intercepted.
 
-const CACHE = 'cw-app-v3';
+const CACHE = 'cw-app-v4';
 const NAV_TIMEOUT = 4000;
 
 self.addEventListener('install', () => {
@@ -38,10 +38,16 @@ self.addEventListener('fetch', (event) => {
   try { url = new URL(req.url); } catch { return; }
   if (url.origin !== self.location.origin) return; // leave APIs/CDNs alone
 
-  const isHTML = req.mode === 'navigate'
-    || (req.headers.get('accept') || '').includes('text/html');
+  // HTML *and* behaviour-critical code (.js/.css) are network-first so
+  // the installed app never runs stale logic after a deploy. Only inert
+  // assets (icons/fonts/manifest) are served cache-first.
+  const path = url.pathname.toLowerCase();
+  const codeLike = req.mode === 'navigate'
+    || (req.headers.get('accept') || '').includes('text/html')
+    || path.endsWith('.js') || path.endsWith('.css')
+    || path.endsWith('.html') || path.endsWith('/');
 
-  if (isHTML) {
+  if (codeLike) {
     // Network-first, but never wait longer than NAV_TIMEOUT.
     event.respondWith((async () => {
       try {
@@ -59,7 +65,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: serve cache instantly, refresh in the background.
+  // Inert assets: serve cache instantly, refresh in the background.
   event.respondWith((async () => {
     const cached = await caches.match(req);
     const net = fetch(req).then((r) => putCache(req, r)).catch(() => null);
