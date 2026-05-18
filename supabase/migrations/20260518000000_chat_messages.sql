@@ -1,10 +1,12 @@
 -- 20260518000000_chat_messages.sql
 --
--- Team Chat feature. One flat table backs both the group ("All Team")
--- conversation and 1:1 direct messages:
+-- Team Chat feature. One flat table backs three thread kinds:
 --
---   • recipient_id IS NULL  → group message, visible to everyone
---   • recipient_id = <emp>  → direct message between sender & recipient
+--   • recipient_id IS NULL  AND case_id IS NULL  → group "All Team"
+--   • recipient_id = <emp>                       → 1:1 direct message
+--   • case_id = <feedback>  (recipient_id NULL)  → per-case discussion
+--     thread embedded in customer_feedback.html, so the whole team
+--     can talk on a specific case.
 --
 -- Follows the project's "authenticated = trusted" RLS model (see
 -- 20260423162240_enable_rls_and_lock_down_definers.sql). The browser
@@ -19,18 +21,28 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   sender_id    uuid NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
   recipient_id uuid          REFERENCES public.employees(id) ON DELETE CASCADE,
+  case_id      uuid          REFERENCES public.customer_feedback(id) ON DELETE CASCADE,
   body         text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 
--- Group feed: WHERE recipient_id IS NULL ORDER BY created_at
+-- case_id may be added separately if the table predates this migration
+ALTER TABLE public.chat_messages
+  ADD COLUMN IF NOT EXISTS case_id uuid REFERENCES public.customer_feedback(id) ON DELETE CASCADE;
+
+-- Group feed: only true group messages (no DM, no case thread)
 CREATE INDEX IF NOT EXISTS chat_messages_group_idx
   ON public.chat_messages (created_at)
-  WHERE recipient_id IS NULL;
+  WHERE recipient_id IS NULL AND case_id IS NULL;
 
 -- DM threads: either direction between two employees
 CREATE INDEX IF NOT EXISTS chat_messages_dm_idx
   ON public.chat_messages (sender_id, recipient_id, created_at);
+
+-- Per-case discussion thread
+CREATE INDEX IF NOT EXISTS chat_messages_case_idx
+  ON public.chat_messages (case_id, created_at)
+  WHERE case_id IS NOT NULL;
 
 -- ── 2. RLS (authenticated = trusted, same as every other table) ───────
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;

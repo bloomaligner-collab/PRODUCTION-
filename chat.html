@@ -423,7 +423,7 @@ async function openConversation(c){
     .order('created_at', { ascending: true })
     .limit(500)
   if (c.type === 'group') {
-    q = q.is('recipient_id', null)
+    q = q.is('recipient_id', null).is('case_id', null)
   } else {
     // Either side of the DM
     q = q.or(`and(sender_id.eq.${me.id},recipient_id.eq.${c.id}),and(sender_id.eq.${c.id},recipient_id.eq.${me.id})`)
@@ -492,7 +492,7 @@ function subscribeRealtime(){
       if (document.querySelector(`[data-msg-id="${m.id}"]`)) return
       // Relevant to current conversation?
       const relevant = currentConvo.type === 'group'
-        ? (m.recipient_id === null)
+        ? (m.recipient_id === null && m.case_id == null)
         : ((m.sender_id === me.id && m.recipient_id === currentConvo.id) ||
            (m.sender_id === currentConvo.id && m.recipient_id === me.id))
       if (!relevant) return

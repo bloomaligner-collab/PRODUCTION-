@@ -156,6 +156,16 @@ tbody tr:hover{background:#f8fafc}
 .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:600;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-bg.on{display:flex}
 .modal{background:var(--card);border-radius:18px;padding:28px;width:100%;max-width:620px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh2)}
+.cc-wrap{margin-top:18px;border-top:1px solid var(--bdr);padding-top:14px}
+.cc-title{font-size:13px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.cc-scroll{height:240px;overflow-y:auto;background:var(--bg);border:1px solid var(--bdr);border-radius:12px;padding:12px;scroll-behavior:smooth}
+.cc-composer{display:flex;gap:8px;align-items:flex-end;margin-top:10px}
+.cc-composer textarea{flex:1;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:12px;font-family:var(--f);font-size:13px;line-height:1.4;resize:none;max-height:110px;min-height:40px;background:var(--card);color:var(--txt);outline:none}
+.cc-composer textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,95,226,.1)}
+.cc-composer button{width:40px;height:40px;border:none;border-radius:50%;background:var(--blue);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .12s,transform .08s;font-family:var(--f)}
+.cc-composer button:hover{background:#2e4fc7}
+.cc-composer button:active{transform:scale(.92)}
+.cc-composer button:disabled{background:var(--dim);cursor:not-allowed}
 .fi{padding:8px 11px;border:1.5px solid var(--bdr);border-radius:8px;font-family:var(--f);font-size:12px;background:var(--card);outline:none;color:var(--txt);width:100%;transition:border .15s}
 .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,95,226,.1)}
 textarea.fi{resize:vertical}
@@ -449,6 +459,14 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
     </div>
     <div id="vBody"></div>
+    <div class="cc-wrap" id="caseChat">
+      <div class="cc-title">💬 Case discussion <span style="font-weight:500;color:var(--mu)">— the whole team can chat here</span></div>
+      <div class="cc-scroll" id="ccScroll"></div>
+      <div class="cc-composer">
+        <textarea id="ccInput" rows="1" placeholder="Message the team about this case — Enter to send, Shift+Enter for new line…"></textarea>
+        <button id="ccSend" type="button" title="Send (Enter)">➤</button>
+      </div>
+    </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
       <button class="btn bb" id="vEditBtnBottom">✏️ Edit this record</button>
       <button class="btn bgh" onclick="closeView()">Close</button>
@@ -826,7 +844,7 @@ window.openNew=()=>{
   document.getElementById('modal').classList.add('on')
 }
 window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null}
-window.closeView=()=>document.getElementById('viewModal').classList.remove('on')
+window.closeView=()=>{document.getElementById('viewModal').classList.remove('on');caseChatTeardown()}
 
 window.editRec=(id)=>{
   const r=all.find(x=>String(x.id)===String(id));if(!r)return
@@ -924,6 +942,7 @@ window.viewRec=async(id)=>{
   const openEditFromView = () => { closeView(); editRec(r.id) }
   const eb1 = document.getElementById('vEditBtn'); if (eb1) eb1.onclick = openEditFromView
   const eb2 = document.getElementById('vEditBtnBottom'); if (eb2) eb2.onclick = openEditFromView
+  caseChatMount(r.id)
 }
 
 window.markFollowUpDone=async(id)=>{
@@ -1062,7 +1081,9 @@ window.save=async()=>{
       }
     }
   }
-  window.closeModal();load()
+  window.closeModal();await load()
+  // Open the freshly created case so the team can start chatting on it right away.
+  if(!editId && data && data.id && typeof viewRec==='function') viewRec(data.id)
 }
 
 ;['typeFilter','statusFilter','assignedFilter'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilter))
@@ -1242,6 +1263,103 @@ window.exportFilteredCsv = () => {
     { header:'Resolution',        get: r => r.resolution || '' },
   ], filtered)
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  PER-CASE TEAM CHAT — same design/flow as chat.html, scoped to
+//  one customer_feedback case (chat_messages.case_id = case id).
+// ═══════════════════════════════════════════════════════════════
+let _ccMe=null, _ccNames=new Map(), _ccCaseId=null, _ccChan=null, _ccMsgs=[]
+const _ccEsc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+function _ccInitials(n){if(!n)return'—';return n.trim().split(/\s+/).slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'—'}
+function _ccColor(s){const p=['#3b5fe2','#16a34a','#d97706','#7c3aed','#0d9488','#dc2626','#0891b2','#db2777'];let h=0;for(const c of(s||''))h=(h*31+c.charCodeAt(0))>>>0;return p[h%p.length]}
+function _ccTime(d){return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+async function _ccEnsureMe(){
+  if(!_ccNames.size){
+    try{const{data}=await sb.from('employees').select('id,name');(data||[]).forEach(e=>_ccNames.set(e.id,e.name))}catch{}
+  }
+  if(_ccMe) return _ccMe
+  try{
+    const{data:{user}}=await sb.auth.getUser()
+    if(user){
+      const{data}=await sb.from('employees').select('id,name').eq('auth_user_id',user.id).maybeSingle()
+      if(data)_ccMe=data
+    }
+  }catch{}
+  return _ccMe
+}
+function _ccRender(){
+  const box=document.getElementById('ccScroll'); if(!box)return
+  if(!_ccMsgs.length){box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:30px 16px;line-height:1.5">No messages yet.<br>Start the discussion about this case.</div>';return}
+  let h=''
+  for(const m of _ccMsgs){
+    const d=new Date(m.created_at)
+    const isMe=_ccMe&&m.sender_id===_ccMe.id
+    const nm=_ccNames.get(m.sender_id)||'Unknown'
+    h+=`<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-end;${isMe?'flex-direction:row-reverse':''}">
+      <div style="width:28px;height:28px;border-radius:8px;flex-shrink:0;color:#fff;font-weight:800;font-size:10px;display:flex;align-items:center;justify-content:center;background:${_ccColor(nm)};${isMe?'visibility:hidden':''}">${_ccEsc(_ccInitials(nm))}</div>
+      <div style="max-width:75%;display:flex;flex-direction:column;${isMe?'align-items:flex-end':''}">
+        ${isMe?'':`<div style="font-size:11px;color:var(--mu);margin:0 4px 3px"><strong style="color:var(--txt)">${_ccEsc(nm)}</strong> · ${_ccEsc(_ccTime(d))}</div>`}
+        <div style="padding:8px 12px;border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;${isMe?'background:var(--blue);color:#fff;border-bottom-right-radius:4px':'background:var(--card);border:1px solid var(--bdr);border-bottom-left-radius:4px'}">${_ccEsc(m.body)}</div>
+        ${isMe?`<div style="font-size:10px;color:var(--dim);margin:2px 6px 0">${_ccEsc(_ccTime(d))}</div>`:''}
+      </div>
+    </div>`
+  }
+  box.innerHTML=h
+  box.scrollTop=box.scrollHeight
+}
+async function caseChatMount(caseId){
+  _ccCaseId=caseId; _ccMsgs=[]
+  const box=document.getElementById('ccScroll'); if(!box)return
+  const inp=document.getElementById('ccInput'), btn=document.getElementById('ccSend')
+  box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:30px">⏳ Loading discussion…</div>'
+  await _ccEnsureMe()
+  if(!_ccMe){
+    box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:24px 16px;line-height:1.5">Your login isn’t linked to an employee record,<br>so you can’t post here. Ask an admin to link you in <strong>Settings</strong>.</div>'
+    if(inp)inp.disabled=true; if(btn)btn.disabled=true
+    return
+  }
+  if(inp)inp.disabled=false; if(btn)btn.disabled=false
+  const{data,error}=await sb.from('chat_messages').select('id,sender_id,body,created_at').eq('case_id',caseId).is('recipient_id',null).order('created_at',{ascending:true}).limit(500)
+  if(_ccCaseId!==caseId)return  // a different case was opened while loading
+  if(error){box.innerHTML=`<div style="text-align:center;color:var(--red);font-size:12px;padding:24px">Could not load discussion: ${_ccEsc(error.message)}</div>`;return}
+  _ccMsgs=data||[]
+  _ccRender()
+  if(_ccChan){sb.removeChannel(_ccChan);_ccChan=null}
+  _ccChan=sb.channel('case-chat-'+caseId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:`case_id=eq.${caseId}`},p=>{
+      const m=p.new
+      if(!m||m.case_id!==caseId)return
+      if(_ccMsgs.some(x=>x.id===m.id))return
+      _ccMsgs.push(m);_ccRender()
+    }).subscribe()
+}
+function caseChatTeardown(){
+  if(_ccChan){sb.removeChannel(_ccChan);_ccChan=null}
+  _ccCaseId=null; _ccMsgs=[]
+  const box=document.getElementById('ccScroll'); if(box)box.innerHTML=''
+}
+async function _ccSend(){
+  const inp=document.getElementById('ccInput'); if(!inp)return
+  const body=inp.value.trim()
+  if(!body||!_ccMe||!_ccCaseId)return
+  if(body.length>4000){ntf('Message too long (max 4000 chars)','err');return}
+  const btn=document.getElementById('ccSend'); if(btn)btn.disabled=true
+  const orig=inp.value; inp.value=''; inp.style.height='auto'
+  const targetCase=_ccCaseId
+  const{data,error}=await sb.from('chat_messages').insert([{sender_id:_ccMe.id,recipient_id:null,case_id:targetCase,body}]).select().single()
+  if(btn)btn.disabled=false
+  if(error){inp.value=orig;ntf('Send failed: '+error.message,'err');inp.focus();return}
+  if(_ccCaseId===targetCase && !_ccMsgs.some(x=>x.id===data.id)){_ccMsgs.push(data);_ccRender()}
+  inp.focus()
+}
+;(function _ccWire(){
+  const s=document.getElementById('ccSend'), i=document.getElementById('ccInput')
+  if(s)s.addEventListener('click',_ccSend)
+  if(i){
+    i.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_ccSend()}})
+    i.addEventListener('input',()=>{i.style.height='auto';i.style.height=Math.min(i.scrollHeight,110)+'px'})
+  }
+})()
 
 ;(async()=>{
   await loadDropdowns()
