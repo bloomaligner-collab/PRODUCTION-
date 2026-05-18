@@ -6,7 +6,7 @@ export const SUPABASE_CONFIG = {
   // Web Push: paste the VAPID *public* key here (same one set as the
   // VAPID_PUBLIC_KEY secret on the chat-push Edge Function). Leave
   // empty to disable push subscription — everything else still works.
-  vapidPublicKey: ''
+  vapidPublicKey: 'BDv4MZcbmhiVDcIBcErAeBMJiUm2XQZfblQgSuJW8sXmvbf7L_YxLFWjhJpFKYQ3lAxe0SYHrGeZ3JXYCzVJD4o'
 }
 
 // Document / form reference codes printed at the top of every
