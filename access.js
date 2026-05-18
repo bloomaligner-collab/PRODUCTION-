@@ -544,9 +544,14 @@ const CW_ACCESS = {
       } catch {}
       // First gesture is also the right moment to (once) ask for
       // OS notification permission, so background tabs can alert too.
+      // If granted now, subscribe to push immediately instead of
+      // waiting for the next page load.
       try {
         if ('Notification' in window && Notification.permission === 'default') {
-          Notification.requestPermission().catch(() => {});
+          Notification.requestPermission().then((p) => {
+            const c = CW_ACCESS._pushCtx;
+            if (p === 'granted' && c) CW_ACCESS._subscribePush(c.sb, c.empId, c.vapid);
+          }).catch(() => {});
         }
       } catch {}
       window.removeEventListener('pointerdown', arm);
@@ -626,6 +631,7 @@ const CW_ACCESS = {
                  || list.find(e => (e.name || '').toLowerCase() === myName.toLowerCase());
       if (!meRow) return;
       const myId = meRow.id;
+      CW_ACCESS._pushCtx = { sb, empId: myId, vapid: SUPABASE_CONFIG.vapidPublicKey };
       CW_ACCESS._subscribePush(sb, myId, SUPABASE_CONFIG.vapidPublicKey);
       const nameById = new Map(list.map(e => [e.id, e.name]));
       const primaryRole = String(meRow.custom_role || meRow.role || '').toLowerCase();
