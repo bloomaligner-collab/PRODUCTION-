@@ -440,6 +440,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         </div>
       </div>
     </details>
+    <div id="caseChatSlotEdit"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
       <button class="btn bgh" onclick="closeModal()">Cancel</button>
       <button class="btn bb" onclick="save()">💾 Save Record</button>
@@ -459,12 +460,14 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
     </div>
     <div id="vBody"></div>
-    <div class="cc-wrap" id="caseChat">
-      <div class="cc-title">💬 Case discussion <span style="font-weight:500;color:var(--mu)">— the whole team can chat here</span></div>
-      <div class="cc-scroll" id="ccScroll"></div>
-      <div class="cc-composer">
-        <textarea id="ccInput" rows="1" placeholder="Message the team about this case — Enter to send, Shift+Enter for new line…"></textarea>
-        <button id="ccSend" type="button" title="Send (Enter)">➤</button>
+    <div id="caseChatSlotView">
+      <div class="cc-wrap" id="caseChat">
+        <div class="cc-title">💬 Case discussion <span style="font-weight:500;color:var(--mu)">— the whole team can chat here</span></div>
+        <div class="cc-scroll" id="ccScroll"></div>
+        <div class="cc-composer">
+          <textarea id="ccInput" rows="1" placeholder="Message the team about this case — Enter to send, Shift+Enter for new line…"></textarea>
+          <button id="ccSend" type="button" title="Send (Enter)">➤</button>
+        </div>
       </div>
     </div>
     <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
@@ -828,6 +831,7 @@ function _fbCollapseAllSections() {
 }
 window.openNew=()=>{
   editId=null
+  caseChatTeardown()  // blank new record has no case yet — hide the panel
   document.getElementById('mTitle').textContent='💬 Log Feedback'
   document.getElementById('fDate').value=new Date().toISOString().slice(0,10)
   ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed','fFollowDate','fFollowNote'].forEach(id=>document.getElementById(id).value='')
@@ -843,7 +847,7 @@ window.openNew=()=>{
   window.onCategoryChange && window.onCategoryChange()
   document.getElementById('modal').classList.add('on')
 }
-window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null}
+window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null;caseChatTeardown()}
 window.closeView=()=>{document.getElementById('viewModal').classList.remove('on');caseChatTeardown()}
 
 window.editRec=(id)=>{
@@ -880,6 +884,7 @@ window.editRec=(id)=>{
   window.onCategoryChange && window.onCategoryChange()
   _fbAutoExpandSections()
   document.getElementById('modal').classList.add('on')
+  caseChatMount(id,'edit')
 }
 
 window.viewRec=async(id)=>{
@@ -942,7 +947,7 @@ window.viewRec=async(id)=>{
   const openEditFromView = () => { closeView(); editRec(r.id) }
   const eb1 = document.getElementById('vEditBtn'); if (eb1) eb1.onclick = openEditFromView
   const eb2 = document.getElementById('vEditBtnBottom'); if (eb2) eb2.onclick = openEditFromView
-  caseChatMount(r.id)
+  caseChatMount(r.id,'view')
 }
 
 window.markFollowUpDone=async(id)=>{
@@ -1307,7 +1312,16 @@ function _ccRender(){
   box.innerHTML=h
   box.scrollTop=box.scrollHeight
 }
-async function caseChatMount(caseId){
+// Move the single chat panel into whichever modal is open — the
+// case view OR the edit form — so the discussion is always visible
+// while working on the case.
+function _ccPlace(where){
+  const node=document.getElementById('caseChat'); if(!node)return
+  const slot=document.getElementById(where==='edit'?'caseChatSlotEdit':'caseChatSlotView')
+  if(slot && node.parentElement!==slot) slot.appendChild(node)
+}
+async function caseChatMount(caseId,where){
+  _ccPlace(where||'view')
   _ccCaseId=caseId; _ccMsgs=[]
   // Switching cases: drop any previous case's realtime channel first.
   if(_ccChan){sb.removeChannel(_ccChan);_ccChan=null}
@@ -1352,6 +1366,9 @@ function caseChatTeardown(){
   if(_ccChan){sb.removeChannel(_ccChan);_ccChan=null}
   _ccCaseId=null; _ccMsgs=[]
   const box=document.getElementById('ccScroll'); if(box)box.innerHTML=''
+  // Park the panel back in the view slot so it never lingers in the
+  // edit modal (e.g. when "Log Feedback" opens a blank new record).
+  _ccPlace('view')
 }
 async function _ccSend(){
   const inp=document.getElementById('ccInput'); if(!inp)return
