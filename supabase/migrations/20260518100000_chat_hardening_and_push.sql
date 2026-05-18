@@ -74,6 +74,8 @@ DROP POLICY IF EXISTS chat_messages_authenticated_all ON public.chat_messages;
 DROP POLICY IF EXISTS chat_messages_select ON public.chat_messages;
 DROP POLICY IF EXISTS chat_messages_insert ON public.chat_messages;
 DROP POLICY IF EXISTS chat_messages_modify ON public.chat_messages;
+DROP POLICY IF EXISTS chat_messages_update ON public.chat_messages;
+DROP POLICY IF EXISTS chat_messages_delete ON public.chat_messages;
 
 CREATE POLICY chat_messages_select ON public.chat_messages
   FOR SELECT TO authenticated
@@ -96,10 +98,16 @@ CREATE POLICY chat_messages_insert ON public.chat_messages
     )
   );
 
-CREATE POLICY chat_messages_modify ON public.chat_messages
-  FOR ALL TO authenticated
+-- UPDATE / DELETE kept separate (NOT "FOR ALL") so they don't
+-- permissively widen the strict SELECT/INSERT policies above.
+CREATE POLICY chat_messages_update ON public.chat_messages
+  FOR UPDATE TO authenticated
   USING (public.cw_is_manager() OR sender_id = public.cw_emp_id())
   WITH CHECK (public.cw_is_manager() OR sender_id = public.cw_emp_id());
+
+CREATE POLICY chat_messages_delete ON public.chat_messages
+  FOR DELETE TO authenticated
+  USING (public.cw_is_manager() OR sender_id = public.cw_emp_id());
 
 -- ── push_subscriptions ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
