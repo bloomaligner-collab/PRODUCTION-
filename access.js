@@ -480,6 +480,81 @@ const CW_ACCESS = {
     },
   },
 
+  // ── Global mobile layout ───────────────────────────────────────
+  // The app is desktop-first (fixed 240px sidebar, wide tables,
+  // big modals). This injects one responsive layer on every page:
+  // off-canvas sidebar + hamburger, scrollable tables, full-width
+  // modals, no iOS input zoom. Skips chat.html (already responsive).
+  _initMobile() {
+    try {
+      if (document.querySelector('meta[name="cw-page"][content="chat"]')) return;
+      if (document.getElementById('cw-m-css')) return;
+      // Ensure a sane viewport.
+      if (!document.querySelector('meta[name="viewport"]')) {
+        const v = document.createElement('meta');
+        v.name = 'viewport';
+        v.content = 'width=device-width,initial-scale=1,viewport-fit=cover';
+        (document.head || document.documentElement).appendChild(v);
+      }
+      const css = document.createElement('style');
+      css.id = 'cw-m-css';
+      css.textContent = `
+@media (max-width:860px){
+  .sb,.sidebar{position:fixed!important;top:0;bottom:0;left:0;width:min(84vw,290px)!important;
+    transform:translateX(-100%);transition:transform .25s ease;z-index:1200;overflow-y:auto;
+    -webkit-overflow-scrolling:touch}
+  body.cw-nav-open .sb,body.cw-nav-open .sidebar{transform:none;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  .content,.main{margin-left:0!important;width:100%!important}
+  .topbar{padding-left:56px!important;flex-wrap:wrap;row-gap:6px}
+  #cw-mnav{display:flex!important}
+  .modal-bg{padding:10px!important;align-items:flex-start!important}
+  .modal{width:100%!important;max-width:100%!important;max-height:92vh!important;
+    padding:18px!important;border-radius:14px!important}
+  table{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  thead,tbody,tr{width:100%}
+  td,th{white-space:nowrap}
+  img{max-width:100%;height:auto}
+  input,select,textarea,.fi{font-size:16px!important}
+  .kpi-row,.cards,.grid{grid-template-columns:1fr!important}
+}
+#cw-mnav{display:none;position:fixed;top:9px;left:9px;z-index:1300;width:40px;height:40px;
+  align-items:center;justify-content:center;border-radius:10px;background:#fff;
+  border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:18px;cursor:pointer;
+  font-family:inherit;color:#0f172a;padding:0;line-height:1}
+#cw-mnav-bd{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1150;opacity:0;
+  pointer-events:none;transition:opacity .2s}
+body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
+`;
+      (document.head || document.documentElement).appendChild(css);
+
+      const btn = document.createElement('button');
+      btn.id = 'cw-mnav';
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Menu');
+      btn.textContent = '☰';
+      const bd = document.createElement('div');
+      bd.id = 'cw-mnav-bd';
+      const close = () => document.body.classList.remove('cw-nav-open');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.body.classList.toggle('cw-nav-open');
+      });
+      bd.addEventListener('click', close);
+      const mount = () => {
+        if (!document.body) return;
+        document.body.appendChild(bd);
+        document.body.appendChild(btn);
+        // Close the drawer when a nav link is tapped.
+        document.addEventListener('click', (e) => {
+          const a = e.target.closest && e.target.closest('.sb a, .sidebar a, .nl, .nav-link');
+          if (a) close();
+        });
+        window.addEventListener('resize', () => { if (innerWidth > 860) close(); });
+      };
+      if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+    } catch (e) { /* never block the page on mobile setup */ }
+  },
+
   // ── PWA: make the app installable on every page ────────────────
   // Injects the manifest / theme-color / apple-touch-icon if absent
   // and registers the service worker. Safe to call on every page.
@@ -997,6 +1072,7 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 document.addEventListener('DOMContentLoaded', () => {
   CW_ACCESS.injectButtonStyles();
   CW_ACCESS._initPWA();
+  CW_ACCESS._initMobile();
   if (typeof PAGE_KEY !== 'undefined') {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);
