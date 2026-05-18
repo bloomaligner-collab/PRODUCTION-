@@ -2,7 +2,11 @@
 // Production project — Pro account
 export const SUPABASE_CONFIG = {
   url: 'https://cvrmadmzzualqukxxlro.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cm1hZG16enVhbHF1a3h4bHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc3MDQsImV4cCI6MjA5MjAwMzcwNH0.KmVRMz17T4f_FKgWSjr9LTh0DIMsJVyOGuC0k-v1BQs'
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cm1hZG16enVhbHF1a3h4bHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc3MDQsImV4cCI6MjA5MjAwMzcwNH0.KmVRMz17T4f_FKgWSjr9LTh0DIMsJVyOGuC0k-v1BQs',
+  // Web Push: paste the VAPID *public* key here (same one set as the
+  // VAPID_PUBLIC_KEY secret on the chat-push Edge Function). Leave
+  // empty to disable push subscription — everything else still works.
+  vapidPublicKey: ''
 }
 
 // Document / form reference codes printed at the top of every

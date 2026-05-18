@@ -555,6 +555,39 @@ const CW_ACCESS = {
     window.addEventListener('pointerdown', arm, { once: true });
     window.addEventListener('keydown', arm, { once: true });
   },
+  _urlB64ToU8(b64) {
+    const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(s);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  },
+  async _subscribePush(sb, empId, vapidKey) {
+    try {
+      const key = String(vapidKey || '').trim();
+      if (!key || !empId) return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: CW_ACCESS._urlB64ToU8(key),
+        });
+      }
+      const j = sub.toJSON();
+      if (!j || !j.endpoint || !j.keys) return;
+      await sb.from('push_subscriptions').upsert({
+        employee_id: empId,
+        endpoint: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth,
+        user_agent: navigator.userAgent.slice(0, 200),
+      }, { onConflict: 'endpoint' });
+    } catch (e) { /* push optional — never disrupt the app */ }
+  },
   _chatBeep() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -593,6 +626,7 @@ const CW_ACCESS = {
                  || list.find(e => (e.name || '').toLowerCase() === myName.toLowerCase());
       if (!meRow) return;
       const myId = meRow.id;
+      CW_ACCESS._subscribePush(sb, myId, SUPABASE_CONFIG.vapidPublicKey);
       const nameById = new Map(list.map(e => [e.id, e.name]));
       const primaryRole = String(meRow.custom_role || meRow.role || '').toLowerCase();
       let extraRoles = [];

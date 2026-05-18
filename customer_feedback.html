@@ -489,6 +489,7 @@ import{SUPABASE_CONFIG}from'./config.js';
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
 const PAGE=20
 let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[],roles=[]
+let caseUnread=new Map()  // case id → has unseen discussion messages
 let routingRules={}
 let userPrimaryRole='', userExtraRoles=[]
 const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
@@ -733,6 +734,37 @@ function applyFilter(){
     return true
   })
   pg=0;render()
+  refreshCaseUnread()
+}
+// Which cases have chat-discussion messages newer than this user
+// last opened them → a 💬 dot in the register.
+let _cfUnreadInit=false
+async function refreshCaseUnread(){
+  if(!(window.CW_ACCESS && CW_ACCESS.chat)) return
+  try{
+    const { data } = await sb.from('chat_messages')
+      .select('case_id,created_at').not('case_id','is',null)
+      .order('created_at',{ascending:false}).limit(1000)
+    const latest=new Map()
+    for(const m of (data||[])) if(!latest.has(m.case_id)) latest.set(m.case_id,m.created_at)
+    const next=new Map()
+    latest.forEach((iso,cid)=>{ if(CW_ACCESS.chat.isNewer(iso,'case',cid)) next.set(cid,true) })
+    caseUnread=next
+    render()
+  }catch{}
+  if(_cfUnreadInit) return
+  _cfUnreadInit=true
+  sb.channel('cf-chat-unread')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages'},p=>{
+      const m=p.new; if(!m||!m.case_id) return
+      if(typeof _ccCaseId!=='undefined' && _ccCaseId===m.case_id) return // open = seen
+      caseUnread.set(m.case_id,true); render()
+    }).subscribe()
+  window.addEventListener('cw-chat-seen',e=>{
+    if(e.detail && e.detail.kind==='case' && e.detail.id){
+      caseUnread.delete(e.detail.id); render()
+    }
+  })
 }
 function render(){
   const start=pg*PAGE,slice=filtered.slice(start,start+PAGE)
@@ -774,7 +806,7 @@ function render(){
     return `<tr style="${rowStyle}" onclick="if(!event.target.closest('button,a,input[type=checkbox]')) viewRec('${r.id}')" title="Click anywhere to open this record">
       <td style="text-align:center" data-sort="0"><input type="checkbox" class="bulk-cb" value="${r.id}" onclick="event.stopPropagation();onBulkCbChange()" style="cursor:pointer"></td>
       <td style="font-size:16px;text-align:center;white-space:pre-line" title="${envTip.replace(/"/g,'&quot;')}">${envIcon}</td>
-      <td class="mono" style="font-weight:700">${r.feedback_no||'—'}</td>
+      <td class="mono" style="font-weight:700">${r.feedback_no||'—'}${caseUnread.get(r.id)?` <span title="New discussion messages" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--blue);color:#fff;border-radius:50%;font-size:9px;vertical-align:middle">💬</span>`:''}</td>
       <td class="mono" data-sort="${r.received_date||''}">${fdt(r.received_date)}</td>
       <td style="font-weight:600">${r.customer_name||'—'}</td>
       <td><span class="badge ${tc}">${TYPE_LABELS[r.type]||r.type||'—'}</span></td>
