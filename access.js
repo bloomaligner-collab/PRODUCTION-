@@ -475,6 +475,33 @@ const CW_ACCESS = {
     },
   },
 
+  // ── PWA: make the app installable on every page ────────────────
+  // Injects the manifest / theme-color / apple-touch-icon if absent
+  // and registers the service worker. Safe to call on every page.
+  _initPWA() {
+    try {
+      const head = document.head || document.getElementsByTagName('head')[0];
+      if (head && !document.querySelector('link[rel="manifest"]')) {
+        const m = document.createElement('link');
+        m.rel = 'manifest'; m.href = 'manifest.webmanifest';
+        head.appendChild(m);
+      }
+      if (head && !document.querySelector('meta[name="theme-color"]')) {
+        const t = document.createElement('meta');
+        t.name = 'theme-color'; t.content = '#3b5fe2';
+        head.appendChild(t);
+      }
+      if (head && !document.querySelector('link[rel="apple-touch-icon"]')) {
+        const a = document.createElement('link');
+        a.rel = 'apple-touch-icon'; a.href = 'icon.svg';
+        head.appendChild(a);
+      }
+      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      }
+    } catch (e) { /* never block the page on PWA setup */ }
+  },
+
   // ── Global chat notifications ──────────────────────────────────
   // On EVERY authenticated page: a sound + on-screen toast the moment
   // a chat message arrives for this user — the team feed, a direct
@@ -908,6 +935,7 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   CW_ACCESS.injectButtonStyles();
+  CW_ACCESS._initPWA();
   if (typeof PAGE_KEY !== 'undefined') {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);

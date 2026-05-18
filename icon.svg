@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cedarwings">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b5fe2"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#g)"/>
+  <path fill="#fff" d="M256 116c-79 0-143 52-143 116 0 37 21 70 54 91-3 23-14 44-31 60 30-4 58-16 81-34 12 2 25 3 39 3 79 0 143-52 143-116S335 116 256 116Z"/>
+  <circle cx="200" cy="232" r="20" fill="#3b5fe2"/>
+  <circle cx="256" cy="232" r="20" fill="#3b5fe2"/>
+  <circle cx="312" cy="232" r="20" fill="#3b5fe2"/>
+</svg>
