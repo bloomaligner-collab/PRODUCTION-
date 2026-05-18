@@ -1,9 +1,11 @@
 // Cedarwings SAS — service worker.
-// Network-first so the app is never stale while online, with a
-// cached fallback so it still opens offline. Same-origin only —
-// Supabase / esm.sh / fonts are never intercepted.
+// HTML pages: network-first with a short timeout so a slow network
+// can never hang the app — it falls back to the cached copy fast.
+// Static assets: stale-while-revalidate for instant loads.
+// Same-origin only — Supabase / esm.sh / fonts are never intercepted.
 
-const CACHE = 'cw-app-v1';
+const CACHE = 'cw-app-v3';
+const NAV_TIMEOUT = 4000;
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -17,6 +19,18 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+// Let the page tell a waiting SW to take over immediately.
+self.addEventListener('message', (e) => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
+});
+
+function putCache(req, res) {
+  if (res && res.ok && res.type === 'basic') {
+    caches.open(CACHE).then((c) => c.put(req, res.clone())).catch(() => {});
+  }
+  return res;
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -24,23 +38,32 @@ self.addEventListener('fetch', (event) => {
   try { url = new URL(req.url); } catch { return; }
   if (url.origin !== self.location.origin) return; // leave APIs/CDNs alone
 
-  event.respondWith((async () => {
-    try {
-      const fresh = await fetch(req);
-      if (fresh && fresh.ok && fresh.type === 'basic') {
-        const cache = await caches.open(CACHE);
-        cache.put(req, fresh.clone()).catch(() => {});
-      }
-      return fresh;
-    } catch (err) {
-      const cached = await caches.match(req);
-      if (cached) return cached;
-      if (req.mode === 'navigate') {
+  const isHTML = req.mode === 'navigate'
+    || (req.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    // Network-first, but never wait longer than NAV_TIMEOUT.
+    event.respondWith((async () => {
+      try {
+        const net = fetch(req).then((r) => putCache(req, r));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), NAV_TIMEOUT));
+        return await Promise.race([net, timeout]);
+      } catch (err) {
+        const cached = await caches.match(req);
+        if (cached) return cached;
         const start = await caches.match('./index.html');
         if (start) return start;
+        return fetch(req); // last resort, let the browser surface the error
       }
-      throw err;
-    }
+    })());
+    return;
+  }
+
+  // Static assets: serve cache instantly, refresh in the background.
+  event.respondWith((async () => {
+    const cached = await caches.match(req);
+    const net = fetch(req).then((r) => putCache(req, r)).catch(() => null);
+    return cached || (await net) || fetch(req);
   })());
 });
 

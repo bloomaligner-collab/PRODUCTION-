@@ -502,7 +502,23 @@ const CW_ACCESS = {
         head.appendChild(a);
       }
       if ('serviceWorker' in navigator && location.protocol === 'https:') {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+        const hadController = !!navigator.serviceWorker.controller;
+        let reloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!hadController || reloaded) return;   // skip on first install
+          reloaded = true; location.reload();
+        });
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          const promote = (w) => { if (w) w.postMessage('skipWaiting'); };
+          if (reg.waiting) promote(reg.waiting);
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (nw) nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) promote(nw);
+            });
+          });
+          try { reg.update(); } catch (e) {}
+        }).catch(() => {});
       }
     } catch (e) { /* never block the page on PWA setup */ }
   },
