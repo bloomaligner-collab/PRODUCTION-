@@ -444,6 +444,148 @@ const CW_ACCESS = {
       // Silent fail — the 5-minute polling fallback still works
     }
   },
+
+  // ── Global chat notifications ──────────────────────────────────
+  // On EVERY authenticated page: a sound + on-screen toast the moment
+  // a chat message arrives for this user — the team feed, a direct
+  // message to them, or a case they're assigned. Degrades silently
+  // if the chat_messages table / realtime isn't set up yet.
+  _chatChannel: null,
+  _actx: null,
+  _audioArmed: false,
+  _armAudio() {
+    if (CW_ACCESS._audioArmed) return;
+    CW_ACCESS._audioArmed = true;
+    const arm = () => {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+          CW_ACCESS._actx = CW_ACCESS._actx || new Ctx();
+          if (CW_ACCESS._actx.state === 'suspended') CW_ACCESS._actx.resume();
+        }
+      } catch {}
+      // First gesture is also the right moment to (once) ask for
+      // OS notification permission, so background tabs can alert too.
+      try {
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {});
+        }
+      } catch {}
+      window.removeEventListener('pointerdown', arm);
+      window.removeEventListener('keydown', arm);
+    };
+    window.addEventListener('pointerdown', arm, { once: true });
+    window.addEventListener('keydown', arm, { once: true });
+  },
+  _chatBeep() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      CW_ACCESS._actx = CW_ACCESS._actx || new Ctx();
+      const ctx = CW_ACCESS._actx;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const now = ctx.currentTime;
+      // Friendly two-note "ding-dong".
+      [[880, 0], [1175, 0.13]].forEach(([f, t]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, now + t);
+        g.gain.exponentialRampToValueAtTime(0.22, now + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.18);
+        o.connect(g).connect(ctx.destination);
+        o.start(now + t); o.stop(now + t + 0.2);
+      });
+    } catch {}
+  },
+  async _initChatNotifications() {
+    if (CW_ACCESS._chatChannel) return;
+    const myName = (sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '').trim();
+    if (!myName) return;
+    CW_ACCESS._armAudio();
+    try {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const { SUPABASE_CONFIG } = await import('./config.js');
+      const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      let user = null;
+      try { user = (await sb.auth.getUser()).data.user; } catch {}
+      const { data: emps } = await sb.from('employees')
+        .select('id,name,auth_user_id,custom_role,role,extra_roles');
+      const list = emps || [];
+      const meRow = (user && list.find(e => e.auth_user_id === user.id))
+                 || list.find(e => (e.name || '').toLowerCase() === myName.toLowerCase());
+      if (!meRow) return;
+      const myId = meRow.id;
+      const nameById = new Map(list.map(e => [e.id, e.name]));
+      const primaryRole = String(meRow.custom_role || meRow.role || '').toLowerCase();
+      let extraRoles = [];
+      try {
+        const ex = typeof meRow.extra_roles === 'string' ? JSON.parse(meRow.extra_roles) : (meRow.extra_roles || []);
+        extraRoles = (Array.isArray(ex) ? ex : []).map(s => String(s).toLowerCase());
+      } catch {}
+      const isFull = !!(CW_ACCESS.hasFullAccess && CW_ACCESS.hasFullAccess());
+      const mineAssignee = v => {
+        if (!v) return false;
+        if (String(v).startsWith('role:')) {
+          const r = String(v).slice(5).toLowerCase();
+          return r === primaryRole || extraRoles.includes(r);
+        }
+        return v === myName;
+      };
+      const caseAssignCache = new Map();
+      const onMsg = async (m) => {
+        if (!m || m.sender_id === myId) return;
+        const onChatPage = /(^|\/)chat\.html/.test(location.pathname);
+        let relevant = false, href = 'chat.html';
+        if (m.case_id) {
+          let assignedTo = caseAssignCache.get(m.case_id);
+          if (assignedTo === undefined) {
+            try {
+              const { data: c } = await sb.from('customer_feedback')
+                .select('assigned_to').eq('id', m.case_id).maybeSingle();
+              assignedTo = c ? c.assigned_to : null;
+            } catch { assignedTo = null; }
+            caseAssignCache.set(m.case_id, assignedTo);
+          }
+          relevant = isFull || mineAssignee(assignedTo);
+          href = `customer_feedback.html?open=${m.case_id}`;
+        } else if (m.recipient_id == null) {
+          relevant = true;                       // team / all
+          if (onChatPage && document.visibilityState === 'visible') return;
+        } else if (m.recipient_id === myId) {
+          relevant = true;                       // direct message to me
+          href = `chat.html?convo=dm&partner=${m.sender_id}`;
+          if (onChatPage && document.visibilityState === 'visible') return;
+        }
+        if (!relevant) return;
+        const from = nameById.get(m.sender_id) || 'Teammate';
+        const where = m.case_id ? ' · case discussion'
+                    : (m.recipient_id ? ' · direct message' : ' · team chat');
+        CW_ACCESS._chatBeep();
+        CW_ACCESS._showToast({
+          icon: '💬',
+          title: `New message from ${from}`,
+          subtitle: String(m.body || '').slice(0, 90) + where,
+          href,
+          ttl: 8000,
+        });
+        try {
+          if ('Notification' in window && Notification.permission === 'granted'
+              && document.visibilityState !== 'visible') {
+            new Notification(`💬 ${from}`, {
+              body: String(m.body || '').slice(0, 120),
+              tag: 'cw-chat-' + m.id,
+            });
+          }
+        } catch {}
+      };
+      CW_ACCESS._chatChannel = sb.channel('chat_notify_' + Math.random().toString(36).slice(2, 8))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+            p => onMsg(p.new))
+        .subscribe();
+    } catch (e) {
+      // chat_messages not set up yet, or offline — silent.
+    }
+  },
 };
 
 // ── Global button hover / focus affordance ───────────────────────
@@ -691,5 +833,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);
     CW_ACCESS.injectFeedbackBanner();
+    CW_ACCESS._initChatNotifications();
   }
 });
