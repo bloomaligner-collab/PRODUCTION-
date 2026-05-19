@@ -166,6 +166,16 @@ tbody tr:hover{background:#f8fafc}
 .cc-composer button:hover{background:#2e4fc7}
 .cc-composer button:active{transform:scale(.92)}
 .cc-composer button:disabled{background:var(--dim);cursor:not-allowed}
+.cc-attach{width:40px;height:40px;border:1.5px solid var(--bdr)!important;border-radius:50%;background:var(--card)!important;color:var(--mu)!important;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .12s,transform .08s;font-family:var(--f)}
+.cc-attach:hover{background:var(--bg)!important;color:var(--txt)!important}
+.cc-attach:active{transform:scale(.92)}
+.cc-attach.recording{background:var(--red)!important;color:#fff!important;border-color:var(--red)!important}
+.cc-attach:disabled{opacity:.5;cursor:not-allowed}
+.cc-rec-timer{font-size:11px;font-weight:700;color:var(--red);align-self:center;font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
+.cc-media{display:block;border-radius:9px;max-width:220px;width:100%;cursor:pointer}
+.cc-media-vid{display:block;border-radius:9px;max-width:220px;width:100%;background:#000}
+.cc-media-aud{display:block;width:200px;max-width:100%;margin:2px 0}
+.cc-file{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;text-decoration:underline}
 .fi{padding:8px 11px;border:1.5px solid var(--bdr);border-radius:8px;font-family:var(--f);font-size:12px;background:var(--card);outline:none;color:var(--txt);width:100%;transition:border .15s}
 .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,95,226,.1)}
 textarea.fi{resize:vertical}
@@ -365,12 +375,6 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
       <div><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
       <div><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
-      <div><label class="form-label">Assigned To</label>
-        <select class="fi" id="fAssigned">
-          <option value="">— Unassigned —</option>
-        </select>
-      </div>
-      <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
       <div style="grid-column:1/-1"><label class="form-label">Description *</label><textarea class="fi" id="fDesc" rows="3" placeholder="Describe the feedback or complaint..."></textarea></div>
     </div>
 
@@ -404,6 +408,12 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <details class="fb-section">
       <summary>✅ Resolution</summary>
       <div class="fb-section-body">
+        <div><label class="form-label">Assigned To</label>
+          <select class="fi" id="fAssigned">
+            <option value="">— Unassigned —</option>
+          </select>
+        </div>
+        <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
         <div class="fw"><label class="form-label">Priority</label>
           <div class="pri-row" id="fPriorityPills" role="radiogroup" aria-label="Priority">
             <button type="button" class="pri-pill" data-p="low"      onclick="setPriority('low')">Low</button>
@@ -465,6 +475,12 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <div class="cc-title">💬 Case discussion <span style="font-weight:500;color:var(--mu)">— the whole team can chat here</span></div>
         <div class="cc-scroll" id="ccScroll"></div>
         <div class="cc-composer">
+          <input type="file" id="ccFileInp" accept="image/*,video/*,audio/*" hidden/>
+          <input type="file" id="ccCamInp" accept="image/*,video/*" capture="environment" hidden/>
+          <button class="cc-attach" id="ccAttachBtn" type="button" title="Attach a photo, video, voice note or file">📎</button>
+          <button class="cc-attach" id="ccCamBtn" type="button" title="Take a photo or video with the camera">📷</button>
+          <button class="cc-attach" id="ccMicBtn" type="button" title="Record a voice note">🎤</button>
+          <span class="cc-rec-timer" id="ccRecTimer" hidden>0:00</span>
           <textarea id="ccInput" rows="1" placeholder="Message the team about this case — Enter to send, Shift+Enter for new line…"></textarea>
           <button id="ccSend" type="button" title="Send (Enter)">➤</button>
         </div>
@@ -1324,6 +1340,96 @@ async function _ccEnsureMe(){
   }catch{}
   return _ccMe
 }
+// ── Per-case chat attachments (photo / video / voice) ─────────────
+// Files go to the private `chat-media` bucket; the row stores the
+// object path and we show a short-lived signed URL.
+const _ccMEDIA_MAX=50*1024*1024
+const _ccSigned=new Map()  // path → { url, exp }
+function _ccKind(t){t=(t||'').toLowerCase();if(t.startsWith('image/'))return'image';if(t.startsWith('video/'))return'video';if(t.startsWith('audio/'))return'audio';return'file'}
+async function _ccSignMedia(path){
+  const c=_ccSigned.get(path)
+  if(c&&c.exp>Date.now())return c.url
+  try{
+    const{data,error}=await sb.storage.from('chat-media').createSignedUrl(path,3600)
+    if(error||!data||!data.signedUrl)return null
+    _ccSigned.set(path,{url:data.signedUrl,exp:Date.now()+3000*1000})
+    return data.signedUrl
+  }catch{return null}
+}
+async function _ccEnsureSigned(list){
+  const paths=[...new Set((list||[]).filter(m=>m&&m.media_url).map(m=>m.media_url))]
+  await Promise.all(paths.map(p=>_ccSignMedia(p)))
+}
+function _ccBubble(m,isMe){
+  const base=`padding:${m.media_url?'6px':'8px 12px'};border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;${isMe?'background:var(--blue);color:#fff;border-bottom-right-radius:4px':'background:var(--card);border:1px solid var(--bdr);border-bottom-left-radius:4px'}`
+  if(!m.media_url)return `<div style="${base}">${_ccEsc(m.body)}</div>`
+  const u=(_ccSigned.get(m.media_url)||{}).url
+  const nm=_ccEsc(m.media_name||'attachment')
+  let md
+  if(!u)md=`<div class="cc-file">📎 ${nm}</div>`
+  else if(m.media_type==='image')md=`<a href="${_ccEsc(u)}" target="_blank" rel="noopener"><img class="cc-media" loading="lazy" alt="${nm}" src="${_ccEsc(u)}"/></a>`
+  else if(m.media_type==='video')md=`<video class="cc-media-vid" controls preload="metadata" src="${_ccEsc(u)}"></video>`
+  else if(m.media_type==='audio')md=`<audio class="cc-media-aud" controls preload="metadata" src="${_ccEsc(u)}"></audio>`
+  else md=`<a class="cc-file" href="${_ccEsc(u)}" target="_blank" rel="noopener" download="${nm}">📄 ${nm}</a>`
+  const cap=m.body?`<div style="padding:4px 4px 2px">${_ccEsc(m.body)}</div>`:''
+  return `<div style="${base}">${md}${cap}</div>`
+}
+async function _ccUpload(file,kindHint){
+  if(!file||!_ccMe||!_ccCaseId)return
+  if(file.size>_ccMEDIA_MAX){ntf('File too large (max 50 MB)','err');return}
+  const kind=kindHint||_ccKind(file.type)
+  const fromName=(file.name&&file.name.includes('.'))?file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g,''):''
+  const ext=fromName||({image:'jpg',video:'mp4',audio:'webm',file:'bin'}[kind])
+  const path=`${_ccMe.id}/${Date.now()}_${Math.random().toString(36).slice(2,9)}.${ext}`
+  const ids=['ccAttachBtn','ccCamBtn','ccMicBtn','ccSend'],busy=ids.map(x=>document.getElementById(x)).filter(Boolean)
+  busy.forEach(b=>b.disabled=true)
+  ntf('Uploading…','ok')
+  const targetCase=_ccCaseId
+  const up=await sb.storage.from('chat-media').upload(path,file,{contentType:file.type||undefined,upsert:false})
+  if(up.error){busy.forEach(b=>b.disabled=false);ntf('Upload failed: '+up.error.message,'err');return}
+  const inp=document.getElementById('ccInput')
+  const caption=(inp?inp.value.trim():'').slice(0,4000)
+  if(inp){inp.value='';inp.style.height='auto'}
+  const{data,error}=await sb.from('chat_messages').insert([{sender_id:_ccMe.id,recipient_id:null,case_id:targetCase,body:caption,media_url:path,media_type:kind,media_name:String(file.name||('voice-note.'+ext)).slice(0,200)}]).select().single()
+  busy.forEach(b=>b.disabled=false)
+  if(error){ntf('Send failed: '+error.message,'err');return}
+  await _ccEnsureSigned([data])
+  if(_ccCaseId===targetCase&&!_ccMsgs.some(x=>x.id===data.id)){_ccMsgs.push(data);_ccRender()}
+}
+let _ccRec=null,_ccChunks=[],_ccRecInt=null,_ccRecT0=0
+function _ccFmtRec(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+async function _ccToggleRec(){
+  if(_ccRec&&_ccRec.state==='recording'){_ccRec.stop();return}
+  if(!navigator.mediaDevices||!window.MediaRecorder){ntf('Voice recording is not supported on this device','err');return}
+  let stream
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  catch{ntf('Microphone access was denied','err');return}
+  _ccChunks=[]
+  const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':''
+  _ccRec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined)
+  _ccRec.ondataavailable=e=>{if(e.data&&e.data.size)_ccChunks.push(e.data)}
+  _ccRec.onstop=()=>{
+    stream.getTracks().forEach(t=>t.stop())
+    clearInterval(_ccRecInt);_ccRecInt=null
+    const tEl=document.getElementById('ccRecTimer');if(tEl)tEl.hidden=true
+    const mb=document.getElementById('ccMicBtn');if(mb){mb.classList.remove('recording');mb.textContent='🎤'}
+    if(!_ccChunks.length)return
+    const type=_ccRec.mimeType||mime||'audio/webm'
+    const ext=type.includes('mp4')?'m4a':'webm'
+    const blob=new Blob(_ccChunks,{type})
+    if(blob.size<800){ntf('Recording too short','err');return}
+    _ccUpload(new File([blob],`voice-note.${ext}`,{type}),'audio')
+  }
+  _ccRec.start()
+  _ccRecT0=Date.now()
+  const mb=document.getElementById('ccMicBtn');if(mb){mb.classList.add('recording');mb.textContent='⏹'}
+  const tEl=document.getElementById('ccRecTimer');if(tEl){tEl.hidden=false;tEl.textContent='0:00'}
+  _ccRecInt=setInterval(()=>{
+    const s=Math.floor((Date.now()-_ccRecT0)/1000)
+    if(tEl)tEl.textContent=_ccFmtRec(s)
+    if(s>=180)_ccRec.stop()
+  },500)
+}
 function _ccRender(){
   const box=document.getElementById('ccScroll'); if(!box)return
   if(!_ccMsgs.length){box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:30px 16px;line-height:1.5">No messages yet.<br>Start the discussion about this case.</div>';return}
@@ -1336,7 +1442,7 @@ function _ccRender(){
       <div style="width:28px;height:28px;border-radius:8px;flex-shrink:0;color:#fff;font-weight:800;font-size:10px;display:flex;align-items:center;justify-content:center;background:${_ccColor(nm)};${isMe?'visibility:hidden':''}">${_ccEsc(_ccInitials(nm))}</div>
       <div style="max-width:75%;display:flex;flex-direction:column;${isMe?'align-items:flex-end':''}">
         ${isMe?'':`<div style="font-size:11px;color:var(--mu);margin:0 4px 3px"><strong style="color:var(--txt)">${_ccEsc(nm)}</strong> · ${_ccEsc(_ccTime(d))}</div>`}
-        <div style="padding:8px 12px;border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;${isMe?'background:var(--blue);color:#fff;border-bottom-right-radius:4px':'background:var(--card);border:1px solid var(--bdr);border-bottom-left-radius:4px'}">${_ccEsc(m.body)}</div>
+        ${_ccBubble(m,isMe)}
         ${isMe?`<div style="font-size:10px;color:var(--dim);margin:2px 6px 0">${_ccEsc(_ccTime(d))}</div>`:''}
       </div>
     </div>`
@@ -1359,6 +1465,8 @@ async function caseChatMount(caseId,where){
   if(_ccChan){sb.removeChannel(_ccChan);_ccChan=null}
   const box=document.getElementById('ccScroll'); if(!box)return
   const inp=document.getElementById('ccInput'), btn=document.getElementById('ccSend')
+  const _ccAtt=['ccAttachBtn','ccCamBtn','ccMicBtn'].map(x=>document.getElementById(x)).filter(Boolean)
+  const _ccLock=d=>_ccAtt.forEach(b=>b.disabled=d)
   // Visibility rule: only the assigned person — or, when the case is
   // assigned to a role/group, everyone in that group — can read and
   // post in this discussion. Managers (full access) always can, since
@@ -1370,6 +1478,7 @@ async function caseChatMount(caseId,where){
     box.innerHTML=`<div style="text-align:center;color:var(--mu);font-size:12px;padding:30px 18px;line-height:1.6">🔒 <strong>Restricted discussion</strong><br>${who?`Only <strong>${_ccEsc(who)}</strong> can view and post here.`:'This case isn’t assigned yet.<br><span style="color:var(--dim)">Assign it to open the discussion.</span>'}</div>`
     if(inp){inp.disabled=true;inp.value=''}
     if(btn)btn.disabled=true
+    _ccLock(true)
     return
   }
   box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:30px">⏳ Loading discussion…</div>'
@@ -1377,13 +1486,17 @@ async function caseChatMount(caseId,where){
   if(!_ccMe){
     box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:24px 16px;line-height:1.5">Your login isn’t linked to an employee record,<br>so you can’t post here. Ask an admin to link you in <strong>Settings</strong>.</div>'
     if(inp)inp.disabled=true; if(btn)btn.disabled=true
+    _ccLock(true)
     return
   }
   if(inp)inp.disabled=false; if(btn)btn.disabled=false
-  const{data,error}=await sb.from('chat_messages').select('id,sender_id,body,created_at').eq('case_id',caseId).is('recipient_id',null).order('created_at',{ascending:true}).limit(500)
+  _ccLock(false)
+  const{data,error}=await sb.from('chat_messages').select('id,sender_id,body,created_at,media_url,media_type,media_name').eq('case_id',caseId).is('recipient_id',null).order('created_at',{ascending:true}).limit(500)
   if(_ccCaseId!==caseId)return  // a different case was opened while loading
   if(error){box.innerHTML=`<div style="text-align:center;color:var(--red);font-size:12px;padding:24px">Could not load discussion: ${_ccEsc(error.message)}</div>`;return}
   _ccMsgs=data||[]
+  await _ccEnsureSigned(_ccMsgs)
+  if(_ccCaseId!==caseId)return
   _ccRender()
   // Opening a case marks its discussion read (clears the chat badge).
   try{
@@ -1398,7 +1511,8 @@ async function caseChatMount(caseId,where){
       const m=p.new
       if(!m||m.case_id!==caseId)return
       if(_ccMsgs.some(x=>x.id===m.id))return
-      _ccMsgs.push(m);_ccRender()
+      _ccMsgs.push(m)
+      _ccEnsureSigned([m]).then(_ccRender)
     }).subscribe()
 }
 function caseChatTeardown(){
@@ -1430,6 +1544,14 @@ async function _ccSend(){
     i.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_ccSend()}})
     i.addEventListener('input',()=>{i.style.height='auto';i.style.height=Math.min(i.scrollHeight,110)+'px'})
   }
+  const ab=document.getElementById('ccAttachBtn'), cb=document.getElementById('ccCamBtn'),
+        mb=document.getElementById('ccMicBtn'), fi=document.getElementById('ccFileInp'),
+        ci=document.getElementById('ccCamInp')
+  if(ab&&fi)ab.addEventListener('click',()=>fi.click())
+  if(cb&&ci)cb.addEventListener('click',()=>ci.click())
+  if(mb)mb.addEventListener('click',_ccToggleRec)
+  if(fi)fi.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(f)_ccUpload(f)})
+  if(ci)ci.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(f)_ccUpload(f)})
 })()
 
 ;(async()=>{

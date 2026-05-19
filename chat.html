@@ -123,6 +123,18 @@ a{color:inherit;text-decoration:none}
 .composer button:hover{background:#2e4fc7}
 .composer button:active{transform:scale(.92)}
 .composer button:disabled{background:var(--dim);cursor:not-allowed}
+.attach-btn{width:42px;height:42px;border:1.5px solid var(--bdr)!important;border-radius:50%;background:var(--card)!important;color:var(--mu)!important;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .12s,transform .08s}
+.attach-btn:hover{background:var(--bg)!important;color:var(--txt)!important}
+.attach-btn:active{transform:scale(.92)}
+.attach-btn.recording{background:var(--red)!important;color:#fff!important;border-color:var(--red)!important;animation:pulse 1.4s infinite}
+.attach-btn:disabled{opacity:.5;cursor:not-allowed}
+.rec-timer{font-size:11px;font-weight:700;color:var(--red);align-self:center;font-variant-numeric:tabular-nums;min-width:38px;text-align:center}
+.msg-media{display:block;border-radius:10px;max-width:260px;width:100%;cursor:pointer}
+.msg-media-vid{display:block;border-radius:10px;max-width:260px;width:100%;background:#000}
+.msg-media-aud{display:block;width:230px;max-width:100%;margin:2px 0}
+.msg-bubble.has-media{padding:6px}
+.msg-bubble.has-media .msg-cap{padding:4px 6px 2px;font-size:13px}
+.msg-file{display:flex;align-items:center;gap:8px;padding:4px 4px;font-size:13px;font-weight:600;text-decoration:underline}
 
 .notif{position:fixed;bottom:20px;right:20px;padding:12px 18px;border-radius:10px;background:var(--card);box-shadow:var(--sh2);font-size:13px;font-weight:600;z-index:300;transform:translateY(120%);transition:transform .25s ease;max-width:380px}
 .notif.on{transform:translateY(0)}
@@ -242,6 +254,12 @@ a{color:inherit;text-decoration:none}
       </div>
 
       <div class="composer">
+        <input type="file" id="fileInp" accept="image/*,video/*,audio/*" hidden/>
+        <input type="file" id="camInp" accept="image/*,video/*" capture="environment" hidden/>
+        <button class="attach-btn" id="attachBtn" type="button" title="Attach a photo, video, voice note or file">📎</button>
+        <button class="attach-btn" id="camBtn" type="button" title="Take a photo or video with the camera">📷</button>
+        <button class="attach-btn" id="micBtn" type="button" title="Record a voice note">🎤</button>
+        <span class="rec-timer" id="recTimer" hidden>0:00</span>
         <textarea id="msgInput" rows="1" placeholder="Type a message — Enter to send, Shift+Enter for new line…"></textarea>
         <button id="sendBtn" type="button" title="Send (Enter)">➤</button>
       </div>
@@ -493,7 +511,7 @@ async function openConversation(c){
   // Pull message history
   $('msgScroll').innerHTML = `<div class="msg-empty"><div class="msg-empty-emoji">⏳</div><div>Loading messages…</div></div>`
   let q = sb.from('chat_messages')
-    .select('id,sender_id,recipient_id,body,created_at')
+    .select('id,sender_id,recipient_id,body,created_at,media_url,media_type,media_name')
     .order('created_at', { ascending: true })
     .limit(500)
   if (c.type === 'group') {
@@ -505,6 +523,7 @@ async function openConversation(c){
   const { data, error } = await q
   if (error) { ntf('Could not load messages: ' + error.message, 'err'); return }
   messages = data || []
+  await ensureSigned(messages)
   renderMessages()
   // Opening a conversation marks it read up to its latest message.
   const last = messages[messages.length - 1]
@@ -548,7 +567,7 @@ function renderMessages(){
       <div class="${avClass}" style="background:${avatarColor(sName)}">${esc(initials(sName))}</div>
       <div class="msg-body">
         ${metaHtml}
-        <div class="msg-bubble">${esc(m.body)}</div>
+        ${bubbleHtml(m)}
         ${myTime}
       </div>
     </div>`
@@ -576,7 +595,7 @@ function subscribeRealtime(){
            (m.sender_id === currentConvo.id && m.recipient_id === me.id))
       if (inOpen) {
         messages.push(m)
-        renderMessages()
+        ensureSigned([m]).then(renderMessages)
         if (document.visibilityState === 'visible' && m.sender_id !== me.id)
           markConvoSeen(currentConvo, m.created_at)
         return
@@ -643,6 +662,136 @@ async function sendMessage(){
   renderMessages()
   input.focus()
 }
+
+// ════════════════════════════════════════════════════════════════
+//  MEDIA — photo / video / voice attachments
+//  Files live in the private `chat-media` bucket; chat_messages
+//  stores the object path and we resolve a short-lived signed URL
+//  for display (see migration 20260519100000_chat_media.sql).
+// ════════════════════════════════════════════════════════════════
+const MEDIA_MAX = 50 * 1024 * 1024            // 50 MB per attachment
+const signedCache = new Map()                 // path → { url, exp }
+
+function mediaKind(type){
+  const t = (type || '').toLowerCase()
+  if (t.startsWith('image/')) return 'image'
+  if (t.startsWith('video/')) return 'video'
+  if (t.startsWith('audio/')) return 'audio'
+  return 'file'
+}
+async function signMedia(path){
+  const c = signedCache.get(path)
+  if (c && c.exp > Date.now()) return c.url
+  const { data, error } = await sb.storage.from('chat-media').createSignedUrl(path, 3600)
+  if (error || !data || !data.signedUrl) return null
+  signedCache.set(path, { url: data.signedUrl, exp: Date.now() + 3000 * 1000 })
+  return data.signedUrl
+}
+async function ensureSigned(list){
+  const paths = [...new Set((list || []).filter(m => m && m.media_url).map(m => m.media_url))]
+  await Promise.all(paths.map(p => signMedia(p).catch(() => null)))
+}
+function bubbleHtml(m){
+  const cap = m.body ? `<div class="msg-cap">${esc(m.body)}</div>` : ''
+  if (!m.media_url) return `<div class="msg-bubble">${esc(m.body)}</div>`
+  const u = (signedCache.get(m.media_url) || {}).url
+  const name = esc(m.media_name || 'attachment')
+  let media
+  if (!u) {
+    media = `<div class="msg-file">📎 ${name}</div>`
+  } else if (m.media_type === 'image') {
+    media = `<a href="${esc(u)}" target="_blank" rel="noopener"><img class="msg-media" loading="lazy" alt="${name}" src="${esc(u)}"/></a>`
+  } else if (m.media_type === 'video') {
+    media = `<video class="msg-media-vid" controls preload="metadata" src="${esc(u)}"></video>`
+  } else if (m.media_type === 'audio') {
+    media = `<audio class="msg-media-aud" controls preload="metadata" src="${esc(u)}"></audio>`
+  } else {
+    media = `<a class="msg-file" href="${esc(u)}" target="_blank" rel="noopener" download="${name}">📄 ${name}</a>`
+  }
+  return `<div class="msg-bubble has-media">${media}${cap}</div>`
+}
+
+async function uploadAndSend(file, kindHint){
+  if (!file || !me) return
+  if (file.size > MEDIA_MAX) { ntf('File too large (max 50 MB)', 'err'); return }
+  const kind = kindHint || mediaKind(file.type)
+  const fromName = (file.name && file.name.includes('.'))
+    ? file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+  const ext = fromName || ({ image:'jpg', video:'mp4', audio:'webm', file:'bin' }[kind])
+  const path = `${me.id}/${Date.now()}_${Math.random().toString(36).slice(2,9)}.${ext}`
+  const busy = ['attachBtn','camBtn','micBtn','sendBtn'].map($).filter(Boolean)
+  busy.forEach(b => b.disabled = true)
+  ntf('Uploading…', 'ok')
+  const up = await sb.storage.from('chat-media').upload(path, file, { contentType: file.type || undefined, upsert: false })
+  if (up.error) { busy.forEach(b => b.disabled = false); ntf('Upload failed: ' + up.error.message, 'err'); return }
+  const caption = input.value.trim().slice(0, 4000)
+  input.value = ''; input.style.height = 'auto'
+  const rec = {
+    sender_id:    me.id,
+    recipient_id: currentConvo.type === 'group' ? null : currentConvo.id,
+    body:         caption,
+    media_url:    path,
+    media_type:   kind,
+    media_name:   String(file.name || ('voice-note.' + ext)).slice(0, 200)
+  }
+  const { data, error } = await sb.from('chat_messages').insert([rec]).select().single()
+  busy.forEach(b => b.disabled = false)
+  if (error) { ntf('Send failed: ' + error.message, 'err'); return }
+  await ensureSigned([data])
+  messages.push(data)
+  renderMessages()
+}
+
+// ── Voice note recording ──────────────────────────────────────────
+let mediaRec = null, recChunks = [], recInt = null, recT0 = 0
+function fmtRec(s){ return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0') }
+async function toggleRecording(){
+  if (mediaRec && mediaRec.state === 'recording') { mediaRec.stop(); return }
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    ntf('Voice recording is not supported on this device', 'err'); return
+  }
+  let stream
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
+  catch { ntf('Microphone access was denied', 'err'); return }
+  recChunks = []
+  const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+             : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4' : ''
+  mediaRec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
+  mediaRec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data) }
+  mediaRec.onstop = () => {
+    stream.getTracks().forEach(t => t.stop())
+    clearInterval(recInt); recInt = null
+    const tEl = $('recTimer'); if (tEl) tEl.hidden = true
+    const mb = $('micBtn'); mb.classList.remove('recording'); mb.textContent = '🎤'
+    if (!recChunks.length) return
+    const type = mediaRec.mimeType || mime || 'audio/webm'
+    const ext  = type.includes('mp4') ? 'm4a' : 'webm'
+    const blob = new Blob(recChunks, { type })
+    if (blob.size < 800) { ntf('Recording too short', 'err'); return }
+    uploadAndSend(new File([blob], `voice-note.${ext}`, { type }), 'audio')
+  }
+  mediaRec.start()
+  recT0 = Date.now()
+  const mb = $('micBtn'); mb.classList.add('recording'); mb.textContent = '⏹'
+  const tEl = $('recTimer'); if (tEl) { tEl.hidden = false; tEl.textContent = '0:00' }
+  recInt = setInterval(() => {
+    const s = Math.floor((Date.now() - recT0) / 1000)
+    if (tEl) tEl.textContent = fmtRec(s)
+    if (s >= 180) mediaRec.stop()        // 3-minute safety cap
+  }, 500)
+}
+
+$('attachBtn').addEventListener('click', () => $('fileInp').click())
+$('camBtn').addEventListener('click',    () => $('camInp').click())
+$('micBtn').addEventListener('click',    toggleRecording)
+$('fileInp').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''
+  if (f) uploadAndSend(f)
+})
+$('camInp').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''
+  if (f) uploadAndSend(f)
+})
 
 bootstrap()
 </script>
