@@ -324,6 +324,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <option value="__open_unread__">📧 Open &amp; unread</option>
       </select>
       <button class="btn bgh" onclick="exportFilteredCsv()" title="Download current view as CSV">⬇ CSV</button>
+      <button class="btn bgh" onclick="openPushDash()" title="Notification delivery dashboard">🔔 Notifications</button>
       <button class="btn bb" onclick="openNew()">+ Log Feedback</button>
     </div>
   </div>
@@ -517,6 +518,37 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <button class="btn bb" id="vEditBtnBottom">✏️ Edit this record</button>
       <button class="btn bgh" onclick="closeView()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION DELIVERY DASHBOARD -->
+<div class="modal-bg" id="pushDashModal">
+  <div class="modal" style="max-width:920px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:800">🔔 Notification delivery</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bgh" type="button" onclick="loadPushDash()" style="padding:5px 12px">↻ Refresh</button>
+        <button class="btn bgh" type="button" onclick="document.getElementById('pushDashModal').classList.remove('on')" style="padding:5px 12px">✕</button>
+      </div>
+    </div>
+    <div id="pdKpis" class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <select class="fi" id="pdKind" style="width:140px" onchange="renderPushDash()">
+        <option value="">All types</option><option value="assignment">Assignment</option>
+        <option value="reminder">Reminder</option><option value="chat">Chat</option>
+      </select>
+      <select class="fi" id="pdStatus" style="width:130px" onchange="renderPushDash()">
+        <option value="">All status</option><option value="sent">Sent</option><option value="failed">Failed</option>
+      </select>
+      <select class="fi" id="pdOpened" style="width:140px" onchange="renderPushDash()">
+        <option value="">Opened: any</option><option value="yes">Opened ✓</option><option value="no">Not opened</option>
+      </select>
+      <input class="fi" id="pdSearch" placeholder="Search recipient / title…" style="flex:1;min-width:160px" oninput="renderPushDash()"/>
+    </div>
+    <div class="tw" style="max-height:54vh;overflow:auto"><table>
+      <thead><tr><th>When</th><th>Type</th><th>Recipient</th><th>Title</th><th>Case</th><th>Sent</th><th>Opened</th></tr></thead>
+      <tbody id="pdBody"><tr><td colspan="7" class="ec">Loading…</td></tr></tbody>
+    </table></div>
   </div>
 </div>
 
@@ -1761,6 +1793,58 @@ async function _ccSend(){
     _ccAtt=createChatAttachments({sb,composerEl:comp,insertBeforeEl:s,notify:ntf})
   }
 })()
+
+// ── Notification delivery dashboard (reads public.push_log) ──────────
+let _pdRows=[]
+window.openPushDash=()=>{ document.getElementById('pushDashModal').classList.add('on'); loadPushDash() }
+window.loadPushDash=async()=>{
+  const tb=document.getElementById('pdBody')
+  tb.innerHTML='<tr><td colspan="7" class="ec">Loading…</td></tr>'
+  try{
+    const{data,error}=await sb.from('push_log').select('*').order('created_at',{ascending:false}).limit(1000)
+    if(error)throw error
+    _pdRows=data||[]
+  }catch(e){
+    _pdRows=[]
+    tb.innerHTML=`<tr><td colspan="7" class="ec" style="color:var(--red)">Could not load: ${_esc(e.message||e)}</td></tr>`
+    return
+  }
+  renderPushDash()
+}
+window.renderPushDash=()=>{
+  const kf=document.getElementById('pdKind').value
+  const sf=document.getElementById('pdStatus').value
+  const of=document.getElementById('pdOpened').value
+  const q=(document.getElementById('pdSearch').value||'').toLowerCase().trim()
+  const rows=_pdRows.filter(r=>{
+    if(kf&&r.kind!==kf)return false
+    if(sf&&r.status!==sf)return false
+    if(of==='yes'&&!r.opened_at)return false
+    if(of==='no'&&r.opened_at)return false
+    if(q){const h=`${r.recipient_name||''} ${r.title||''} ${r.body||''}`.toLowerCase();if(!h.includes(q))return false}
+    return true
+  })
+  const total=_pdRows.length
+  const sent=_pdRows.filter(r=>r.status==='sent').length
+  const failed=_pdRows.filter(r=>r.status==='failed').length
+  const opened=_pdRows.filter(r=>r.opened_at).length
+  const rate=sent?Math.round(opened/sent*100):0
+  const kpi=(v,l,c)=>`<div class="kpi" style="border-top-color:${c}"><div class="kpi-val" style="color:${c}">${v}</div><div class="kpi-lbl">${l}</div></div>`
+  document.getElementById('pdKpis').innerHTML=
+    kpi(total,'Total','var(--mu)')+kpi(sent,'Sent','var(--green)')+kpi(failed,'Failed','var(--red)')+
+    kpi(opened,'Opened','var(--blue)')+kpi(rate+'%','Open rate','var(--amber)')
+  const fmtTs=v=>{const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+  document.getElementById('pdBody').innerHTML = rows.length ? rows.map(r=>`
+    <tr>
+      <td class="mono" style="white-space:nowrap;font-size:11px">${_esc(fmtTs(r.created_at))}</td>
+      <td><span class="badge b-gray">${_esc(r.kind||'')}</span></td>
+      <td style="font-weight:600">${_esc(r.recipient_name||'—')}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc((r.title||'')+' — '+(r.body||''))}">${_esc(r.title||'—')}</td>
+      <td>${r.case_id?`<a class="case-link" onclick="document.getElementById('pushDashModal').classList.remove('on');viewRec('${r.case_id}')">open</a>`:'—'}</td>
+      <td>${r.status==='sent'?'<span class="badge b-g">sent</span>':`<span class="badge b-r" title="${_esc(r.error||'')}">failed</span>`}</td>
+      <td>${r.opened_at?`<span class="badge b-b" title="${_esc(fmtTs(r.opened_at))}">✓ opened</span>`:'<span style="color:var(--dim)">—</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="ec">No notifications match.</td></tr>'
+}
 
 ;(async()=>{
   await loadDropdowns()
