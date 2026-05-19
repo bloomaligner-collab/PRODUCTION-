@@ -673,19 +673,21 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         });
       }
       const j = sub.toJSON();
-      if (!j || !j.endpoint || !j.keys) return;
-      await sb.from('push_subscriptions').upsert({
+      if (!j || !j.endpoint || !j.keys) { console.warn('[push] subscription has no endpoint/keys'); return; }
+      const { error: upErr } = await sb.from('push_subscriptions').upsert({
         employee_id: empId,
         endpoint: j.endpoint,
         p256dh: j.keys.p256dh,
         auth: j.keys.auth,
         user_agent: navigator.userAgent.slice(0, 200),
       }, { onConflict: 'endpoint' });
+      if (upErr) { console.warn('[push] could not save subscription:', upErr.message || upErr); return; }
       // Drop this user's stale endpoints (old key / old browser state)
       // so they don't linger as permanent failures in the dashboard.
       await sb.from('push_subscriptions').delete()
         .eq('employee_id', empId).neq('endpoint', j.endpoint);
-    } catch (e) { /* push optional — never disrupt the app */ }
+      console.info('[push] subscribed OK');
+    } catch (e) { console.warn('[push] subscribe failed:', (e && e.message) || e); }
   },
   _chatBeep() {
     try {
