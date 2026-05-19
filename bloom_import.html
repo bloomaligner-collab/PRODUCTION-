@@ -796,26 +796,27 @@ function renderAlignersPage(){
 }
 
 // ── HISTORY / SNAPSHOTS ───────────────────────────────────────────────
-// bloom_case_snapshots has ~10.6M rows, so the History tab never loads
-// them all. Each page is fetched with .range() and every filter is
-// applied in the query. We query the bloom_case_snapshots_hist view
-// (adds a parsed status_change_dt date) and order by synced_at DESC,
-// which is index-backed (idx_snaps_synced) — ordering by case_id would
-// force a full-table sort and time out.
-let _histSearchT=null, _histBusy=false, _histHasNext=false, _histTotal=null
+// bloom_case_snapshots has ~10.6M rows. The History tab never loads
+// them all: each page is a .range() fetch on the bloom_case_snapshots_hist
+// view (adds a parsed status_change_dt date), ordered by synced_at DESC
+// (index idx_snaps_synced). NO count is requested — an exact count over
+// a 10M-row view times out, and PostgREST can't estimate a view — so
+// we page with "is there a next page?" instead of a total. A numeric
+// query matches case_id exactly (uses the composite
+// idx_snaps_case_synced); text matches patient/doctor/clinic/distributor.
+let _histSearchT=null, _histBusy=false, _histHasNext=false
 
 const _histSan=v=>String(v||'').replace(/[(),.*%"\\]/g,' ').replace(/\s+/g,' ').trim()
 
-function _histQuery(countMode){
-  let qy=countMode
-    ? sb.from('bloom_case_snapshots_hist').select('*',{count:countMode})
-    : sb.from('bloom_case_snapshots_hist').select('*')
+function _histQuery(){
+  let qy=sb.from('bloom_case_snapshots_hist').select('*')
   const qs=_histSan($('hSearch').value)
   if(qs){
-    const ors=[]
-    if(/^[0-9]+$/.test(qs)) ors.push(`case_id.eq.${qs}`)
-    ors.push(`patient_name.ilike.*${qs}*`,`doctor.ilike.*${qs}*`,`clinic.ilike.*${qs}*`,`distributor.ilike.*${qs}*`)
-    qy=qy.or(ors.join(','))
+    if(/^[0-9]+$/.test(qs)){
+      qy=qy.eq('case_id',qs)                       // exact → uses idx_snaps_case_synced
+    }else{
+      qy=qy.or(`patient_name.ilike.*${qs}*,doctor.ilike.*${qs}*,clinic.ilike.*${qs}*,distributor.ilike.*${qs}*`)
+    }
   }
   const sf=$('hStatus').value; if(sf) qy=qy.eq('current_status',sf)
   const action=$('hAction').value
@@ -836,11 +837,10 @@ async function loadHistoryPage(){
   $('histTbl').innerHTML='<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--dim)">Loading…</td></tr>'
   try{
     const from=hPage*PAGE, to=from+PAGE-1
-    const{data,count,error}=await _histQuery('estimated').range(from,to)
+    const{data,error}=await _histQuery().range(from,to)
     if(error) throw error
     const rows=data||[]
     _histHasNext = rows.length===PAGE
-    _histTotal = (typeof count==='number') ? count : null
     filteredSnaps = rows
     renderHistoryPage()
   }catch(e){
@@ -855,9 +855,8 @@ function applyHistoryFilters(){ hPage=0; loadHistoryPage() }
 window.onHistorySearch=()=>{ clearTimeout(_histSearchT); _histSearchT=setTimeout(()=>{ hPage=0; loadHistoryPage() },300) }
 
 function renderHistoryPage(){
-  const pages=_histTotal!=null?Math.max(1,Math.ceil(_histTotal/PAGE)):null
-  $('histCount').textContent = (_histTotal!=null?`~${_histTotal.toLocaleString()} snapshots`:'snapshots')
-  $('hInfo').textContent = `Page ${hPage+1}${pages!=null?` / ~${pages.toLocaleString()}`:''}`
+  $('histCount').textContent = `${filteredSnaps.length} on this page`
+  $('hInfo').textContent = `Page ${hPage+1}${_histHasNext?' · more →':''}`
   $('hPrev').disabled = hPage===0
   $('hNext').disabled = !_histHasNext
   $('histTbl').innerHTML=filteredSnaps.map(s=>{
@@ -1074,7 +1073,7 @@ window.exportHistoryCSV=async()=>{
   const CAP=20000
   ntf('Preparing export…')
   try{
-    const{data,error}=await _histQuery(null).limit(CAP)
+    const{data,error}=await _histQuery().limit(CAP)
     if(error) throw error
     const set=data||[]
     const headers=['Case #','Patient','Doctor','Clinic','Distributor','Status','Status Changed','Upper','Lower','Total Aligners','Package','Order Type','Action Required','Synced At']
