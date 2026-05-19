@@ -1086,14 +1086,7 @@ window.triggerSync=async(full=false)=>{
 }
 
 window.loadAll=loadAll
-loadAll().then(()=>{
-  // Deep link from Customer Feedback (double-click a case #):
-  // bloom_import.html?case=<no> auto-opens that case's detail view.
-  const cid=new URLSearchParams(location.search).get('case')
-  if(!cid) return
-  if(allCases.some(x=>String(x.case_id)===String(cid))) openCase(cid)
-  else ntf('Case #'+cid+' is not in Bloom Import yet (not synced).',false)
-})
+loadAll()
 setInterval(loadAll,30000)
 </script>
 <!-- CW_HELP mount (single source of truth, see lang.js) -->

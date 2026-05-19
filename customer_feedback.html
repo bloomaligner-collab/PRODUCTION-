@@ -515,6 +515,7 @@ import{createClient}from'https://esm.sh/@supabase/supabase-js@2';
 import{SUPABASE_CONFIG}from'./config.js';
 import{createChatAttachments,attachmentsHtml,hydrateAttachments}from'./chat_media.js';
 import{loadFormPrefs,saveFormPrefs}from'./form_prefs.js';
+import{openBloomCaseModal}from'./bloom_case_view.js';
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
 const PAGE=20
 let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[],roles=[]
@@ -549,13 +550,13 @@ function ntf(t,tp){const el=document.getElementById('notif');el.textContent=t;el
 function fdt(v){if(!v)return'—';const d=new Date(v);return isNaN(d.getTime())?v:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
 function refNum(){const n=new Date();return`FB-${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(Math.floor(Math.random()*900)+100)}`}
 function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-// Double-click a case # → open the full Bloom Import case view
-// (patient/doctor/clinic/distributor + aligner orders + evolution
-// history) in a new tab, deep-linked by case number.
-window.bloomCaseDblClick=(e,el)=>{
-  if(e)e.stopPropagation()
+// Click a case # → open the full Bloom case view (patient/doctor/
+// clinic/distributor + aligner orders + evolution history) as an
+// in-page modal. No navigation, so the session is never dropped.
+window.openBloomCase=(e,el)=>{
+  if(e){e.stopPropagation();e.preventDefault()}
   const no=el&&el.dataset?el.dataset.case:''
-  if(no) window.open('bloom_import.html?case='+encodeURIComponent(no),'_blank','noopener')
+  if(no) openBloomCaseModal(sb,no)
 }
 
 window.onTypeChange=()=>{
@@ -855,7 +856,7 @@ function render(){
       <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(r.customer_name||'')}">${r.customer_name||'—'}</td>
       <td><span class="badge ${tc}">${TYPE_LABELS[r.type]||r.type||'—'}</span></td>
       <td>${CATEGORY_LABELS[r.category]||'—'}</td>
-      <td class="mono">${(r.case_id||r.order_no)?`<a class="case-link" data-case="${_esc(r.case_id||r.order_no)}" title="Double-click to open this case in Bloom Import (with full history)" ondblclick="bloomCaseDblClick(event,this)">${_esc(r.case_id||r.order_no)}</a>`:'—'}</td>
+      <td class="mono">${(r.case_id||r.order_no)?`<a class="case-link" data-case="${_esc(r.case_id||r.order_no)}" title="Open this case's Bloom view (patient, orders, history)" onclick="openBloomCase(event,this)">${_esc(r.case_id||r.order_no)}</a>`:'—'}</td>
       <td style="font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(r.description||'')}">${r.description||'—'}</td>
       <td data-sort="${({low:1,medium:2,high:3,critical:4})[r.severity]||0}"><span class="pri-badge" data-p="${r.severity||'medium'}">${r.severity||'—'}</span></td>
       <td style="font-size:12px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(r.assigned_to?prettyAssignee(r.assigned_to):'')}">${assigneeCell}</td>
@@ -1075,7 +1076,7 @@ window.viewRec=async(id)=>{
       <span class="pri-badge" data-p="${r.severity||'medium'}">${r.severity||'—'} priority</span>
     </div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
-    ${[['Date',fdt(r.received_date)],['Customer',r.customer_name],['Doctor',r.doctor],['Case #',case_ref],['Assigned To',prettyAssignee(r.assigned_to)]]
+    ${[['Date',fdt(r.received_date)],['Customer',r.customer_name],['Doctor',r.doctor],['Case #',case_ref?`<a class="case-link" data-case="${_esc(case_ref)}" title="Open this case's Bloom view (patient, orders, history)" onclick="openBloomCase(event,this)">${_esc(case_ref)}</a>`:'—'],['Assigned To',prettyAssignee(r.assigned_to)]]
       .map(([k,v])=>`<tr><td style="padding:7px 10px;color:var(--mu);font-weight:600;width:35%;border-bottom:1px solid var(--bdr)">${k}</td><td style="padding:7px 10px;border-bottom:1px solid var(--bdr)">${v||'—'}</td></tr>`).join('')}
     </table>
     <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">DESCRIPTION</div><div style="background:var(--r50);border-radius:8px;padding:12px;font-size:13px">${r.description||'—'}</div></div>
