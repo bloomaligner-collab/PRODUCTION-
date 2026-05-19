@@ -339,7 +339,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-size:14px;font-weight:800">📋 Feedback & Complaints Register</div>
-        <input class="fi" id="searchInput" placeholder="Search customer, order, description..." style="width:280px"/>
+        <input class="fi" id="searchInput" placeholder="Search subject, case, description..." style="width:280px"/>
       </div>
       <!-- Saved views: inline chip row (per-user, cross-device via public.user_views) -->
       <div id="savedViewsMount" style="margin-bottom:12px"></div>
@@ -351,7 +351,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
           <th></th>
           <th data-k="ref"      onclick="cfSort('ref')"      class="cf-sortable">Ref # <span class="cf-ar" data-k="ref"></span></th>
           <th data-k="date"     onclick="cfSort('date')"     class="cf-sortable">Date <span class="cf-ar" data-k="date"></span></th>
-          <th data-k="customer" onclick="cfSort('customer')" class="cf-sortable">Customer / Distributor <span class="cf-ar" data-k="customer"></span></th>
+          <th data-k="customer" onclick="cfSort('customer')" class="cf-sortable">Subject <span class="cf-ar" data-k="customer"></span></th>
           <th data-k="type"     onclick="cfSort('type')"     class="cf-sortable">Type <span class="cf-ar" data-k="type"></span></th>
           <th data-k="category" onclick="cfSort('category')" class="cf-sortable">Category <span class="cf-ar" data-k="category"></span></th>
           <th data-k="case"     onclick="cfSort('case')"     class="cf-sortable">Case # <span class="cf-ar" data-k="case"></span></th>
@@ -413,7 +413,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
           <option value="service_request">🛠️ Service Request</option>
         </select>
       </div>
-      <div data-fb-field="customer" data-fb-locked="1"><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
+      <div data-fb-field="customer" data-fb-locked="1"><label class="form-label">Subject *</label><input type="text" class="fi" id="fCustomer" placeholder="Subject of the feedback / complaint"/></div>
       <div data-fb-field="doctor"><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
       <div data-fb-field="category" id="fCategoryWrap"><label class="form-label">Complaint Category</label>
         <select class="fi" id="fCategory" onchange="onCategoryChange()">
@@ -990,7 +990,7 @@ const FB_FORM='customer_feedback_log'
 const FB_FIELDS=[
   {k:'date',     label:'Date',                  locked:true},
   {k:'type',     label:'Type',                  locked:true},
-  {k:'customer', label:'Customer / Distributor',locked:true},
+  {k:'customer', label:'Subject',locked:true},
   {k:'doctor',   label:'Doctor'},
   {k:'category', label:'Category'},
   {k:'case',     label:'Bloom Case #'},
@@ -1164,7 +1164,7 @@ window.viewRec=async(id)=>{
       <span class="pri-badge" data-p="${r.severity||'medium'}">${r.severity||'—'} priority</span>
     </div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
-    ${[['Date',fdt(r.received_date)],['Customer',r.customer_name],['Doctor',r.doctor],['Case #',case_ref?`<a class="case-link" data-case="${_esc(case_ref)}" title="Open this case's Bloom view (patient, orders, history)" onclick="openBloomCase(event,this)">${_esc(case_ref)}</a>`:'—'],['Assigned To',prettyAssignee(r.assigned_to)]]
+    ${[['Date',fdt(r.received_date)],['Subject',r.customer_name],['Doctor',r.doctor],['Case #',case_ref?`<a class="case-link" data-case="${_esc(case_ref)}" title="Open this case's Bloom view (patient, orders, history)" onclick="openBloomCase(event,this)">${_esc(case_ref)}</a>`:'—'],['Assigned To',prettyAssignee(r.assigned_to)]]
       .map(([k,v])=>`<tr><td style="padding:7px 10px;color:var(--mu);font-weight:600;width:35%;border-bottom:1px solid var(--bdr)">${k}</td><td style="padding:7px 10px;border-bottom:1px solid var(--bdr)">${v||'—'}</td></tr>`).join('')}
     </table>
     <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">DESCRIPTION</div><div style="background:var(--r50);border-radius:8px;padding:12px;font-size:13px">${r.description||'—'}</div></div>
@@ -1457,7 +1457,7 @@ function _notifyEscalation(rec) {
     severity:      sev,
     severityColor: sevCol,
     facts: [
-      ['Customer', rec.customer_name],
+      ['Subject', rec.customer_name],
       ['Doctor',   rec.doctor],
       ['Case #',   rec.case_id],
       ['Category', rec.category],
@@ -1479,7 +1479,7 @@ function _notifyResolved(recipient, rec) {
     headline:      `A record you logged has been marked "${statusLabel}"`,
     iso:           'Customer Feedback register · ISO 13485 §8.2.1',
     facts: [
-      ['Customer',        rec.customer_name],
+      ['Subject',        rec.customer_name],
       ['Case #',          rec.case_id],
       ['Resolved Date',   rec.resolved_at],
       ['Handled By',      rec.assigned_to],
@@ -1501,7 +1501,7 @@ function _notifyFollowupAssignee(assignee, rec) {
     headline:      'A follow-up reminder has been assigned to you',
     iso:           'Customer Feedback register · ISO 13485 §8.2.1',
     facts: [
-      ['Customer',      rec.customer_name],
+      ['Subject',      rec.customer_name],
       ['Case #',        rec.case_id],
       ['Follow-up Date',rec.follow_up_date],
       ['Note',          rec.follow_up_note],
@@ -1526,7 +1526,7 @@ function _notifyAssignees(assignee, rec) {
     severity:      sev.toUpperCase(),
     severityColor: sevCol,
     facts: [
-      ['Customer', rec.customer_name],
+      ['Subject', rec.customer_name],
       ['Doctor',   rec.doctor],
       ['Case #',   rec.case_id],
     ],
@@ -1582,7 +1582,7 @@ window.exportFilteredCsv = () => {
     { header:'Date',              get: r => r.received_date || '' },
     { header:'Type',              get: r => TYPE_LABELS[r.type] || r.type || '' },
     { header:'Category',          get: r => CATEGORY_LABELS[r.category] || r.category || '' },
-    { header:'Customer',          get: r => r.customer_name || '' },
+    { header:'Subject',           get: r => r.customer_name || '' },
     { header:'Doctor',            get: r => r.doctor || '' },
     { header:'Case #',            get: r => r.case_id || r.order_no || '' },
     { header:'Priority',          get: r => r.severity || '' },
