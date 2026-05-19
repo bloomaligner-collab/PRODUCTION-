@@ -653,7 +653,16 @@ async function sendMessage(){
   const { data, error } = await sb.from('chat_messages').insert([rec]).select().single()
   $('sendBtn').disabled = false
   if (error) {
-    ntf('Send failed: ' + error.message, 'err')
+    const authIssue = error.code === '42501' || /row-level security/i.test(error.message || '')
+    if (authIssue) {
+      const { data: { user } } = await sb.auth.getUser().catch(() => ({ data: { user: null } }))
+      ntf(user
+        ? 'Could not send — you don’t have access to this conversation.'
+        : 'Your session expired. Please sign in again to keep chatting.', 'err')
+      if (!user) setTimeout(() => location.replace('index.html'), 2500)
+    } else {
+      ntf('Send failed: ' + error.message, 'err')
+    }
     input.value = original
     input.focus()
     return

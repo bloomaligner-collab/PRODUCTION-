@@ -1557,7 +1557,18 @@ async function _ccSend(){
   const targetCase=_ccCaseId
   const{data,error}=await sb.from('chat_messages').insert([{sender_id:_ccMe.id,recipient_id:null,case_id:targetCase,body,attachments:files}]).select().single()
   if(btn)btn.disabled=false
-  if(error){inp.value=orig;ntf('Send failed: '+error.message,'err');inp.focus();return}
+  if(error){
+    inp.value=orig
+    const authIssue=error.code==='42501'||/row-level security/i.test(error.message||'')
+    if(authIssue){
+      const{data:{user}}=await sb.auth.getUser().catch(()=>({data:{user:null}}))
+      ntf(user?'Could not post — only this case’s assignee/team or a manager can write here.':'Your session expired. Please sign in again.','err')
+      if(!user) setTimeout(()=>location.replace('index.html'),2500)
+    }else{
+      ntf('Send failed: '+error.message,'err')
+    }
+    inp.focus();return
+  }
   if(_ccCaseId===targetCase && !_ccMsgs.some(x=>x.id===data.id)){_ccMsgs.push(data);_ccRender()}
   inp.focus()
 }
