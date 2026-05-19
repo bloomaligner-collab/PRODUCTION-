@@ -693,41 +693,62 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       return true;
     } catch (e) { return D('subscribe failed: ' + ((e && e.message) || e)); }
   },
+  // Persistent on-screen banner (alert() is unreliable in an iOS
+  // installed PWA). Stays until tapped so it can be read/screenshotted.
+  _pushBanner(msg, ok) {
+    try {
+      let el = document.getElementById('cw-push-banner');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'cw-push-banner';
+        el.onclick = () => el.remove();
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.style.cssText =
+        'position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top));z-index:99999;' +
+        'padding:14px 16px;border-radius:12px;font:600 14px/1.45 -apple-system,system-ui,sans-serif;' +
+        'color:#fff;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.3);' +
+        'background:' + (ok ? '#16a34a' : '#dc2626') + ';';
+    } catch (e) { /* ignore */ }
+  },
   // Explicit, user-initiated enable with on-screen feedback — the
   // reliable path on iPhone (no console; auto-prompt is unreliable).
   async enableNotifications() {
+    const say = (m, ok) => { CW_ACCESS._pushBanner(m, !!ok); try { alert(m); } catch (e) {} };
     const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert(isIOS
-        ? 'To get notifications on iPhone:\n\n1. Open this site in Safari\n2. Share → Add to Home Screen\n3. Open the app from that new icon (not a bookmark/Safari tab)\n4. Then tap “Enable alerts” again.\n\nRequires iOS 16.4 or newer.'
-        : 'This browser does not support web push notifications.');
+      say(isIOS
+        ? 'iPhone push needs: iOS 16.4+, opened from the Home-Screen icon (not Safari/bookmark). PushManager missing here → likely iOS < 16.4 OR not opened as the installed app.'
+        : 'This browser does not support web push notifications.', false);
       return;
     }
     if (isIOS && !standalone) {
-      alert('On iPhone, notifications only work when the app is added to the Home Screen.\n\nSafari → Share → Add to Home Screen, open it from that icon, then tap “Enable alerts” again.');
+      say('Not running as the installed app. On iPhone: Safari → Share → Add to Home Screen, then open it from THAT icon (full screen, no Safari bar), then tap Enable alerts.', false);
       return;
     }
     let perm = Notification.permission;
     if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch (e) {} }
     if (perm === 'denied') {
-      alert('Notifications are blocked for this app. Enable them in your device/browser settings for this site, then try again.');
+      say('Notifications are BLOCKED for this app. iPhone: Settings → Notifications → (this app) → Allow. Then tap Enable alerts again.', false);
       return;
     }
-    if (perm !== 'granted') { alert('Notification permission was not granted.'); return; }
+    if (perm !== 'granted') { say('Permission was not granted (' + perm + '). Tap Enable alerts and choose Allow.', false); return; }
     if (!CW_ACCESS._pushCtx) { try { await CW_ACCESS._initChatNotifications(); } catch (e) {} }
     const c = CW_ACCESS._pushCtx;
-    if (!c) { alert('Could not prepare notifications (your login may not be linked to an employee record). Tell the admin.'); return; }
+    if (!c) { say('Permission OK, but your login is not linked to an employee record so the subscription cannot be saved. Tell the admin.', false); return; }
     const ok = await CW_ACCESS._subscribePush(c.sb, c.empId, c.vapid);
-    alert(ok ? '✅ Notifications enabled on this device.'
-             : '⚠️ Could not enable notifications:\n\n' + (CW_ACCESS._pushDiag || 'unknown error'));
+    say(ok ? '✅ Notifications enabled on THIS device. Now tap “Test notification”.'
+           : '⚠️ Could not enable: ' + (CW_ACCESS._pushDiag || 'unknown error'), ok);
   },
   // Shows a notification LOCALLY (no server). Isolates the cause when
   // pushes "don't arrive": if even this doesn't pop, the OS/browser is
   // blocking notifications — not the push pipeline.
   async testNotification() {
+    const say = (m, ok) => { CW_ACCESS._pushBanner(m, !!ok); try { alert(m); } catch (e) {} };
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      alert('This browser/app cannot show notifications here. On iPhone, open the app from the Home-Screen icon (not a bookmark).');
+      say('Cannot show notifications here. iPhone: open the app from the Home-Screen icon (not a bookmark/Safari tab), iOS 16.4+.', false);
       return;
     }
     if (Notification.permission !== 'granted') {
@@ -737,20 +758,13 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
     try {
       const reg = await navigator.serviceWorker.ready;
       await reg.showNotification('Cedarwings ✓ test', {
-        body: 'If you can SEE this popup, notifications work on this device.',
+        body: 'If you SEE this, notifications work on this device.',
         icon: './icon.svg', badge: './icon.svg', tag: 'cw-selftest',
         data: { url: './chat.html' },
       });
-      setTimeout(() => alert(
-        'A test notification was just shown.\n\n' +
-        '• If you SAW it pop up → notifications work; real pushes will too once your device stays reachable (keep the app/Chrome running; on phone keep the installed app).\n\n' +
-        '• If you did NOT see it → your system is blocking it. Check:\n' +
-        '  – Windows: Settings → System → Notifications → Google Chrome = On; turn OFF Focus Assist / Do Not Disturb.\n' +
-        '  – Chrome: site settings → Notifications = Allow for this site.\n' +
-        '  – iPhone: Settings → Notifications → (the installed app) = Allow.', 1200));
+      say('Test notification fired. If you SAW the banner → it works. If NOT → the OS is blocking it (iPhone: Settings → Notifications → this app = Allow; turn off Focus/Do-Not-Disturb).', true);
     } catch (e) {
-      alert('Could not show a local notification: ' + ((e && e.message) || e) +
-            '\n\nThis points to an OS/browser block rather than the push server.');
+      say('Could not show a local notification: ' + ((e && e.message) || e) + ' — that means the OS/app is blocking it, not the server.', false);
     }
   },
   _chatBeep() {
