@@ -181,6 +181,8 @@ textarea.fi{resize:vertical}
 .fb-section[open]>summary{border-bottom:1px solid var(--bdr);background:var(--b50);color:var(--blue)}
 .fb-section-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fb-section-body .fw{grid-column:1/-1}
+#fbTopGrid{grid-template-columns:1fr 1fr}
+@media(max-width:560px){#fbTopGrid,.fb-section-body{grid-template-columns:1fr}}
 .fb-pref-hidden{display:none!important}
 #modal.cw-no-icons .cw-ic{display:none}
 .fb-proto{margin:0}
@@ -380,7 +382,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     </div>
 
     <!-- ESSENTIAL FIELDS (always visible) -->
-    <div id="fbTopGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div id="fbTopGrid" style="display:grid;gap:14px">
       <div data-fb-field="date" data-fb-locked="1"><label class="form-label">Date *</label><input type="date" class="fi" id="fDate"/></div>
       <div data-fb-field="type" data-fb-locked="1"><label class="form-label">Type *</label>
         <select class="fi" id="fType" onchange="onTypeChange()">
