@@ -136,6 +136,7 @@ const CW_ACCESS = {
         <a href="${home}" class="nl"><span class="ic">🏠</span>Home</a>
         <a href="manager.html#my-work" class="nl" id="cw-mywork-link" title="Open items assigned to you"><span class="ic">🎯</span>My Work <span id="cw-mywork-badge" style="margin-left:auto;background:var(--mu,#64748b);color:#fff;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;min-width:18px;text-align:center;display:none">—</span></a>
         <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.openPasswordModal()"><span class="ic">🔑</span>Change password</a>
+        <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.enableNotifications()" title="Turn on push notifications on this device"><span class="ic">🔔</span>Enable alerts</a>
         <a href="index.html" class="nl" onclick="event.preventDefault();(window.cwSignOut?window.cwSignOut():(sessionStorage.clear(),location.replace('index.html')))" style="color:var(--red,#dc2626)"><span class="ic">🚪</span>Logout</a>
       `;
     }
@@ -644,18 +645,18 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
     return out;
   },
   async _subscribePush(sb, empId, vapidKey) {
+    const D = m => { CW_ACCESS._pushDiag = m; return false; };
     try {
       const key = String(vapidKey || '').trim();
-      if (!key || !empId) return;
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      if (!key || !empId) return D('not signed in / no VAPID key');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window))
+        return D('this browser has no Push support (on iPhone: Add to Home Screen, iOS 16.4+, open from the icon)');
+      if (!('Notification' in window)) return D('Notifications API unavailable');
+      if (Notification.permission !== 'granted') return D('permission not granted (' + Notification.permission + ')');
       const reg = await navigator.serviceWorker.ready;
       const wantKey = CW_ACCESS._urlB64ToU8(key);
       let sub = await reg.pushManager.getSubscription();
       if (sub) {
-        // If the existing subscription was made with a different VAPID
-        // key (e.g. the key was rotated), it can never receive our
-        // pushes — drop it and re-subscribe with the current key.
         let same = false;
         try {
           const cur = sub.options && sub.options.applicationServerKey;
@@ -673,7 +674,7 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         });
       }
       const j = sub.toJSON();
-      if (!j || !j.endpoint || !j.keys) { console.warn('[push] subscription has no endpoint/keys'); return; }
+      if (!j || !j.endpoint || !j.keys) return D('subscription has no endpoint/keys');
       const { error: upErr } = await sb.from('push_subscriptions').upsert({
         employee_id: empId,
         endpoint: j.endpoint,
@@ -681,13 +682,42 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         auth: j.keys.auth,
         user_agent: navigator.userAgent.slice(0, 200),
       }, { onConflict: 'endpoint' });
-      if (upErr) { console.warn('[push] could not save subscription:', upErr.message || upErr); return; }
-      // Drop this user's stale endpoints (old key / old browser state)
-      // so they don't linger as permanent failures in the dashboard.
+      if (upErr) return D('could not save subscription: ' + (upErr.message || upErr));
       await sb.from('push_subscriptions').delete()
         .eq('employee_id', empId).neq('endpoint', j.endpoint);
+      CW_ACCESS._pushDiag = 'OK';
       console.info('[push] subscribed OK');
-    } catch (e) { console.warn('[push] subscribe failed:', (e && e.message) || e); }
+      return true;
+    } catch (e) { return D('subscribe failed: ' + ((e && e.message) || e)); }
+  },
+  // Explicit, user-initiated enable with on-screen feedback — the
+  // reliable path on iPhone (no console; auto-prompt is unreliable).
+  async enableNotifications() {
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert(isIOS
+        ? 'To get notifications on iPhone:\n\n1. Open this site in Safari\n2. Share → Add to Home Screen\n3. Open the app from that new icon (not a bookmark/Safari tab)\n4. Then tap “Enable alerts” again.\n\nRequires iOS 16.4 or newer.'
+        : 'This browser does not support web push notifications.');
+      return;
+    }
+    if (isIOS && !standalone) {
+      alert('On iPhone, notifications only work when the app is added to the Home Screen.\n\nSafari → Share → Add to Home Screen, open it from that icon, then tap “Enable alerts” again.');
+      return;
+    }
+    let perm = Notification.permission;
+    if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch (e) {} }
+    if (perm === 'denied') {
+      alert('Notifications are blocked for this app. Enable them in your device/browser settings for this site, then try again.');
+      return;
+    }
+    if (perm !== 'granted') { alert('Notification permission was not granted.'); return; }
+    if (!CW_ACCESS._pushCtx) { try { await CW_ACCESS._initChatNotifications(); } catch (e) {} }
+    const c = CW_ACCESS._pushCtx;
+    if (!c) { alert('Could not prepare notifications (your login may not be linked to an employee record). Tell the admin.'); return; }
+    const ok = await CW_ACCESS._subscribePush(c.sb, c.empId, c.vapid);
+    alert(ok ? '✅ Notifications enabled on this device.'
+             : '⚠️ Could not enable notifications:\n\n' + (CW_ACCESS._pushDiag || 'unknown error'));
   },
   _chatBeep() {
     try {
