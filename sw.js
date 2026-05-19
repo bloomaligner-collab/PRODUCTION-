@@ -4,8 +4,11 @@
 // Static assets: stale-while-revalidate for instant loads.
 // Same-origin only — Supabase / esm.sh / fonts are never intercepted.
 
-const CACHE = 'cw-app-v4';
+const CACHE = 'cw-app-v5';
 const NAV_TIMEOUT = 4000;
+// Acknowledge notification opens for the delivery dashboard.
+const PUSH_ACK_URL = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/push-ack';
+const PUSH_ACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cm1hZG16enVhbHF1a3h4bHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc3MDQsImV4cCI6MjA5MjAwMzcwNH0.KmVRMz17T4f_FKgWSjr9LTh0DIMsJVyOGuC0k-v1BQs';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -81,7 +84,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || 'New message',
     tag: data.tag || 'cw-chat',
-    data: { url: data.url || './chat.html' },
+    data: { url: data.url || './chat.html', logId: data.logId || null },
     icon: './icon.svg',
     badge: './icon.svg',
   };
@@ -90,8 +93,17 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || './index.html';
+  const d = event.notification.data || {};
+  const target = d.url || './index.html';
   event.waitUntil((async () => {
+    if (d.logId) {
+      try {
+        await fetch(`${PUSH_ACK_URL}?id=${encodeURIComponent(d.logId)}`, {
+          method: 'POST',
+          headers: { apikey: PUSH_ACK_KEY, Authorization: `Bearer ${PUSH_ACK_KEY}` },
+        });
+      } catch (e) { /* opened-tracking is best-effort */ }
+    }
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of all) {
       if ('focus' in c) { c.focus(); if ('navigate' in c) c.navigate(target).catch(() => {}); return; }
