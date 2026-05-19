@@ -305,7 +305,7 @@ tr:hover td{background:#fafbfc}
     <!-- ===== TAB: HISTORY / SNAPSHOTS ===== -->
     <div id="tab-history" style="display:none">
       <div class="filters-bar">
-        <div class="fi-group"><div class="fi-label">🔍 Search</div><input class="fi" type="text" id="hSearch" placeholder="Case #, patient, doctor..." oninput="applyHistoryFilters()"/></div>
+        <div class="fi-group"><div class="fi-label">🔍 Search</div><input class="fi" type="text" id="hSearch" placeholder="Case #, patient, doctor..." oninput="onHistorySearch()"/></div>
         <div class="fi-group"><div class="fi-label">Status</div><select class="fi" id="hStatus" onchange="applyHistoryFilters()"><option value="">All</option></select></div>
         <div class="fi-group"><div class="fi-label">📅 Status Changed From</div><input class="fi" type="date" id="hSCFrom" onchange="applyHistoryFilters()"/></div>
         <div class="fi-group"><div class="fi-label">To</div><input class="fi" type="date" id="hSCTo" onchange="applyHistoryFilters()"/></div>
@@ -806,6 +806,36 @@ async function loadHistory(){
   }catch(e){ntf('Error loading history: '+e.message,false)}
 }
 
+// The default loadHistory() caps at 5000 rows ordered by case_id, so
+// older/lower case numbers fall outside the window and an in-memory
+// search finds nothing. When the user types a query, search the DB
+// directly so any case is found regardless of that cap.
+let _histSearchT=null
+window.onHistorySearch=()=>{
+  clearTimeout(_histSearchT)
+  _histSearchT=setTimeout(()=>{
+    const q=($('hSearch').value||'').trim()
+    if(!q) loadHistory()
+    else searchHistory(q)
+  },300)
+}
+async function searchHistory(q){
+  const qs=q.replace(/[(),.*%"\\]/g,' ').replace(/\s+/g,' ').trim()
+  if(!qs){ loadHistory(); return }
+  $('histTbl').innerHTML='<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--dim)">Searching…</td></tr>'
+  const isNum=/^\d+$/.test(qs)
+  const ors=[]
+  if(isNum) ors.push(`case_id.eq.${qs}`)
+  ors.push(`patient_name.ilike.*${qs}*`,`doctor.ilike.*${qs}*`,`clinic.ilike.*${qs}*`,`distributor.ilike.*${qs}*`)
+  try{
+    const{data,error}=await sb.from('bloom_case_snapshots').select('*')
+      .or(ors.join(',')).order('case_id',{ascending:false}).order('synced_at',{ascending:false}).limit(5000)
+    if(error) throw error
+    snapshots=data||[]
+    applyHistoryFilters()
+  }catch(e){ ntf('Search failed: '+e.message,false) }
+}
+
 function applyHistoryFilters(){
   hPage=0
   const q=($('hSearch').value||'').toLowerCase().trim()
@@ -1057,7 +1087,7 @@ window.changePage=(tab,d)=>{
 window.clearFilters=tab=>{
   if(tab==='cases'){['fSearch','fStatus','fStatusFrom','fStatusTo','fSyncFrom','fSyncTo','fDist','fAction'].forEach(id=>$(`${id}`).value='');applyFilters()}
   else if(tab==='aligners'){['aSearch','aOrderType','aPackage'].forEach(id=>$(id).value='');applyAlignerFilters()}
-  else{['hSearch','hStatus','hFrom','hTo','hSCFrom','hSCTo','hAction'].forEach(id=>$(id).value='');applyHistoryFilters()}
+  else{['hSearch','hStatus','hFrom','hTo','hSCFrom','hSCTo','hAction'].forEach(id=>$(id).value='');loadHistory()}
 }
 window.showTab=(name,btn)=>{document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display='none');document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));$('tab-'+name).style.display='block';btn.classList.add('active');if(name==='history'&&snapshots.length===0)loadHistory()}
 window.loadHistory=loadHistory
