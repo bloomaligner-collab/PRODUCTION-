@@ -519,10 +519,11 @@ const CW_ACCESS = {
   input,select,textarea,.fi{font-size:16px!important}
   .kpi-row,.cards,.grid{grid-template-columns:1fr!important}
 }
-#cw-mnav{display:none;position:fixed;top:9px;left:9px;z-index:1300;width:40px;height:40px;
-  align-items:center;justify-content:center;border-radius:10px;background:#fff;
+#cw-mnav{display:none;position:fixed;top:max(9px,env(safe-area-inset-top));left:9px;z-index:100001;
+  width:42px;height:42px;align-items:center;justify-content:center;border-radius:10px;background:#fff;
   border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:18px;cursor:pointer;
-  font-family:inherit;color:#0f172a;padding:0;line-height:1}
+  font-family:inherit;color:#0f172a;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation}
 #cw-mnav-bd{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1150;opacity:0;
   pointer-events:none;transition:opacity .2s}
 body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
@@ -706,7 +707,7 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       }
       el.textContent = msg;
       el.style.cssText =
-        'position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top));z-index:99999;' +
+        'position:fixed;left:8px;right:8px;top:calc(60px + env(safe-area-inset-top));z-index:99999;' +
         'padding:14px 16px;border-radius:12px;font:600 14px/1.45 -apple-system,system-ui,sans-serif;' +
         'color:#fff;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.3);' +
         'background:' + (ok ? '#16a34a' : '#dc2626') + ';';
