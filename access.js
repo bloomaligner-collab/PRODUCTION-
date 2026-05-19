@@ -684,8 +684,10 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         user_agent: navigator.userAgent.slice(0, 200),
       }, { onConflict: 'endpoint' });
       if (upErr) return D('could not save subscription: ' + (upErr.message || upErr));
-      await sb.from('push_subscriptions').delete()
-        .eq('employee_id', empId).neq('endpoint', j.endpoint);
+      // NOTE: do NOT delete this user's other endpoints — a person can
+      // be subscribed on several devices (phone + PC) and must receive
+      // push on all of them. Truly dead endpoints are pruned on send
+      // (404/410) by the Edge Functions.
       CW_ACCESS._pushDiag = 'OK';
       console.info('[push] subscribed OK');
       return true;
