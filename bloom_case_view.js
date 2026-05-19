@@ -31,6 +31,25 @@ const SC = {
 }
 const sc = s => SC[s] || '#94a3b8'
 
+// Collapse repeated identical sync snapshots. Each sync saves a row
+// even when nothing changed, so a stable case shows hundreds of
+// identical tiles. Keep only the snapshot where the state first
+// changed. `desc` is newest-first; walk oldest→newest keeping a row
+// whenever its signature differs from the previously kept one, then
+// return newest-first for display.
+const snapSig = s => [
+  s.current_status || '', s.status_change_date || '',
+  s.total_aligners ?? '', s.aligner_upper ?? '', s.aligner_lower ?? '',
+  s.package_type || ''
+].join('|')
+function dedupeSnaps(desc) {
+  const asc = (desc || []).slice().reverse()
+  const kept = []
+  let prev = null
+  for (const s of asc) { const sig = snapSig(s); if (sig !== prev) { kept.push(s); prev = sig } }
+  return kept.reverse()
+}
+
 let _modal = null
 function ensureModal() {
   if (_modal) return _modal
@@ -102,6 +121,7 @@ export async function openBloomCaseModal(sb, caseNo) {
   }
 
   wrap.querySelector('#bcvSub').textContent = (c.patient_name || '') + (c.doctor ? ' · ' + c.doctor : '')
+  const evo = dedupeSnaps(snaps)
   const color = sc(c.current_status)
   body.innerHTML = `
     <div style="background:${color}15;border:1px solid ${color}40;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -120,9 +140,9 @@ export async function openBloomCaseModal(sb, caseNo) {
       ${c.overdue_for ? `<div style="background:var(--r50,#fef2f2);border:1px solid var(--r100,#fee2e2);border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:700;color:var(--red,#dc2626);text-transform:uppercase;letter-spacing:.5px">Overdue</div><div style="font-size:13px;font-weight:600;margin-top:3px;color:var(--red,#dc2626)">${_esc(c.overdue_for)}</div></div>` : ''}
     </div>
     ${als.length ? `<div style="font-size:12px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🦷 Aligner Orders (${als.length})</div>` + als.map(alignerCard).join('') : '<div style="color:var(--dim,#94a3b8);font-size:12px;text-align:center;padding:16px;background:var(--bg,#f0f4f8);border-radius:10px">No aligner records yet</div>'}
-    ${snaps.length ? `<div style="font-size:12px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📸 Case Evolution (${snaps.length} snapshots)</div>
+    ${evo.length ? `<div style="font-size:12px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📸 Case Evolution (${evo.length} change${evo.length === 1 ? '' : 's'})</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-      ${snaps.map((s, i) => { const col = sc(s.current_status); return `<div style="border:1px solid var(--bdr,#e2e8f0);border-left:3px solid ${col};border-radius:10px;padding:10px 12px;${i === 0 ? 'background:var(--bg,#f0f4f8)' : ''}">
+      ${evo.map((s, i) => { const col = sc(s.current_status); return `<div style="border:1px solid var(--bdr,#e2e8f0);border-left:3px solid ${col};border-radius:10px;padding:10px 12px;${i === 0 ? 'background:var(--bg,#f0f4f8)' : ''}">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
           <span style="background:${col}22;color:${col};font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px">${_esc((s.current_status || '').replace(/_/g, ' '))}</span>
           <span style="font-size:11px;color:var(--mu,#64748b)">${_esc(fmtDT(s.synced_at))}</span>
