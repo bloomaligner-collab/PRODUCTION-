@@ -796,19 +796,20 @@ function renderAlignersPage(){
 }
 
 // ── HISTORY / SNAPSHOTS ───────────────────────────────────────────────
-// bloom_case_snapshots has millions of rows, so the History tab never
-// loads them all. Each page is fetched with .range() and every filter
-// is applied in the query. Exception: the status-changed date filter
-// (status_change_date is DD.MM.YYYY *text*, not range-comparable in
-// PostgREST) is applied to the fetched page only.
+// bloom_case_snapshots has ~10.6M rows, so the History tab never loads
+// them all. Each page is fetched with .range() and every filter is
+// applied in the query. We query the bloom_case_snapshots_hist view
+// (adds a parsed status_change_dt date) and order by synced_at DESC,
+// which is index-backed (idx_snaps_synced) — ordering by case_id would
+// force a full-table sort and time out.
 let _histSearchT=null, _histBusy=false, _histHasNext=false, _histTotal=null
 
 const _histSan=v=>String(v||'').replace(/[(),.*%"\\]/g,' ').replace(/\s+/g,' ').trim()
 
 function _histQuery(countMode){
   let qy=countMode
-    ? sb.from('bloom_case_snapshots').select('*',{count:countMode})
-    : sb.from('bloom_case_snapshots').select('*')
+    ? sb.from('bloom_case_snapshots_hist').select('*',{count:countMode})
+    : sb.from('bloom_case_snapshots_hist').select('*')
   const qs=_histSan($('hSearch').value)
   if(qs){
     const ors=[]
@@ -823,17 +824,10 @@ function _histQuery(countMode){
   const hf=$('hFrom').value, ht=$('hTo').value
   if(hf) qy=qy.gte('synced_at',hf)
   if(ht) qy=qy.lte('synced_at',ht+'T23:59:59.999+00')
-  return qy.order('case_id',{ascending:false}).order('synced_at',{ascending:false})
-}
-
-// status_change_date is DD.MM.YYYY text → filter the fetched page only
-function _histScdOk(s){
   const scf=$('hSCFrom').value, sct=$('hSCTo').value
-  if(!scf&&!sct) return true
-  const iso=toISO(s.status_change_date); if(!iso) return false
-  if(scf&&iso<scf) return false
-  if(sct&&iso>sct) return false
-  return true
+  if(scf) qy=qy.gte('status_change_dt',scf)
+  if(sct) qy=qy.lte('status_change_dt',sct)
+  return qy.order('synced_at',{ascending:false})
 }
 
 async function loadHistoryPage(){
@@ -847,7 +841,7 @@ async function loadHistoryPage(){
     const rows=data||[]
     _histHasNext = rows.length===PAGE
     _histTotal = (typeof count==='number') ? count : null
-    filteredSnaps = rows.filter(_histScdOk)
+    filteredSnaps = rows
     renderHistoryPage()
   }catch(e){
     _histHasNext=false; filteredSnaps=[]
@@ -861,9 +855,8 @@ function applyHistoryFilters(){ hPage=0; loadHistoryPage() }
 window.onHistorySearch=()=>{ clearTimeout(_histSearchT); _histSearchT=setTimeout(()=>{ hPage=0; loadHistoryPage() },300) }
 
 function renderHistoryPage(){
-  const scdActive=!!($('hSCFrom').value||$('hSCTo').value)
   const pages=_histTotal!=null?Math.max(1,Math.ceil(_histTotal/PAGE)):null
-  $('histCount').textContent = (_histTotal!=null?`~${_histTotal.toLocaleString()} snapshots`:'snapshots')+(scdActive?' · status-date filtered on page':'')
+  $('histCount').textContent = (_histTotal!=null?`~${_histTotal.toLocaleString()} snapshots`:'snapshots')
   $('hInfo').textContent = `Page ${hPage+1}${pages!=null?` / ~${pages.toLocaleString()}`:''}`
   $('hPrev').disabled = hPage===0
   $('hNext').disabled = !_histHasNext
@@ -1083,7 +1076,7 @@ window.exportHistoryCSV=async()=>{
   try{
     const{data,error}=await _histQuery(null).limit(CAP)
     if(error) throw error
-    const set=(data||[]).filter(_histScdOk)
+    const set=data||[]
     const headers=['Case #','Patient','Doctor','Clinic','Distributor','Status','Status Changed','Upper','Lower','Total Aligners','Package','Order Type','Action Required','Synced At']
     const rows=set.map(s=>[s.case_id,s.patient_name||'',s.doctor||'',s.clinic||'',s.distributor||'',s.current_status||'',s.status_change_date||'',s.aligner_upper||'',s.aligner_lower||'',s.total_aligners||'',s.package_type||'',s.order_type||'',s.action_required_for||'',s.synced_at||''])
     const a=csv(rows,headers);a.download=`bloom_history_${new Date().toISOString().slice(0,10)}.csv`;a.click()
