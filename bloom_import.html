@@ -493,7 +493,11 @@ async function loadAll(){
       }),
       fetchAllRows('bloom_aligner_details', { select: ALIGNERS_COLS, orderCol: 'case_number' }),
       sb.from('bloom_sync_log').select('*').order('started_at',{ascending:false}).limit(50),
-      sb.from('bloom_case_snapshots').select('*',{count:'exact',head:true})
+      // Estimated (planner) count — an exact count over the ~10.6M-row
+      // snapshots table times out and would reject this whole load,
+      // leaving every tab empty. Never let it break loadAll().
+      sb.from('bloom_case_snapshots').select('*',{count:'estimated',head:true})
+        .then(r=>r,()=>({count:null}))
     ])
     setLive('Rendering…')
     const cases     = casesRes.data,    total   = casesRes.count
