@@ -137,6 +137,7 @@ const CW_ACCESS = {
         <a href="manager.html#my-work" class="nl" id="cw-mywork-link" title="Open items assigned to you"><span class="ic">🎯</span>My Work <span id="cw-mywork-badge" style="margin-left:auto;background:var(--mu,#64748b);color:#fff;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;min-width:18px;text-align:center;display:none">—</span></a>
         <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.openPasswordModal()"><span class="ic">🔑</span>Change password</a>
         <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.enableNotifications()" title="Turn on push notifications on this device"><span class="ic">🔔</span>Enable alerts</a>
+        <a href="#" class="nl" onclick="event.preventDefault();CW_ACCESS.testNotification()" title="Show a test notification on this device"><span class="ic">🧪</span>Test notification</a>
         <a href="index.html" class="nl" onclick="event.preventDefault();(window.cwSignOut?window.cwSignOut():(sessionStorage.clear(),location.replace('index.html')))" style="color:var(--red,#dc2626)"><span class="ic">🚪</span>Logout</a>
       `;
     }
@@ -718,6 +719,37 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
     const ok = await CW_ACCESS._subscribePush(c.sb, c.empId, c.vapid);
     alert(ok ? '✅ Notifications enabled on this device.'
              : '⚠️ Could not enable notifications:\n\n' + (CW_ACCESS._pushDiag || 'unknown error'));
+  },
+  // Shows a notification LOCALLY (no server). Isolates the cause when
+  // pushes "don't arrive": if even this doesn't pop, the OS/browser is
+  // blocking notifications — not the push pipeline.
+  async testNotification() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      alert('This browser/app cannot show notifications here. On iPhone, open the app from the Home-Screen icon (not a bookmark).');
+      return;
+    }
+    if (Notification.permission !== 'granted') {
+      await CW_ACCESS.enableNotifications();
+      if (Notification.permission !== 'granted') return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Cedarwings ✓ test', {
+        body: 'If you can SEE this popup, notifications work on this device.',
+        icon: './icon.svg', badge: './icon.svg', tag: 'cw-selftest',
+        data: { url: './chat.html' },
+      });
+      setTimeout(() => alert(
+        'A test notification was just shown.\n\n' +
+        '• If you SAW it pop up → notifications work; real pushes will too once your device stays reachable (keep the app/Chrome running; on phone keep the installed app).\n\n' +
+        '• If you did NOT see it → your system is blocking it. Check:\n' +
+        '  – Windows: Settings → System → Notifications → Google Chrome = On; turn OFF Focus Assist / Do Not Disturb.\n' +
+        '  – Chrome: site settings → Notifications = Allow for this site.\n' +
+        '  – iPhone: Settings → Notifications → (the installed app) = Allow.', 1200));
+    } catch (e) {
+      alert('Could not show a local notification: ' + ((e && e.message) || e) +
+            '\n\nThis points to an OS/browser block rather than the push server.');
+    }
   },
   _chatBeep() {
     try {
