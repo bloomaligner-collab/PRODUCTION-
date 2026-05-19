@@ -1246,7 +1246,7 @@ async function handleDuplicateCase(caseNo){
         <div style="font-size:12px;margin-top:6px">${_esc((r.description||'').slice(0,140))}${(r.description||'').length>140?'…':''}</div>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="btn bb" data-act="take" data-id="${r.id}" style="padding:5px 12px;font-size:12px">Take over</button>
-          <button class="btn bgh" data-act="open" data-id="${r.id}" style="padding:5px 12px;font-size:12px">Open</button>
+          <button class="btn bgh" data-act="open" data-id="${r.id}" style="padding:5px 12px;font-size:12px">Open existing</button>
         </div>
       </div>`).join('')
     bg.innerHTML=`<div class="modal" style="max-width:560px">
@@ -1254,10 +1254,11 @@ async function handleDuplicateCase(caseNo){
         <div style="font-size:16px;font-weight:800">⚠️ A complaint already exists for case ${_esc(q)}</div>
         <button class="btn bgh" data-act="cancel" style="padding:5px 12px">✕</button>
       </div>
-      <div style="font-size:12px;color:var(--mu);margin-bottom:12px">${rows.length} record${rows.length>1?'s':''} found for this case. Open it, or take it over (assign it to you).</div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:12px">${rows.length} record${rows.length>1?'s':''} found for this case. <strong>Open</strong> the existing one, <strong>Take over</strong> (assign it to you), or create a separate new complaint for this case anyway.</div>
       ${list}
-      <div style="display:flex;justify-content:flex-end;margin-top:8px">
-        <button class="btn bgh" data-act="cancel" style="padding:6px 14px">Cancel — don’t create</button>
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn bb" data-act="create" style="padding:6px 14px">➕ Create new complaint anyway</button>
+        <button class="btn bgh" data-act="cancel" style="padding:6px 14px">Cancel</button>
       </div>
     </div>`
     document.body.appendChild(bg)
@@ -1267,6 +1268,7 @@ async function handleDuplicateCase(caseNo){
       const b=e.target.closest('[data-act]'); if(!b) return
       const act=b.dataset.act, id=b.dataset.id
       if(act==='cancel') return done(true)
+      if(act==='create') return done(false)   // proceed — create a new complaint for this case
       if(act==='open'){ done(true); closeModal(); viewRec(id); return }
       if(act==='take'){
         b.disabled=true
