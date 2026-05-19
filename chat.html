@@ -258,6 +258,7 @@ a{color:inherit;text-decoration:none}
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { SUPABASE_CONFIG } from './config.js'
+import { createChatAttachments, attachmentsHtml, hydrateAttachments } from './chat_media.js'
 const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
 
 // Shared chat prefs/seen API from access.js (loaded before this module).
@@ -493,7 +494,7 @@ async function openConversation(c){
   // Pull message history
   $('msgScroll').innerHTML = `<div class="msg-empty"><div class="msg-empty-emoji">⏳</div><div>Loading messages…</div></div>`
   let q = sb.from('chat_messages')
-    .select('id,sender_id,recipient_id,body,created_at')
+    .select('id,sender_id,recipient_id,body,created_at,attachments')
     .order('created_at', { ascending: true })
     .limit(500)
   if (c.type === 'group') {
@@ -544,11 +545,14 @@ function renderMessages(){
       ? '' /* compact: no repeat header for consecutive messages */
       : `<div class="msg-meta"><strong>${esc(sName)}</strong><span>${esc(fmtTime(d))}</span></div>`
     const myTime = isMe ? `<div class="msg-time">${esc(fmtTime(d))}</div>` : ''
+    const bodyHtml = (m.body && m.body.trim()) ? `<div class="msg-bubble">${esc(m.body)}</div>` : ''
+    const attHtml  = attachmentsHtml(m.attachments)
     html += `<div class="msg ${isMe ? 'me' : 'them'}" data-msg-id="${esc(m.id)}">
       <div class="${avClass}" style="background:${avatarColor(sName)}">${esc(initials(sName))}</div>
       <div class="msg-body">
         ${metaHtml}
-        <div class="msg-bubble">${esc(m.body)}</div>
+        ${bodyHtml}
+        ${attHtml}
         ${myTime}
       </div>
     </div>`
@@ -556,6 +560,7 @@ function renderMessages(){
   }
   box.innerHTML = html
   box.scrollTop = box.scrollHeight
+  hydrateAttachments(sb, box)
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -614,16 +619,31 @@ input.addEventListener('keydown', e => {
 })
 $('sendBtn').addEventListener('click', sendMessage)
 
+const attach = createChatAttachments({
+  sb,
+  composerEl:     document.querySelector('.composer'),
+  insertBeforeEl: $('sendBtn'),
+  notify:         ntf,
+})
+
 async function sendMessage(){
+  if (!me) return
   const body = input.value.trim()
-  if (!body || !me) return
+  const hasFiles = attach.hasPending()
+  if (!body && !hasFiles) return
   if (body.length > 4000) { ntf('Message too long (max 4000 chars)', 'err'); return }
 
   $('sendBtn').disabled = true
+  let files = []
+  if (hasFiles) {
+    try { files = await attach.upload() }
+    catch { $('sendBtn').disabled = false; return }
+  }
   const rec = {
     sender_id:    me.id,
     recipient_id: currentConvo.type === 'group' ? null : currentConvo.id,
-    body
+    body,
+    attachments:  files
   }
   // Clear input optimistically
   const original = input.value

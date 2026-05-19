@@ -181,6 +181,18 @@ textarea.fi{resize:vertical}
 .fb-section[open]>summary{border-bottom:1px solid var(--bdr);background:var(--b50);color:var(--blue)}
 .fb-section-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fb-section-body .fw{grid-column:1/-1}
+.fb-pref-hidden{display:none!important}
+#modal.cw-no-icons .cw-ic{display:none}
+.fb-proto{margin:0}
+.fb-proto>summary{list-style:none;user-select:none}
+.fb-proto>summary::-webkit-details-marker{display:none}
+.fb-proto[open] .fb-proto-x{opacity:.55}
+.fb-fld-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--bdr);border-radius:8px;background:var(--card);margin-bottom:6px;font-size:12px}
+.fb-fld-row .fb-fld-nm{flex:1;font-weight:600;color:var(--txt)}
+.fb-fld-row.locked .fb-fld-nm{color:var(--mu)}
+.fb-fld-row button{width:24px;height:24px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg);cursor:pointer;font-size:11px;color:var(--mu);padding:0;line-height:1}
+.fb-fld-row button:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.fb-fld-row button:disabled{opacity:.35;cursor:not-allowed}
 /* PRIORITY PILLS */
 .pri-row{display:flex;gap:8px;flex-wrap:wrap}
 .pri-pill{flex:1;min-width:70px;padding:10px 8px;border:1.5px solid var(--bdr);border-radius:10px;font-size:12px;font-weight:700;color:var(--mu);background:var(--card);cursor:pointer;font-family:var(--f);text-align:center;transition:all .12s;user-select:none}
@@ -347,12 +359,30 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
   <div class="modal" style="max-width:640px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div style="font-size:16px;font-weight:800" id="mTitle">💬 Log Feedback</div>
-      <button class="btn bgh" onclick="closeModal()" style="padding:5px 12px">✕</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn bgh" type="button" onclick="toggleFbCustomise()" title="Customise this form" style="padding:5px 12px">⚙</button>
+        <button class="btn bgh" onclick="closeModal()" style="padding:5px 12px">✕</button>
+      </div>
     </div>
+
+    <!-- PER-USER FORM CUSTOMISER -->
+    <div id="fbCustomise" style="display:none;border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:16px;background:#f8fafc">
+      <div style="font-size:12px;font-weight:800;margin-bottom:10px">⚙ Customise this form
+        <span style="font-weight:500;color:var(--mu)">— show, hide &amp; reorder fields. Required fields stay locked.</span></div>
+      <div id="fbFieldList"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-top:10px;cursor:pointer">
+        <input type="checkbox" id="fbIconsToggle"/> Show icons on section headers
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn bgh" type="button" onclick="resetFbCustomise()" style="padding:5px 12px">Reset</button>
+        <button class="btn bb" type="button" onclick="saveFbCustomise()" style="padding:5px 12px">Save layout</button>
+      </div>
+    </div>
+
     <!-- ESSENTIAL FIELDS (always visible) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div><label class="form-label">Date *</label><input type="date" class="fi" id="fDate"/></div>
-      <div><label class="form-label">Type *</label>
+    <div id="fbTopGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div data-fb-field="date" data-fb-locked="1"><label class="form-label">Date *</label><input type="date" class="fi" id="fDate"/></div>
+      <div data-fb-field="type" data-fb-locked="1"><label class="form-label">Type *</label>
         <select class="fi" id="fType" onchange="onTypeChange()">
           <option value="complaint">🚫 Complaint</option>
           <option value="feedback">👍 Positive Feedback</option>
@@ -363,47 +393,40 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
           <option value="service_request">🛠️ Service Request</option>
         </select>
       </div>
-      <div><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
-      <div><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
-      <div><label class="form-label">Assigned To</label>
-        <select class="fi" id="fAssigned">
-          <option value="">— Unassigned —</option>
+      <div data-fb-field="customer" data-fb-locked="1"><label class="form-label">Customer / Distributor *</label><input type="text" class="fi" id="fCustomer" placeholder="Name"/></div>
+      <div data-fb-field="doctor"><label class="form-label">Doctor</label><input type="text" class="fi" id="fDoctor" placeholder="Doctor name (optional)"/></div>
+      <div data-fb-field="category" id="fCategoryWrap"><label class="form-label">Complaint Category</label>
+        <select class="fi" id="fCategory" onchange="onCategoryChange()">
+          <option value="">— Select category —</option>
+          <option value="product_quality">Product Quality (defect, fit)</option>
+          <option value="delivery">Delivery / Shipping</option>
+          <option value="fitting">Aligner Fitting</option>
+          <option value="packaging">Packaging Damage</option>
+          <option value="communication">Communication</option>
+          <option value="documentation">Documentation / Label</option>
+          <option value="traceability">Traceability / Case ID Issue</option>
+          <option value="billing">Billing</option>
+          <option value="other">Other</option>
         </select>
       </div>
-      <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
-      <div style="grid-column:1/-1"><label class="form-label">Description *</label><textarea class="fi" id="fDesc" rows="3" placeholder="Describe the feedback or complaint..."></textarea></div>
+      <div data-fb-field="case"><label class="form-label">Bloom Case #</label>
+        <input type="text" class="fi" id="fCase" list="bloomCases" placeholder="Type to search — e.g. 5234 or patient name" autocomplete="off"/>
+        <datalist id="bloomCases"></datalist>
+      </div>
+      <div data-fb-field="description" data-fb-locked="1" style="grid-column:1/-1"><label class="form-label">Description *</label><textarea class="fi" id="fDesc" rows="3" placeholder="Describe the feedback or complaint..."></textarea></div>
     </div>
+    <div id="fProtocolGuide" style="display:none;margin-top:12px"></div>
 
-    <!-- COLLAPSIBLE: Categorisation & Bloom Case -->
+    <!-- COLLAPSIBLE: Resolution (assignee, resolved date, priority, status, root cause, action) -->
     <details class="fb-section">
-      <summary>🗂️ Categorisation &amp; Bloom Case</summary>
+      <summary><span class="cw-ic">✅ </span>Resolution</summary>
       <div class="fb-section-body">
-        <div id="fCategoryWrap" class="fw"><label class="form-label">Complaint Category</label>
-          <select class="fi" id="fCategory" onchange="onCategoryChange()">
-            <option value="">— Select category —</option>
-            <option value="product_quality">Product Quality (defect, fit)</option>
-            <option value="delivery">Delivery / Shipping</option>
-            <option value="fitting">Aligner Fitting</option>
-            <option value="packaging">Packaging Damage</option>
-            <option value="communication">Communication</option>
-            <option value="documentation">Documentation / Label</option>
-            <option value="traceability">Traceability / Case ID Issue</option>
-            <option value="billing">Billing</option>
-            <option value="other">Other</option>
+        <div><label class="form-label">Assigned To</label>
+          <select class="fi" id="fAssigned">
+            <option value="">— Unassigned —</option>
           </select>
         </div>
-        <div id="fProtocolGuide" class="fw" style="display:none"></div>
-        <div class="fw"><label class="form-label">Bloom Case #</label>
-          <input type="text" class="fi" id="fCase" list="bloomCases" placeholder="Type to search — e.g. 5234 or patient name" autocomplete="off"/>
-          <datalist id="bloomCases"></datalist>
-        </div>
-      </div>
-    </details>
-
-    <!-- COLLAPSIBLE: Resolution (priority, status, root cause, action, assignee, resolved date) -->
-    <details class="fb-section">
-      <summary>✅ Resolution</summary>
-      <div class="fb-section-body">
+        <div><label class="form-label">Resolved Date</label><input type="date" class="fi" id="fClosed"/></div>
         <div class="fw"><label class="form-label">Priority</label>
           <div class="pri-row" id="fPriorityPills" role="radiogroup" aria-label="Priority">
             <button type="button" class="pri-pill" data-p="low"      onclick="setPriority('low')">Low</button>
@@ -426,7 +449,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 
     <!-- COLLAPSIBLE: Follow-up Reminder -->
     <details class="fb-section">
-      <summary>⏰ Follow-up Reminder</summary>
+      <summary><span class="cw-ic">⏰ </span>Follow-up Reminder</summary>
       <div class="fb-section-body">
         <div><label class="form-label">Follow-up Date</label><input type="date" class="fi" id="fFollowDate" placeholder="Remind on this day"/></div>
         <div><label class="form-label">Follow-up Owner</label>
@@ -486,6 +509,8 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
 <script type="module">
 import{createClient}from'https://esm.sh/@supabase/supabase-js@2';
 import{SUPABASE_CONFIG}from'./config.js';
+import{createChatAttachments,attachmentsHtml,hydrateAttachments}from'./chat_media.js';
+import{loadFormPrefs,saveFormPrefs}from'./form_prefs.js';
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
 const PAGE=20
 let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[],roles=[]
@@ -617,20 +642,26 @@ window.onCategoryChange=()=>{
       <div style="font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;width:100%;margin-bottom:4px">Related pages</div>
       ${p.links.map(l=>`<a href="${l.h}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--card);border:1px solid var(--bdr);border-radius:999px;font-size:11px;font-weight:700;color:${A.fg};text-decoration:none;transition:all .12s" onmouseover="this.style.borderColor='${A.fg}'" onmouseout="this.style.borderColor='var(--bdr)'">→ ${l.l}</a>`).join('')}
     </div>`:''
+  // Minimised by default — the user expands it only if they want the
+  // full handling protocol, so a category selection no longer shoves a
+  // tall block into the form.
   box.innerHTML=`
-    <div style="background:${A.bg};border:1px solid ${A.bd};border-left:4px solid ${A.fg};border-radius:12px;padding:18px 20px;margin-top:4px">
-      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
-        <div style="font-size:32px;line-height:1;flex-shrink:0">${p.icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:${A.fg};color:#fff;border-radius:999px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📘 Protocol Guide · ${p.urgency}</div>
-          <div style="font-size:16px;font-weight:800;color:var(--txt);letter-spacing:-.3px">${p.title}</div>
-          <div style="font-size:12px;color:var(--mu);margin-top:4px">${p.iso} · Recommended priority: <strong style="color:${A.fg}">${p.priority}</strong></div>
-        </div>
+    <details class="fb-proto" style="background:${A.bg};border:1px solid ${A.bd};border-left:4px solid ${A.fg};border-radius:12px;overflow:hidden">
+      <summary style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer">
+        <span class="cw-ic" style="font-size:24px;line-height:1;flex-shrink:0">${p.icon}</span>
+        <span style="flex:1;min-width:0">
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px;background:${A.fg};color:#fff;border-radius:999px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px">Protocol · ${p.urgency}</span>
+          <span style="display:block;font-size:14px;font-weight:800;color:var(--txt);margin-top:4px">${p.title}</span>
+        </span>
+        <span class="fb-proto-x" style="font-size:11px;color:${A.fg};font-weight:700;white-space:nowrap">View steps ▾</span>
+      </summary>
+      <div style="padding:0 18px 16px">
+        <div style="font-size:12px;color:var(--mu);margin:2px 0 12px">${p.iso} · Recommended priority: <strong style="color:${A.fg}">${p.priority}</strong></div>
+        <div style="font-size:10px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Steps to follow</div>
+        ${steps}
+        ${links}
       </div>
-      <div style="font-size:10px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Steps to follow</div>
-      ${steps}
-      ${links}
-    </div>`
+    </details>`
   box.style.display='block'
 }
 
@@ -861,6 +892,91 @@ function _fbAutoExpandSections() {
 function _fbCollapseAllSections() {
   document.querySelectorAll('#modal .fb-section').forEach(s => { s.open = false })
 }
+
+// ── Per-user Log-Feedback form customisation ──────────────────────────
+// Field order / visibility / section icons, saved per user via
+// public.user_form_prefs. Required fields stay locked (cannot hide).
+const FB_FORM='customer_feedback_log'
+const FB_FIELDS=[
+  {k:'date',     label:'Date',                  locked:true},
+  {k:'type',     label:'Type',                  locked:true},
+  {k:'customer', label:'Customer / Distributor',locked:true},
+  {k:'doctor',   label:'Doctor'},
+  {k:'category', label:'Category'},
+  {k:'case',     label:'Bloom Case #'},
+  {k:'description',label:'Description',          locked:true},
+]
+let fbPrefs={order:[],hidden:[],icons:true}
+function fbEffectiveOrder(){
+  const known=FB_FIELDS.map(f=>f.k)
+  const ord=(Array.isArray(fbPrefs.order)?fbPrefs.order:[]).filter(k=>known.includes(k))
+  for(const k of known) if(!ord.includes(k)) ord.push(k)
+  return ord
+}
+function fbLocked(k){ const f=FB_FIELDS.find(x=>x.k===k); return !!(f&&f.locked) }
+function applyFbPrefs(){
+  const grid=document.getElementById('fbTopGrid'); if(!grid)return
+  fbEffectiveOrder().forEach(k=>{ const el=grid.querySelector('[data-fb-field="'+k+'"]'); if(el) grid.appendChild(el) })
+  const hidden=Array.isArray(fbPrefs.hidden)?fbPrefs.hidden:[]
+  FB_FIELDS.forEach(f=>{
+    const el=grid.querySelector('[data-fb-field="'+f.k+'"]'); if(!el)return
+    el.classList.toggle('fb-pref-hidden', !f.locked && hidden.includes(f.k))
+  })
+  const modal=document.getElementById('modal')
+  if(modal) modal.classList.toggle('cw-no-icons', fbPrefs.icons===false)
+  const it=document.getElementById('fbIconsToggle'); if(it) it.checked=(fbPrefs.icons!==false)
+}
+function renderFbFieldList(){
+  const wrap=document.getElementById('fbFieldList'); if(!wrap)return
+  const order=fbEffectiveOrder()
+  const hidden=Array.isArray(fbPrefs.hidden)?fbPrefs.hidden:[]
+  wrap.innerHTML=order.map((k,idx)=>{
+    const f=FB_FIELDS.find(x=>x.k===k); if(!f)return ''
+    const vis=f.locked||!hidden.includes(k)
+    return `<div class="fb-fld-row ${f.locked?'locked':''}">
+      <button type="button" title="Move up" ${idx===0?'disabled':''} onclick="moveFbField('${k}',-1)">&#9650;</button>
+      <button type="button" title="Move down" ${idx===order.length-1?'disabled':''} onclick="moveFbField('${k}',1)">&#9660;</button>
+      <span class="fb-fld-nm">${f.label}${f.locked?' <span style="color:var(--dim)">· required</span>':''}</span>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:${f.locked?'not-allowed':'pointer'}">
+        <input type="checkbox" ${vis?'checked':''} ${f.locked?'disabled':''} onchange="toggleFbFieldVis('${k}')"/> visible
+      </label>
+    </div>`
+  }).join('')
+}
+window.toggleFbCustomise=()=>{
+  const p=document.getElementById('fbCustomise'); if(!p)return
+  const show=p.style.display==='none'||!p.style.display
+  p.style.display=show?'':'none'
+  if(show) renderFbFieldList()
+}
+window.moveFbField=(k,dir)=>{
+  const order=fbEffectiveOrder()
+  const i=order.indexOf(k), j=i+dir
+  if(i<0||j<0||j>=order.length)return
+  ;[order[i],order[j]]=[order[j],order[i]]
+  fbPrefs.order=order
+  applyFbPrefs(); renderFbFieldList()
+}
+window.toggleFbFieldVis=(k)=>{
+  if(fbLocked(k))return
+  const hidden=new Set(Array.isArray(fbPrefs.hidden)?fbPrefs.hidden:[])
+  hidden.has(k)?hidden.delete(k):hidden.add(k)
+  fbPrefs.hidden=[...hidden]
+  applyFbPrefs(); renderFbFieldList()
+}
+window.saveFbCustomise=async()=>{
+  const it=document.getElementById('fbIconsToggle'); if(it) fbPrefs.icons=it.checked
+  applyFbPrefs()
+  const err=await saveFormPrefs(sb,FB_FORM,fbPrefs)
+  ntf(err?('Save failed: '+err):'Form layout saved', err?'err':'ok')
+}
+window.resetFbCustomise=async()=>{
+  fbPrefs={order:[],hidden:[],icons:true}
+  applyFbPrefs(); renderFbFieldList()
+  const err=await saveFormPrefs(sb,FB_FORM,fbPrefs)
+  ntf(err?('Reset failed: '+err):'Form layout reset', err?'err':'ok')
+}
+
 window.openNew=()=>{
   editId=null
   caseChatTeardown()  // blank new record has no case yet — hide the panel
@@ -877,6 +993,7 @@ window.openNew=()=>{
   _fbCollapseAllSections()
   onTypeChange()
   window.onCategoryChange && window.onCategoryChange()
+  applyFbPrefs()
   document.getElementById('modal').classList.add('on')
 }
 window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null;caseChatTeardown()}
@@ -915,6 +1032,7 @@ window.editRec=(id)=>{
   onTypeChange()
   window.onCategoryChange && window.onCategoryChange()
   _fbAutoExpandSections()
+  applyFbPrefs()
   document.getElementById('modal').classList.add('on')
   caseChatMount(id,'edit')
 }
@@ -1305,7 +1423,7 @@ window.exportFilteredCsv = () => {
 //  PER-CASE TEAM CHAT — same design/flow as chat.html, scoped to
 //  one customer_feedback case (chat_messages.case_id = case id).
 // ═══════════════════════════════════════════════════════════════
-let _ccMe=null, _ccNames=new Map(), _ccCaseId=null, _ccChan=null, _ccMsgs=[]
+let _ccMe=null, _ccNames=new Map(), _ccCaseId=null, _ccChan=null, _ccMsgs=[], _ccAtt=null
 const _ccEsc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 function _ccInitials(n){if(!n)return'—';return n.trim().split(/\s+/).slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'—'}
 function _ccColor(s){const p=['#3b5fe2','#16a34a','#d97706','#7c3aed','#0d9488','#dc2626','#0891b2','#db2777'];let h=0;for(const c of(s||''))h=(h*31+c.charCodeAt(0))>>>0;return p[h%p.length]}
@@ -1332,17 +1450,20 @@ function _ccRender(){
     const d=new Date(m.created_at)
     const isMe=_ccMe&&m.sender_id===_ccMe.id
     const nm=_ccNames.get(m.sender_id)||'Unknown'
+    const bubble=(m.body&&m.body.trim())?`<div style="padding:8px 12px;border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;${isMe?'background:var(--blue);color:#fff;border-bottom-right-radius:4px':'background:var(--card);border:1px solid var(--bdr);border-bottom-left-radius:4px'}">${_ccEsc(m.body)}</div>`:''
     h+=`<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-end;${isMe?'flex-direction:row-reverse':''}">
       <div style="width:28px;height:28px;border-radius:8px;flex-shrink:0;color:#fff;font-weight:800;font-size:10px;display:flex;align-items:center;justify-content:center;background:${_ccColor(nm)};${isMe?'visibility:hidden':''}">${_ccEsc(_ccInitials(nm))}</div>
       <div style="max-width:75%;display:flex;flex-direction:column;${isMe?'align-items:flex-end':''}">
         ${isMe?'':`<div style="font-size:11px;color:var(--mu);margin:0 4px 3px"><strong style="color:var(--txt)">${_ccEsc(nm)}</strong> · ${_ccEsc(_ccTime(d))}</div>`}
-        <div style="padding:8px 12px;border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;${isMe?'background:var(--blue);color:#fff;border-bottom-right-radius:4px':'background:var(--card);border:1px solid var(--bdr);border-bottom-left-radius:4px'}">${_ccEsc(m.body)}</div>
+        ${bubble}
+        ${attachmentsHtml(m.attachments)}
         ${isMe?`<div style="font-size:10px;color:var(--dim);margin:2px 6px 0">${_ccEsc(_ccTime(d))}</div>`:''}
       </div>
     </div>`
   }
   box.innerHTML=h
   box.scrollTop=box.scrollHeight
+  hydrateAttachments(sb,box)
 }
 // Move the single chat panel into whichever modal is open — the
 // case view OR the edit form — so the discussion is always visible
@@ -1380,7 +1501,7 @@ async function caseChatMount(caseId,where){
     return
   }
   if(inp)inp.disabled=false; if(btn)btn.disabled=false
-  const{data,error}=await sb.from('chat_messages').select('id,sender_id,body,created_at').eq('case_id',caseId).is('recipient_id',null).order('created_at',{ascending:true}).limit(500)
+  const{data,error}=await sb.from('chat_messages').select('id,sender_id,body,created_at,attachments').eq('case_id',caseId).is('recipient_id',null).order('created_at',{ascending:true}).limit(500)
   if(_ccCaseId!==caseId)return  // a different case was opened while loading
   if(error){box.innerHTML=`<div style="text-align:center;color:var(--red);font-size:12px;padding:24px">Could not load discussion: ${_ccEsc(error.message)}</div>`;return}
   _ccMsgs=data||[]
@@ -1412,12 +1533,15 @@ function caseChatTeardown(){
 async function _ccSend(){
   const inp=document.getElementById('ccInput'); if(!inp)return
   const body=inp.value.trim()
-  if(!body||!_ccMe||!_ccCaseId)return
+  const hasFiles=_ccAtt&&_ccAtt.hasPending()
+  if((!body&&!hasFiles)||!_ccMe||!_ccCaseId)return
   if(body.length>4000){ntf('Message too long (max 4000 chars)','err');return}
   const btn=document.getElementById('ccSend'); if(btn)btn.disabled=true
+  let files=[]
+  if(hasFiles){ try{files=await _ccAtt.upload()}catch{ if(btn)btn.disabled=false; return } }
   const orig=inp.value; inp.value=''; inp.style.height='auto'
   const targetCase=_ccCaseId
-  const{data,error}=await sb.from('chat_messages').insert([{sender_id:_ccMe.id,recipient_id:null,case_id:targetCase,body}]).select().single()
+  const{data,error}=await sb.from('chat_messages').insert([{sender_id:_ccMe.id,recipient_id:null,case_id:targetCase,body,attachments:files}]).select().single()
   if(btn)btn.disabled=false
   if(error){inp.value=orig;ntf('Send failed: '+error.message,'err');inp.focus();return}
   if(_ccCaseId===targetCase && !_ccMsgs.some(x=>x.id===data.id)){_ccMsgs.push(data);_ccRender()}
@@ -1430,10 +1554,19 @@ async function _ccSend(){
     i.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_ccSend()}})
     i.addEventListener('input',()=>{i.style.height='auto';i.style.height=Math.min(i.scrollHeight,110)+'px'})
   }
+  const comp=document.querySelector('.cc-composer')
+  if(comp&&s&&!_ccAtt){
+    _ccAtt=createChatAttachments({sb,composerEl:comp,insertBeforeEl:s,notify:ntf})
+  }
 })()
 
 ;(async()=>{
   await loadDropdowns()
+  // Per-user form layout (field order / visibility / icons).
+  try{ fbPrefs=Object.assign({order:[],hidden:[],icons:true}, await loadFormPrefs(sb,FB_FORM)) }catch{}
+  applyFbPrefs()
+  const _it=document.getElementById('fbIconsToggle')
+  if(_it) _it.addEventListener('change',e=>{ fbPrefs.icons=e.target.checked; applyFbPrefs() })
   // Deep-link filters from the 🔔 login modal — applied BEFORE load/render.
   // Saved views (user_views.js) apply themselves when the module boots;
   // the deep-link here overrides whatever view was active.
