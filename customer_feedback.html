@@ -562,6 +562,17 @@ function assignedToMe(v){
   const rn=v.slice(5)
   return rn===userPrimaryRole || userExtraRoles.includes(rn)
 }
+function cwFullAccess(){
+  return (typeof CW_ACCESS!=='undefined'&&CW_ACCESS.hasFullAccess&&CW_ACCESS.hasFullAccess())||userRole==='manager'
+}
+// Only the complaint creator, the assignee (person or role member),
+// or a manager / full-access user may edit a record.
+function canEditRec(r){
+  if(!r) return false
+  if(cwFullAccess()) return true
+  if(r.received_by && r.received_by===currentUser) return true
+  return assignedToMe(r.assigned_to)
+}
 
 function ntf(t,tp){const el=document.getElementById('notif');el.textContent=t;el.className='notif on '+(tp==='ok'?'ok':'err');setTimeout(()=>el.className='notif',3500)}
 function fdt(v){if(!v)return'—';const d=new Date(v);return isNaN(d.getTime())?v:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
@@ -929,7 +940,7 @@ function render(){
       <td><span class="badge ${sc}">${(r.status||'open').replace(/_/g,' ')}</span></td>
       <td style="white-space:nowrap">
         <button class="btn bgh" style="padding:4px 10px;font-size:11px;margin-right:4px" onclick="event.stopPropagation();viewRec('${r.id}')" title="View">👁</button>
-        <button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();editRec('${r.id}')" title="Edit">✏️</button>
+        ${canEditRec(r)?`<button class="btn bgh" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();editRec('${r.id}')" title="Edit">✏️</button>`:''}
       </td>
     </tr>`
   }).join(''):'<tr><td colspan="14" class="ec">No feedback records. Log the first one.</td></tr>'
@@ -1062,6 +1073,7 @@ window.openNew=()=>{
   document.getElementById('mTitle').textContent='💬 Log Feedback'
   document.getElementById('fDate').value=new Date().toISOString().slice(0,10)
   ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed','fFollowDate','fFollowNote'].forEach(id=>document.getElementById(id).value='')
+  const _cNew=document.getElementById('fCase'); _cNew.readOnly=false; _cNew.title=''; _cNew.style.background=''; _cNew.style.cursor=''
   // Default follow-up owner = Me (so 'remind me to check back')
   const fa=document.getElementById('fFollowAssignee'); if(fa) fa.value='__self__'
   document.getElementById('fType').value='complaint'
@@ -1080,6 +1092,10 @@ window.closeView=()=>{document.getElementById('viewModal').classList.remove('on'
 
 window.editRec=(id)=>{
   const r=all.find(x=>String(x.id)===String(id));if(!r)return
+  if(!canEditRec(r)){
+    ntf('View only — only the creator or the assignee can edit this complaint.','err')
+    return viewRec(id)
+  }
   editId=id
   document.getElementById('mTitle').textContent='✏️ Edit — '+(r.feedback_no||'Feedback')
   document.getElementById('fDate').value=r.received_date||''
@@ -1087,7 +1103,14 @@ window.editRec=(id)=>{
   document.getElementById('fCategory').value=r.category||''
   document.getElementById('fCustomer').value=r.customer_name||''
   document.getElementById('fDoctor').value=r.doctor||''
-  document.getElementById('fCase').value=r.case_id||r.order_no||''
+  const _caseEl=document.getElementById('fCase')
+  _caseEl.value=r.case_id||r.order_no||''
+  // Case # is locked once the record has been saved with one.
+  const _hadCase=!!(r.case_id||r.order_no)
+  _caseEl.readOnly=_hadCase
+  _caseEl.title=_hadCase?'Case # is locked once the complaint is saved':''
+  _caseEl.style.background=_hadCase?'var(--bg)':''
+  _caseEl.style.cursor=_hadCase?'not-allowed':''
   setPriority(r.severity||'medium')
   document.getElementById('fStatus').value=r.status||'open'
   document.getElementById('fDesc').value=r.description||''
@@ -1174,8 +1197,11 @@ window.viewRec=async(id)=>{
   document.getElementById('viewModal').classList.add('on')
   // Wire the Edit buttons in the view modal to open the edit modal for this record
   const openEditFromView = () => { closeView(); editRec(r.id) }
-  const eb1 = document.getElementById('vEditBtn'); if (eb1) eb1.onclick = openEditFromView
-  const eb2 = document.getElementById('vEditBtnBottom'); if (eb2) eb2.onclick = openEditFromView
+  const _canEdit = canEditRec(r)
+  const eb1 = document.getElementById('vEditBtn')
+  if (eb1) { eb1.onclick = openEditFromView; eb1.style.display = _canEdit ? '' : 'none' }
+  const eb2 = document.getElementById('vEditBtnBottom')
+  if (eb2) { eb2.onclick = openEditFromView; eb2.style.display = _canEdit ? '' : 'none' }
   caseChatMount(r.id,'view')
 }
 
@@ -1188,6 +1214,73 @@ window.markFollowUpDone=async(id)=>{
   await load()
 }
 
+// When a NEW complaint is logged with a Case # that already has a
+// record, show the existing one(s) — who created it, status, assignee
+// — and let the user open it or take it over instead of duplicating.
+async function handleDuplicateCase(caseNo){
+  const q=String(caseNo).replace(/[(),]/g,'').trim()
+  if(!q) return false
+  let rows=[]
+  try{
+    const{data}=await sb.from('customer_feedback')
+      .select('id,feedback_no,type,status,assigned_to,received_by,received_date,description')
+      .or(`case_id.eq.${q},order_no.eq.${q}`)
+      .order('received_date',{ascending:false}).limit(10)
+    rows=data||[]
+  }catch{ return false }   // lookup failed → don't block creation
+  if(!rows.length) return false
+  return await new Promise(resolve=>{
+    const bg=document.createElement('div')
+    bg.className='modal-bg on'; bg.style.zIndex='800'
+    const list=rows.map(r=>`
+      <div style="border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--card)">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+          <strong>${_esc(r.feedback_no||'—')}</strong>
+          <span class="badge b-gray">${_esc((r.status||'').replace(/_/g,' '))}</span>
+        </div>
+        <div style="font-size:12px;color:var(--mu);margin-top:4px">
+          ${_esc(TYPE_LABELS[r.type]||r.type||'')} · ${_esc(fdt(r.received_date))} ·
+          Created by <strong>${_esc(prettyAssignee(r.received_by)||'—')}</strong> ·
+          Assigned: <strong>${_esc(prettyAssignee(r.assigned_to)||'—')}</strong>
+        </div>
+        <div style="font-size:12px;margin-top:6px">${_esc((r.description||'').slice(0,140))}${(r.description||'').length>140?'…':''}</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn bb" data-act="take" data-id="${r.id}" style="padding:5px 12px;font-size:12px">Take over</button>
+          <button class="btn bgh" data-act="open" data-id="${r.id}" style="padding:5px 12px;font-size:12px">Open</button>
+        </div>
+      </div>`).join('')
+    bg.innerHTML=`<div class="modal" style="max-width:560px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:800">⚠️ A complaint already exists for case ${_esc(q)}</div>
+        <button class="btn bgh" data-act="cancel" style="padding:5px 12px">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:12px">${rows.length} record${rows.length>1?'s':''} found for this case. Open it, or take it over (assign it to you).</div>
+      ${list}
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button class="btn bgh" data-act="cancel" style="padding:6px 14px">Cancel — don’t create</button>
+      </div>
+    </div>`
+    document.body.appendChild(bg)
+    const done=v=>{ bg.remove(); resolve(v) }
+    bg.addEventListener('click',async e=>{
+      if(e.target===bg) return done(true)
+      const b=e.target.closest('[data-act]'); if(!b) return
+      const act=b.dataset.act, id=b.dataset.id
+      if(act==='cancel') return done(true)
+      if(act==='open'){ done(true); closeModal(); viewRec(id); return }
+      if(act==='take'){
+        b.disabled=true
+        const{error}=await sb.from('customer_feedback')
+          .update({assigned_to:currentUser||null,notification_seen_at:null,notification_seen_by:null})
+          .eq('id',id)
+        if(error){ ntf('Take over failed: '+error.message,'err'); b.disabled=false; return }
+        ntf('You have taken over this complaint.','ok')
+        done(true); closeModal(); await load(); viewRec(id)
+      }
+    })
+  })
+}
+
 window.save=async()=>{
   const date=document.getElementById('fDate').value
   const cust=document.getElementById('fCustomer').value.trim()
@@ -1195,6 +1288,9 @@ window.save=async()=>{
   if(!date||!cust||!desc){ntf('Fill required fields (*)','err');return}
   const rawCase=document.getElementById('fCase').value.trim()
   const prev=editId?all.find(x=>String(x.id)===String(editId)):null
+  if(editId && !canEditRec(prev)){ ntf('Only the creator or the assignee can edit this complaint.','err'); return }
+  // Duplicate guard: a new complaint whose Case # already has a record.
+  if(!editId && rawCase && await handleDuplicateCase(rawCase)) return
   const chosenAssignee=document.getElementById('fAssigned').value||null
   const category=document.getElementById('fCategory').value||null
   // Auto-routing: if no assignee was picked but the category has a role
@@ -1221,9 +1317,12 @@ window.save=async()=>{
     notes:document.getElementById('fRoot').value.trim()||null,
     resolution:document.getElementById('fAction').value.trim()||null,
     assigned_to:newAssignee,
-    resolved_at:document.getElementById('fClosed').value||null,
-    received_by:currentUser||null
+    resolved_at:document.getElementById('fClosed').value||null
   }
+  // Creator is stamped once, on creation, and never overwritten on edit.
+  if(!editId) rec.received_by=currentUser||null
+  // Case # is immutable after the first save.
+  if(editId){ rec.case_id = prev?prev.case_id:null; rec.order_no = prev?prev.order_no:null }
   // Follow-up fields
   const fDate=document.getElementById('fFollowDate').value||null
   const fNote=document.getElementById('fFollowNote').value.trim()||null
@@ -1564,19 +1663,30 @@ async function caseChatMount(caseId,where){
   // post in this discussion. Managers (full access) always can, since
   // they already see and own every case.
   const rec=all.find(x=>String(x.id)===String(caseId))||{}
-  const isFull=(typeof CW_ACCESS!=='undefined'&&CW_ACCESS.hasFullAccess&&CW_ACCESS.hasFullAccess())||userRole==='manager'
-  if(!(isFull||assignedToMe(rec.assigned_to))){
-    const who=rec.assigned_to?prettyAssignee(rec.assigned_to):null
-    box.innerHTML=`<div style="text-align:center;color:var(--mu);font-size:12px;padding:30px 18px;line-height:1.6">🔒 <strong>Restricted discussion</strong><br>${who?`Only <strong>${_ccEsc(who)}</strong> can view and post here.`:'This case isn’t assigned yet.<br><span style="color:var(--dim)">Assign it to open the discussion.</span>'}</div>`
-    if(inp){inp.disabled=true;inp.value=''}
-    if(btn)btn.disabled=true
-    return
-  }
+  const isFull=cwFullAccess()
   box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:30px">⏳ Loading discussion…</div>'
   await _ccEnsureMe()
   if(!_ccMe){
     box.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:24px 16px;line-height:1.5">Your login isn’t linked to an employee record,<br>so you can’t post here. Ask an admin to link you in <strong>Settings</strong>.</div>'
     if(inp)inp.disabled=true; if(btn)btn.disabled=true
+    return
+  }
+  // Visible to: manager/full, the assignee (person or role member),
+  // the complaint creator, OR anyone who already posted in this thread
+  // (mirrors the cw_can_see_case DB rule).
+  let allowed = isFull || assignedToMe(rec.assigned_to) || (rec.received_by && rec.received_by===currentUser)
+  if(!allowed){
+    try{
+      const{data:mine}=await sb.from('chat_messages').select('id').eq('case_id',caseId).eq('sender_id',_ccMe.id).limit(1)
+      if(_ccCaseId!==caseId) return
+      if(mine && mine.length) allowed=true
+    }catch{}
+  }
+  if(!allowed){
+    const who=rec.assigned_to?prettyAssignee(rec.assigned_to):null
+    box.innerHTML=`<div style="text-align:center;color:var(--mu);font-size:12px;padding:30px 18px;line-height:1.6">🔒 <strong>Restricted discussion</strong><br>${who?`Only <strong>${_ccEsc(who)}</strong>, the creator, or people already in this chat can post here.`:'This case isn’t assigned yet.<br><span style="color:var(--dim)">Assign it to open the discussion.</span>'}</div>`
+    if(inp){inp.disabled=true;inp.value=''}
+    if(btn)btn.disabled=true
     return
   }
   if(inp)inp.disabled=false; if(btn)btn.disabled=false
