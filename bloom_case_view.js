@@ -33,20 +33,16 @@ const sc = s => SC[s] || '#94a3b8'
 
 // Collapse repeated identical sync snapshots. Each sync saves a row
 // even when nothing changed, so a stable case shows hundreds of
-// identical tiles. Keep only the snapshot where the state first
-// changed. `desc` is newest-first; walk oldest→newest keeping a row
-// whenever its signature differs from the previously kept one, then
-// return newest-first for display.
-const snapSig = s => [
-  s.current_status || '', s.status_change_date || '',
-  s.total_aligners ?? '', s.aligner_upper ?? '', s.aligner_lower ?? '',
-  s.package_type || ''
-].join('|')
-function dedupeSnaps(desc) {
-  const asc = (desc || []).slice().reverse()
+// identical tiles. We want the case's history *by status*: one tile
+// per status, at the moment that status was first reached. Walk the
+// snapshots oldest→newest and keep a row only when the status differs
+// from the previously kept one (= the first time it entered that
+// status), then return newest-first for display.
+const snapSig = s => s.current_status || ''
+function dedupeSnaps(asc) {
   const kept = []
   let prev = null
-  for (const s of asc) { const sig = snapSig(s); if (sig !== prev) { kept.push(s); prev = sig } }
+  for (const s of (asc || [])) { const sig = snapSig(s); if (sig !== prev) { kept.push(s); prev = sig } }
   return kept.reverse()
 }
 
@@ -106,7 +102,7 @@ export async function openBloomCaseModal(sb, caseNo) {
     const [cRes, aRes, sRes] = await Promise.all([
       sb.from('bloom_cases').select('*').eq('case_id', no).maybeSingle(),
       sb.from('bloom_aligner_details').select('*').eq('case_number', no),
-      sb.from('bloom_case_snapshots').select('*').eq('case_id', no).order('synced_at', { ascending: false }).limit(100),
+      sb.from('bloom_case_snapshots').select('*').eq('case_id', no).order('synced_at', { ascending: true }).limit(3000),
     ])
     c = cRes.data; als = aRes.data || []; snaps = sRes.data || []
   } catch (e) {
@@ -140,7 +136,7 @@ export async function openBloomCaseModal(sb, caseNo) {
       ${c.overdue_for ? `<div style="background:var(--r50,#fef2f2);border:1px solid var(--r100,#fee2e2);border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:700;color:var(--red,#dc2626);text-transform:uppercase;letter-spacing:.5px">Overdue</div><div style="font-size:13px;font-weight:600;margin-top:3px;color:var(--red,#dc2626)">${_esc(c.overdue_for)}</div></div>` : ''}
     </div>
     ${als.length ? `<div style="font-size:12px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🦷 Aligner Orders (${als.length})</div>` + als.map(alignerCard).join('') : '<div style="color:var(--dim,#94a3b8);font-size:12px;text-align:center;padding:16px;background:var(--bg,#f0f4f8);border-radius:10px">No aligner records yet</div>'}
-    ${evo.length ? `<div style="font-size:12px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📸 Case Evolution (${evo.length} change${evo.length === 1 ? '' : 's'})</div>
+    ${evo.length ? `<div style="font-size:12px;font-weight:700;color:var(--mu,#64748b);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📸 Status History (${evo.length} status${evo.length === 1 ? '' : 'es'} reached)</div>
       <div style="display:flex;flex-direction:column;gap:8px">
       ${evo.map((s, i) => { const col = sc(s.current_status); return `<div style="border:1px solid var(--bdr,#e2e8f0);border-left:3px solid ${col};border-radius:10px;padding:10px 12px;${i === 0 ? 'background:var(--bg,#f0f4f8)' : ''}">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
