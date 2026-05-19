@@ -581,10 +581,15 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       }
       if ('serviceWorker' in navigator && location.protocol === 'https:') {
         const hadController = !!navigator.serviceWorker.controller;
-        let reloaded = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (!hadController || reloaded) return;   // skip on first install
-          reloaded = true; location.reload();
+          // Auto-reload to pick up new code, but AT MOST ONCE PER
+          // SESSION — otherwise rapid deploys cause a reload/flash loop.
+          if (!hadController) return;                       // first install
+          let already = false;
+          try { already = sessionStorage.getItem('cw_sw_reloaded') === '1'; } catch (e) {}
+          if (already) return;
+          try { sessionStorage.setItem('cw_sw_reloaded', '1'); } catch (e) {}
+          location.reload();
         });
         navigator.serviceWorker.register('sw.js').then((reg) => {
           const promote = (w) => { if (w) w.postMessage('skipWaiting'); };
@@ -702,12 +707,13 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       if (!el) {
         el = document.createElement('div');
         el.id = 'cw-push-banner';
-        el.onclick = () => el.remove();
+        el.onclick = () => { document.body.classList.remove('cw-banner-on'); el.remove(); };
         document.body.appendChild(el);
       }
+      document.body.classList.add('cw-banner-on');   // pushes ☰ below the alert
       el.textContent = msg;
       el.style.cssText =
-        'position:fixed;left:8px;right:8px;top:calc(60px + env(safe-area-inset-top));z-index:99999;' +
+        'position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top));z-index:99999;' +
         'padding:14px 16px;border-radius:12px;font:600 14px/1.45 -apple-system,system-ui,sans-serif;' +
         'color:#fff;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.3);' +
         'background:' + (ok ? '#16a34a' : '#dc2626') + ';';
