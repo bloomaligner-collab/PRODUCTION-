@@ -796,74 +796,78 @@ function renderAlignersPage(){
 }
 
 // ── HISTORY / SNAPSHOTS ───────────────────────────────────────────────
-async function loadHistory(){
-  $('histTbl').innerHTML='<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--dim)">Loading snapshots...</td></tr>'
-  try{
-    const{data,count}=await sb.from('bloom_case_snapshots').select('*',{count:'exact'}).order('case_id',{ascending:false}).order('synced_at',{ascending:false}).limit(5000)
-    snapshots=data||[]
-    $('histCount').textContent=(count||0).toLocaleString()+' snapshots'
-    applyHistoryFilters()
-  }catch(e){ntf('Error loading history: '+e.message,false)}
-}
+// bloom_case_snapshots has millions of rows, so the History tab never
+// loads them all. Each page is fetched with .range() and every filter
+// is applied in the query. Exception: the status-changed date filter
+// (status_change_date is DD.MM.YYYY *text*, not range-comparable in
+// PostgREST) is applied to the fetched page only.
+let _histSearchT=null, _histBusy=false, _histHasNext=false, _histTotal=null
 
-// The default loadHistory() caps at 5000 rows ordered by case_id, so
-// older/lower case numbers fall outside the window and an in-memory
-// search finds nothing. When the user types a query, search the DB
-// directly so any case is found regardless of that cap.
-let _histSearchT=null
-window.onHistorySearch=()=>{
-  clearTimeout(_histSearchT)
-  _histSearchT=setTimeout(()=>{
-    const q=($('hSearch').value||'').trim()
-    if(!q) loadHistory()
-    else searchHistory(q)
-  },300)
-}
-async function searchHistory(q){
-  const qs=q.replace(/[(),.*%"\\]/g,' ').replace(/\s+/g,' ').trim()
-  if(!qs){ loadHistory(); return }
-  $('histTbl').innerHTML='<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--dim)">Searching…</td></tr>'
-  const isNum=/^\d+$/.test(qs)
-  const ors=[]
-  if(isNum) ors.push(`case_id.eq.${qs}`)
-  ors.push(`patient_name.ilike.*${qs}*`,`doctor.ilike.*${qs}*`,`clinic.ilike.*${qs}*`,`distributor.ilike.*${qs}*`)
-  try{
-    const{data,error}=await sb.from('bloom_case_snapshots').select('*')
-      .or(ors.join(',')).order('case_id',{ascending:false}).order('synced_at',{ascending:false}).limit(5000)
-    if(error) throw error
-    snapshots=data||[]
-    applyHistoryFilters()
-  }catch(e){ ntf('Search failed: '+e.message,false) }
-}
+const _histSan=v=>String(v||'').replace(/[(),.*%"\\]/g,' ').replace(/\s+/g,' ').trim()
 
-function applyHistoryFilters(){
-  hPage=0
-  const q=($('hSearch').value||'').toLowerCase().trim()
-  const sf=$('hStatus').value
-  const hf=$('hFrom').value
-  const ht=$('hTo').value
-  const scf=$('hSCFrom').value
-  const sct=$('hSCTo').value
+function _histQuery(countMode){
+  let qy=countMode
+    ? sb.from('bloom_case_snapshots').select('*',{count:countMode})
+    : sb.from('bloom_case_snapshots').select('*')
+  const qs=_histSan($('hSearch').value)
+  if(qs){
+    const ors=[]
+    if(/^[0-9]+$/.test(qs)) ors.push(`case_id.eq.${qs}`)
+    ors.push(`patient_name.ilike.*${qs}*`,`doctor.ilike.*${qs}*`,`clinic.ilike.*${qs}*`,`distributor.ilike.*${qs}*`)
+    qy=qy.or(ors.join(','))
+  }
+  const sf=$('hStatus').value; if(sf) qy=qy.eq('current_status',sf)
   const action=$('hAction').value
-  filteredSnaps=snapshots.filter(s=>{
-    if(q){const hay=[s.case_id,s.patient_name,s.doctor,s.clinic,s.distributor].join(' ').toLowerCase();if(!hay.includes(q))return false}
-    if(sf&&s.current_status!==sf)return false
-    if(action==='yes'&&!s.action_required_for)return false
-    if(action==='no'&&s.action_required_for)return false
-    if(hf||ht){const d=s.synced_at?s.synced_at.substring(0,10):null;if(!d)return false;if(hf&&d<hf)return false;if(ht&&d>ht)return false}
-    if(scf||sct){const iso=toISO(s.status_change_date);if(!iso)return false;if(scf&&iso<scf)return false;if(sct&&iso>sct)return false}
-    return true
-  })
-  renderHistoryPage()
+  if(action==='yes') qy=qy.not('action_required_for','is',null).neq('action_required_for','')
+  else if(action==='no') qy=qy.or('action_required_for.is.null,action_required_for.eq.')
+  const hf=$('hFrom').value, ht=$('hTo').value
+  if(hf) qy=qy.gte('synced_at',hf)
+  if(ht) qy=qy.lte('synced_at',ht+'T23:59:59.999+00')
+  return qy.order('case_id',{ascending:false}).order('synced_at',{ascending:false})
 }
+
+// status_change_date is DD.MM.YYYY text → filter the fetched page only
+function _histScdOk(s){
+  const scf=$('hSCFrom').value, sct=$('hSCTo').value
+  if(!scf&&!sct) return true
+  const iso=toISO(s.status_change_date); if(!iso) return false
+  if(scf&&iso<scf) return false
+  if(sct&&iso>sct) return false
+  return true
+}
+
+async function loadHistoryPage(){
+  if(_histBusy) return
+  _histBusy=true
+  $('histTbl').innerHTML='<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--dim)">Loading…</td></tr>'
+  try{
+    const from=hPage*PAGE, to=from+PAGE-1
+    const{data,count,error}=await _histQuery('estimated').range(from,to)
+    if(error) throw error
+    const rows=data||[]
+    _histHasNext = rows.length===PAGE
+    _histTotal = (typeof count==='number') ? count : null
+    filteredSnaps = rows.filter(_histScdOk)
+    renderHistoryPage()
+  }catch(e){
+    _histHasNext=false; filteredSnaps=[]
+    $('histTbl').innerHTML='<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--red)">Could not load snapshots</td></tr>'
+    ntf('Error loading history: '+(e.message||e),false)
+  }finally{ _histBusy=false }
+}
+
+function loadHistory(){ hPage=0; loadHistoryPage() }
+function applyHistoryFilters(){ hPage=0; loadHistoryPage() }
+window.onHistorySearch=()=>{ clearTimeout(_histSearchT); _histSearchT=setTimeout(()=>{ hPage=0; loadHistoryPage() },300) }
 
 function renderHistoryPage(){
-  const total=filteredSnaps.length
-  const slice=filteredSnaps.slice(hPage*PAGE,(hPage+1)*PAGE)
-  $('histCount').textContent=total.toLocaleString()+' records'
-  $('hInfo').textContent=`Page ${hPage+1}/${Math.max(1,Math.ceil(total/PAGE))} · ${total.toLocaleString()} total`
-  $('hPrev').disabled=hPage===0;$('hNext').disabled=(hPage+1)*PAGE>=total
-  $('histTbl').innerHTML=slice.map(s=>{
+  const scdActive=!!($('hSCFrom').value||$('hSCTo').value)
+  const pages=_histTotal!=null?Math.max(1,Math.ceil(_histTotal/PAGE)):null
+  $('histCount').textContent = (_histTotal!=null?`~${_histTotal.toLocaleString()} snapshots`:'snapshots')+(scdActive?' · status-date filtered on page':'')
+  $('hInfo').textContent = `Page ${hPage+1}${pages!=null?` / ~${pages.toLocaleString()}`:''}`
+  $('hPrev').disabled = hPage===0
+  $('hNext').disabled = !_histHasNext
+  $('histTbl').innerHTML=filteredSnaps.map(s=>{
     const color=sc(s.current_status)
     return`<tr>
       <td class="mono" style="font-weight:700;color:var(--blue)">#${s.case_id}</td>
@@ -1071,18 +1075,27 @@ window.exportAlignersCSV=()=>{
   ntf(`✅ Exported ${rows.length} aligner records`)
 }
 
-window.exportHistoryCSV=()=>{
-  const headers=['Case #','Patient','Doctor','Clinic','Distributor','Status','Status Changed','Upper','Lower','Total Aligners','Package','Order Type','Action Required','Synced At']
-  const rows=filteredSnaps.map(s=>[s.case_id,s.patient_name||'',s.doctor||'',s.clinic||'',s.distributor||'',s.current_status||'',s.status_change_date||'',s.aligner_upper||'',s.aligner_lower||'',s.total_aligners||'',s.package_type||'',s.order_type||'',s.action_required_for||'',s.synced_at||''])
-  const a=csv(rows,headers);a.download=`bloom_history_${new Date().toISOString().slice(0,10)}.csv`;a.click()
-  ntf(`✅ Exported ${filteredSnaps.length} snapshot records`)
+window.exportHistoryCSV=async()=>{
+  // The grid is paginated server-side; export the filtered set up to a
+  // sane cap so a million-row table can't be dumped by accident.
+  const CAP=20000
+  ntf('Preparing export…')
+  try{
+    const{data,error}=await _histQuery(null).limit(CAP)
+    if(error) throw error
+    const set=(data||[]).filter(_histScdOk)
+    const headers=['Case #','Patient','Doctor','Clinic','Distributor','Status','Status Changed','Upper','Lower','Total Aligners','Package','Order Type','Action Required','Synced At']
+    const rows=set.map(s=>[s.case_id,s.patient_name||'',s.doctor||'',s.clinic||'',s.distributor||'',s.current_status||'',s.status_change_date||'',s.aligner_upper||'',s.aligner_lower||'',s.total_aligners||'',s.package_type||'',s.order_type||'',s.action_required_for||'',s.synced_at||''])
+    const a=csv(rows,headers);a.download=`bloom_history_${new Date().toISOString().slice(0,10)}.csv`;a.click()
+    ntf(`✅ Exported ${set.length.toLocaleString()} snapshot records${set.length>=CAP?` (capped at ${CAP.toLocaleString()})`:''}`)
+  }catch(e){ ntf('Export failed: '+(e.message||e),false) }
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────────────────
 window.changePage=(tab,d)=>{
   if(tab==='cases'){casePage=Math.max(0,casePage+d);renderCasesPage()}
   else if(tab==='aligners'){alPage=Math.max(0,alPage+d);renderAlignersPage()}
-  else if(tab==='history'){hPage=Math.max(0,hPage+d);renderHistoryPage()}
+  else if(tab==='history'){hPage=Math.max(0,hPage+d);loadHistoryPage()}
 }
 window.clearFilters=tab=>{
   if(tab==='cases'){['fSearch','fStatus','fStatusFrom','fStatusTo','fSyncFrom','fSyncTo','fDist','fAction'].forEach(id=>$(`${id}`).value='');applyFilters()}
