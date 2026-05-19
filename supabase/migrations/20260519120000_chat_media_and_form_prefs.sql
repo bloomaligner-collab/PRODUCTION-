@@ -1,29 +1,34 @@
 -- 20260519120000_chat_media_and_form_prefs.sql
 --
--- (1) Chat attachments: photo / video / voice / camera. Messages can
---     now carry files alongside (or instead of) text.
---       • chat_messages.attachments jsonb  — array of
---         { path, kind, mime, name, size }. Files live in a private
---         Storage bucket; the browser fetches them via short-lived
---         signed URLs.
---       • The old "body must be 1..4000 chars" CHECK is relaxed so an
---         attachment-only message (empty body) is allowed.
---       • Storage bucket `chat-media` (private) + RLS: any signed-in
---         user may upload and read; delete is owner-or-manager only.
+-- ADDITIVE / non-destructive. Production already has a single-file
+-- chat-media implementation (chat_messages.media_url/media_type/
+-- media_name + the chat-media bucket + storage RLS, applied as
+-- migration 20260519102522). This migration adds a parallel
+-- multi-file mechanism WITHOUT breaking the existing one:
 --
--- (2) user_form_prefs — per-user, cross-device form customisation
---     (field order / visibility / icon toggle). Same owner-only RLS
---     pattern as user_views. First consumer: the Customer Feedback
---     "Log Feedback" modal.
+--   (1) chat_messages.attachments jsonb — array of
+--       { path, kind, mime, name, size }. Files use the same private
+--       chat-media bucket; the browser reads them via signed URLs.
+--   (2) The body CHECK is widened so a message is valid when it has
+--       text OR a legacy media_url OR one+ attachments (so neither
+--       the old nor the new mechanism rejects a media-only message).
+--   (3) user_form_prefs — per-user, cross-device form customisation
+--       (field order / visibility / icon toggle). Owner-only RLS,
+--       same pattern as user_views. First consumer: the Customer
+--       Feedback "Log Feedback" modal.
+--
+-- The chat-media bucket and its storage policies already exist with
+-- identical definitions; the idempotent guards below simply re-assert
+-- them so a fresh environment still gets them.
 
--- ── 1a. chat_messages.attachments ─────────────────────────────────────
+-- ── 1. chat_messages.attachments ──────────────────────────────────────
 ALTER TABLE public.chat_messages
   ADD COLUMN IF NOT EXISTS attachments jsonb NOT NULL DEFAULT '[]'::jsonb;
 
--- Relax the body length CHECK. The original column-level
--- `CHECK (char_length(body) BETWEEN 1 AND 4000)` is auto-named
--- chat_messages_body_check; drop it (and any equivalent) then add a
--- table check that also accepts an empty body when files are attached.
+-- Widen the body CHECK to also accept attachment-only messages.
+-- Drops the original 1..4000 check AND the existing media variant,
+-- then adds one combined predicate covering text / media_url /
+-- attachments so BOTH chat-media mechanisms keep working.
 DO $$
 DECLARE r record;
 BEGIN
@@ -43,10 +48,14 @@ ALTER TABLE public.chat_messages
   ADD CONSTRAINT chat_messages_body_or_attach_chk
   CHECK (
     char_length(body) <= 4000
-    AND (char_length(btrim(body)) > 0 OR jsonb_array_length(attachments) > 0)
+    AND (
+      char_length(btrim(body)) >= 1
+      OR media_url IS NOT NULL
+      OR jsonb_array_length(attachments) > 0
+    )
   );
 
--- ── 1b. Storage bucket + policies ─────────────────────────────────────
+-- ── 2. Storage bucket + policies (idempotent re-assert) ───────────────
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('chat-media', 'chat-media', false)
 ON CONFLICT (id) DO NOTHING;
@@ -70,7 +79,7 @@ CREATE POLICY chat_media_delete ON storage.objects
     AND (owner = auth.uid() OR public.cw_is_manager())
   );
 
--- ── 2. user_form_prefs ────────────────────────────────────────────────
+-- ── 3. user_form_prefs ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_form_prefs (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
