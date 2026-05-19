@@ -650,11 +650,26 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       const reg = await navigator.serviceWorker.ready;
+      const wantKey = CW_ACCESS._urlB64ToU8(key);
       let sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        // If the existing subscription was made with a different VAPID
+        // key (e.g. the key was rotated), it can never receive our
+        // pushes — drop it and re-subscribe with the current key.
+        let same = false;
+        try {
+          const cur = sub.options && sub.options.applicationServerKey;
+          if (cur) {
+            const a = new Uint8Array(cur);
+            same = a.length === wantKey.length && a.every((v, i) => v === wantKey[i]);
+          }
+        } catch { same = false; }
+        if (!same) { try { await sub.unsubscribe(); } catch (e) {} sub = null; }
+      }
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: CW_ACCESS._urlB64ToU8(key),
+          applicationServerKey: wantKey,
         });
       }
       const j = sub.toJSON();
@@ -666,6 +681,10 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         auth: j.keys.auth,
         user_agent: navigator.userAgent.slice(0, 200),
       }, { onConflict: 'endpoint' });
+      // Drop this user's stale endpoints (old key / old browser state)
+      // so they don't linger as permanent failures in the dashboard.
+      await sb.from('push_subscriptions').delete()
+        .eq('employee_id', empId).neq('endpoint', j.endpoint);
     } catch (e) { /* push optional — never disrupt the app */ }
   },
   _chatBeep() {
