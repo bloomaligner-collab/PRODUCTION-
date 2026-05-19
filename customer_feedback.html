@@ -151,6 +151,10 @@ tbody tr:hover{background:#f8fafc}
 .badge{display:inline-flex;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}
 .case-link{color:var(--blue);cursor:pointer;font-weight:700;border-bottom:1px dashed var(--blue);text-decoration:none}
 .case-link:hover{background:var(--b50,#eef2ff)}
+.cf-sortable{cursor:pointer;user-select:none}
+.cf-sortable:hover{color:var(--blue)}
+.cf-ar{font-size:9px;color:var(--dim);margin-left:3px;font-weight:700}
+.cf-ar.on{color:var(--blue)}
 .b-g{background:var(--g100);color:#15803d}.b-a{background:var(--a100);color:#92400e}
 .b-b{background:var(--b100);color:#1e40af}.b-gray{background:#f1f5f9;color:#475569}
 .b-r{background:var(--r100);color:#991b1b}.b-p{background:var(--p100);color:#5b21b6}
@@ -344,7 +348,19 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       <div class="tw"><table>
         <thead><tr>
           <th class="no-sort" style="width:28px;text-align:center"><input type="checkbox" id="bulkAllCb" title="Select all on this page" style="cursor:pointer"></th>
-          <th></th><th>Ref #</th><th>Date</th><th>Customer / Distributor</th><th>Type</th><th>Category</th><th>Case #</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>⏰ Follow-up</th><th>Status</th><th></th>
+          <th></th>
+          <th data-k="ref"      onclick="cfSort('ref')"      class="cf-sortable">Ref # <span class="cf-ar" data-k="ref"></span></th>
+          <th data-k="date"     onclick="cfSort('date')"     class="cf-sortable">Date <span class="cf-ar" data-k="date"></span></th>
+          <th data-k="customer" onclick="cfSort('customer')" class="cf-sortable">Customer / Distributor <span class="cf-ar" data-k="customer"></span></th>
+          <th data-k="type"     onclick="cfSort('type')"     class="cf-sortable">Type <span class="cf-ar" data-k="type"></span></th>
+          <th data-k="category" onclick="cfSort('category')" class="cf-sortable">Category <span class="cf-ar" data-k="category"></span></th>
+          <th data-k="case"     onclick="cfSort('case')"     class="cf-sortable">Case # <span class="cf-ar" data-k="case"></span></th>
+          <th data-k="desc"     onclick="cfSort('desc')"     class="cf-sortable">Description <span class="cf-ar" data-k="desc"></span></th>
+          <th data-k="priority" onclick="cfSort('priority')" class="cf-sortable">Priority <span class="cf-ar" data-k="priority"></span></th>
+          <th data-k="assigned" onclick="cfSort('assigned')" class="cf-sortable">Assigned To <span class="cf-ar" data-k="assigned"></span></th>
+          <th data-k="follow"   onclick="cfSort('follow')"   class="cf-sortable">⏰ Follow-up <span class="cf-ar" data-k="follow"></span></th>
+          <th data-k="status"   onclick="cfSort('status')"   class="cf-sortable">Status <span class="cf-ar" data-k="status"></span></th>
+          <th></th>
         </tr></thead>
         <tbody id="tBody"><tr><td colspan="14" class="ec">Loading...</td></tr></tbody>
       </table></div>
@@ -519,6 +535,7 @@ import{openBloomCaseModal}from'./bloom_case_view.js';
 const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
 const PAGE=20
 let all=[],filtered=[],pg=0,editId=null,employees=[],bloomCases=[],roles=[]
+let cfSortKey='',cfSortDir=1
 let caseUnread=new Map()  // case id → has unseen discussion messages
 let routingRules={}
 let userPrimaryRole='', userExtraRoles=[]
@@ -778,8 +795,55 @@ function applyFilter(){
     }
     return true
   })
+  sortFiltered()
   pg=0;render()
   refreshCaseUnread()
+}
+
+// Dataset-wide A→Z / Z→A column sort (whole result set, all pages —
+// not just the visible page). table_sort.js defers to this because
+// the headers carry data-k.
+function _cfVal(r,k){
+  switch(k){
+    case 'ref':      return (r.feedback_no||'').toLowerCase()
+    case 'date':     return r.received_date||''
+    case 'customer': return (r.customer_name||'').toLowerCase()
+    case 'type':     return (TYPE_LABELS[r.type]||r.type||'').toLowerCase()
+    case 'category': return (CATEGORY_LABELS[r.category]||'').toLowerCase()
+    case 'case':     return String(r.case_id||r.order_no||'').toLowerCase()
+    case 'desc':     return (r.description||'').toLowerCase()
+    case 'priority': return ({low:1,medium:2,high:3,critical:4})[r.severity]||0
+    case 'assigned': return (prettyAssignee(r.assigned_to)||'').toLowerCase()
+    case 'follow':   return r.follow_up_date||''
+    case 'status':   return (r.status||'').toLowerCase()
+    default:         return ''
+  }
+}
+function sortFiltered(){
+  if(!cfSortKey) return
+  const dir=cfSortDir
+  filtered.sort((a,b)=>{
+    const va=_cfVal(a,cfSortKey), vb=_cfVal(b,cfSortKey)
+    const ea=(va===''||va==null), eb=(vb===''||vb==null)
+    if(ea&&eb) return 0
+    if(ea) return 1            // blanks always last, regardless of direction
+    if(eb) return -1
+    if(typeof va==='number'&&typeof vb==='number') return (va-vb)*dir
+    return String(va).localeCompare(String(vb),undefined,{numeric:true,sensitivity:'base'})*dir
+  })
+}
+function paintSortArrows(){
+  document.querySelectorAll('.cf-ar').forEach(s=>{
+    const on=s.dataset.k===cfSortKey
+    s.textContent = on ? (cfSortDir>0?'▲':'▼') : '↕'
+    s.classList.toggle('on',on)
+  })
+}
+window.cfSort=(k)=>{
+  if(cfSortKey===k) cfSortDir=-cfSortDir
+  else { cfSortKey=k; cfSortDir=1 }
+  sortFiltered()
+  pg=0;render()
 }
 // Which cases have chat-discussion messages newer than this user
 // last opened them → a 💬 dot in the register.
@@ -812,6 +876,7 @@ async function refreshCaseUnread(){
   })
 }
 function render(){
+  paintSortArrows()
   const start=pg*PAGE,slice=filtered.slice(start,start+PAGE)
   document.getElementById('tBody').innerHTML=slice.length?slice.map(r=>{
     const tc=r.type==='complaint'?'b-r':r.type==='feedback'?'b-g':r.type==='warranty'?'b-p':r.type==='return'?'b-a':r.type==='service_request'?'b-b':'b-gray'
