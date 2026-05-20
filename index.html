@@ -269,7 +269,13 @@ window.doLogin=async()=>{
     sessionStorage.setItem(PK,JSON.stringify(pageAccess))
     sessionStorage.setItem(NK,user.name)
     sessionStorage.setItem(CRK,customRole)
+    // Mirror to localStorage so an iOS PWA restart (which wipes
+    // sessionStorage) doesn't bounce the user back to this screen.
     localStorage.setItem(EK,user.name)
+    localStorage.setItem(RK,user.role)
+    localStorage.setItem(PK,JSON.stringify(pageAccess))
+    localStorage.setItem(NK,user.name)
+    localStorage.setItem(CRK,customRole)
     // 4. Navigate to home
     const homePage=getHomePage(pageAccess,customRole)
     window.location.href=homePage

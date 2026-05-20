@@ -34,6 +34,20 @@ function wipeStaleAuthTokens() {
   rm.forEach(k => localStorage.removeItem(k))
 }
 
+// iOS PWAs (and some browsers) wipe sessionStorage when the app is
+// closed/reopened. The Supabase auth token survives in localStorage,
+// but CW_ACCESS.guard() reads `cw_name` from sessionStorage and would
+// bounce the still-authenticated user back to the login screen. Mirror
+// the session keys back from localStorage so the user stays in.
+function restoreSessionFromLocal() {
+  for (const k of SESSION_KEYS) {
+    if (!sessionStorage.getItem(k)) {
+      const v = localStorage.getItem(k)
+      if (v != null) sessionStorage.setItem(k, v)
+    }
+  }
+}
+
 function clearSession() {
   SESSION_KEYS.forEach(k => {
     sessionStorage.removeItem(k)
@@ -50,6 +64,8 @@ function redirectToLogin() {
 
 // 1. Clean any cross-project leftover tokens BEFORE touching the client.
 wipeStaleAuthTokens()
+// 1b. Re-hydrate sessionStorage from localStorage when iOS has wiped it.
+restoreSessionFromLocal()
 
 // 2. Validate the current session against the server. getUser() actually
 //    hits /auth/v1/user, so a JWT signed by a different project is
