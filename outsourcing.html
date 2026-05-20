@@ -821,8 +821,12 @@ window.poBulkReceive=async()=>{
   if(invExp && /^\d{4}-\d{2}-\d{2}$/.test(invExp)) patch.invoice_due_date=invExp
   const{error}=await sb.from('outsourced_orders').update(patch).in('id',rows.map(r=>r.id))
   if(error){ntf('Error: '+error.message,'err');return}
+  // Auto-deduct one outsourced kit per case received (boxes etc.)
+  const r=await deductOutsourcingStock(rows.length)
+  if(r.ok>0) ntf(`📦 Outsourced kit deducted for ${rows.length} case(s)`)
+  else if(r.fail>0) ntf(`⚠ ${r.fail} kit item(s) failed to deduct — check BOM/inventory`,'err')
   // On receipt cases return to the Fiche de Traçabilité where remaining
-  // production steps resume from where they left off.
+  // production steps resume from where they left off (Packaging in-house).
   ntf(`✅ ${rows.length} case(s) received — back to Fiche de Traçabilité`)
   await loadAll(); renderPOModal()
 }
@@ -1033,8 +1037,12 @@ window.saveReceived=async()=>{
   }).eq('id',recvOrderId)
   if(error){$('rErr').textContent=error.message;return}
   // On receipt the case returns to the Fiche de Traçabilité where the
-  // remaining production steps resume. Show the operator a direct link
-  // so they can pick up immediately.
+  // remaining production steps resume (Packaging in-house). Auto-deduct
+  // the "Outsourced Kit" from inventory — these are the boxes /
+  // packaging only consumed for outsourced cases.
+  const r=await deductOutsourcingStock(1)
+  if(r.ok>0) ntf(`📦 Outsourced kit deducted: ${r.ok} item(s)`)
+  else if(r.fail>0) ntf(`⚠ ${r.fail} kit item(s) failed to deduct — check BOM/inventory`,'err')
   ntf('✅ Order received — continue in Fiche de Traçabilité')
   closeRecvModal(); await loadAll()
   if(caseId){
@@ -1216,10 +1224,6 @@ window.saveOut=async()=>{
   if(error){$('mErr').textContent=error.message;return}
   ntf('✅ Case marked as outsourced')
   closeOutModal()
-  // Auto-deduct outsourcing materials (boxes, packaging) from stock
-  const r=await deductOutsourcingStock(1)
-  if(r.ok>0) ntf(`📦 Stock deducted: ${r.ok} item(s) for outsourcing`)
-  else if(r.fail>0) ntf(`⚠ ${r.fail} outsourcing item(s) failed to deduct — check BOM/inventory`,'err')
   await loadAll()
 }
 
@@ -1451,11 +1455,6 @@ window.savePreparedOrder=async()=>{
   const{error}=await sb.from('outsourced_orders').insert(rows)
   if(error){$('pErr').textContent=error.message;return}
   ntf(`✅ ${rows.length} case${rows.length>1?'s':''} outsourced (${po})`)
-  // Auto-deduct outsourcing materials (boxes, packaging) from stock —
-  // one ration per case, FEFO via BOM rows where category='Outsourcing'.
-  const r=await deductOutsourcingStock(rows.length)
-  if(r.ok>0) ntf(`📦 Stock deducted for ${r.ok} outsourcing item(s) × ${rows.length} case(s)`)
-  else if(r.fail>0) ntf(`⚠ ${r.fail} outsourcing item(s) failed to deduct — check BOM/inventory`,'err')
   selectedIds.clear(); prepOverrides={}; preparedPoNum=''
   ;['pSupplier','pPrice','pCur','pReturn','pInvExp','pNotes'].forEach(id=>{if($(id))$(id).value=''})
   switchTab('orders')

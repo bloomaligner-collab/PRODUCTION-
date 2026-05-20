@@ -649,6 +649,14 @@ function renderDetail(o){
   const done=isComplete(o)
   const lotNum=genLot(o.order_no,o)
   const sessions=o.sessions||[]
+  // When the case has been received back from a sous-traitant, the
+  // supplier owns every step EXCEPT Packaging — that's what in-house
+  // resumes. We synthesise a "complete by supplier" view for the
+  // outsourced steps so the printed fiche tells the full story without
+  // writing fake rows into order_step_tracking.
+  const _oo=o.outsource
+  const _supplierReturned=!!(_oo && _oo.received_date)
+  const OUTSOURCED_STEPS=['Printing','Cleaning','Thermoforming','Line Cut','Laser Marking']
 
   // Build step rows
   const stepRows=STEPS.map(step=>{
@@ -659,19 +667,26 @@ function renderDetail(o){
       .reduce((sum,s)=>sum+new Date(s.ended_at)-new Date(s.started_at),0)
     // Machine time = first_started_at → completed_at from tracking
     const machMs=(t?.first_started_at&&t?.completed_at)?new Date(t.completed_at)-new Date(t.first_started_at):null
-    const operators=[...new Set(stepSess.map(s=>s.employee_name).filter(Boolean))]
+    let operators=[...new Set(stepSess.map(s=>s.employee_name).filter(Boolean))]
     // Prefer the authoritative machine from order_step_tracking
     // (clocking-written), fall back to the time_sessions value. That
     // way cases without surviving sessions still show the machine.
     const trackMach=t?.machine_name||t?.machine||null
     const sessMach=stepSess.map(s=>s.machine).filter(Boolean)
     const machines=[...new Set([trackMach,...sessMach].filter(Boolean))]
-    const status=t?.status||'pending'
+    let status=t?.status||'pending'
+    let suppliedByOutsourcer=false
+    if(_supplierReturned && OUTSOURCED_STEPS.includes(step) && status!=='complete'){
+      status='complete'
+      suppliedByOutsourcer=true
+      if(_oo.supplier_name) operators=[_oo.supplier_name+' (sous-traitant)']
+    }
     const icon=status==='complete'?'<span class="st-done">✓</span>':status==='in_progress'||status==='machine_running'?'<span class="st-prog">▶</span>':'<span class="st-pend">○</span>'
-    return`<tr>
+    const stPill=suppliedByOutsourcer?' <span style="display:inline-block;padding:1px 6px;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.3px;margin-left:4px;vertical-align:middle">ST</span>':''
+    return`<tr${suppliedByOutsourcer?' style="background:#faf5ff"':''}>
       <td>${icon}</td>
       <td>
-        <div class="step-name">${STEP_FR[step]||step}</div>
+        <div class="step-name">${STEP_FR[step]||step}${stPill}</div>
         <div class="step-who">${operators.length?operators.join(', '):'—'}</div>
         ${machines.length?`<span class="step-machine">⚙ ${machines.join(', ')}</span>`:''}
       </td>
@@ -700,9 +715,10 @@ function renderDetail(o){
   const startDate=o.first_started||o.status_change_date||o.last_synced_at||o.creation_date||null
   const endDate=o.last_completed||null
   // ── Outsourcing summary for this case (if any) ─────────────────────
-  const oo=o.outsource
+  // (Same source object the steps loop already used via _oo / _supplierReturned.)
+  const oo=_oo
   const isOutsourced=!!oo
-  const isReturned=!!(oo && oo.received_date)
+  const isReturned=_supplierReturned
   const outsourceLotBadge = isOutsourced
     ? `<div style="margin-top:6px"><span class="pill" style="background:${isReturned?'#dcfce7':'#ede9fe'};color:${isReturned?'#166534':'#6d28d9'};border:1px solid ${isReturned?'#86efac':'#c4b5fd'}">${isReturned?'📥 Retour sous-traitance':'🚚 Lot sous-traité'}${oo.supplier_name?' · '+oo.supplier_name:''}</span></div>`
     : ''
@@ -749,12 +765,12 @@ function renderDetail(o){
             <div style="font-size:22px;line-height:1">${isReturned?'📥':'🚚'}</div>
             <div style="flex:1">
               <div style="font-size:13px;font-weight:800;color:${isReturned?'#166534':'#6d28d9'}">
-                ${isReturned?'Cas retourné du sous-traitant — production reprise dans cette fiche':'Cas envoyé chez le sous-traitant'}
+                ${isReturned?'Cas retourné du sous-traitant — production reprend à l\'étape 📦 Emballage':'Cas envoyé chez le sous-traitant'}
               </div>
               <div style="font-size:12px;color:var(--mu);margin-top:3px">
                 ${isReturned
-                  ?'Les étapes restantes continuent ci-dessous depuis le point où le lot a été expédié. Le numéro de lot reste inchangé pour assurer la traçabilité.'
-                  :'En attente du retour. Le pointage et la consommation matière sur place sont gelés tant que le lot est chez le distributeur.'}
+                  ?'Les étapes Impression → Marquage Laser ont été réalisées par le sous-traitant (marquées ST ci-dessous). L\'équipe in-house reprend uniquement l\'Emballage. Le numéro de lot reste inchangé pour la traçabilité.'
+                  :'En attente du retour. Le sous-traitant réalise les étapes Impression → Marquage Laser. L\'équipe in-house ne reprendra que l\'Emballage à réception.'}
               </div>
             </div>
           </div>
