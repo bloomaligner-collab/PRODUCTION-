@@ -301,6 +301,9 @@ let selOrder=null
 // Global QC records cache
 let qcRecords=[]
 let machineLots=[]
+// Outsourcing summary per case_id — populated in load() so the fiche
+// can show "sent to outsourcer / received back" without a second round-trip.
+let outsourceByCase={}
 
 async function load(){
   // Get all order_step_tracking rows
@@ -332,6 +335,25 @@ async function load(){
     if(mlErr) console.warn('machine_lot_assignments:',mlErr.message)
     else console.log('[machineLots] loaded:',machineLots.length,'lots')
   }catch(e){machineLots=[];console.warn('machine_lot_assignments error:',e)}
+
+  // Load outsourced_orders so the fiche can show which lots/cases went
+  // to a sous-traitant and when they came back. When received_date is
+  // populated the fiche resumes the in-house process from where the
+  // case left off (no separate "returned" workflow — same fiche).
+  outsourceByCase={}
+  try{
+    const{data:ooData,error:ooErr}=await sb.from('outsourced_orders')
+      .select('case_id,supplier_name,outsource_date,expected_return_date,received_date,batch_ref,aligners_upper,aligners_lower,notes')
+      .order('outsource_date',{ascending:false})
+    if(!ooErr && ooData){
+      ooData.forEach(o=>{
+        const k=String(o.case_id||'')
+        if(!k) return
+        // Keep the most recent outsourcing record per case
+        if(!outsourceByCase[k]) outsourceByCase[k]=o
+      })
+    }
+  }catch(e){console.warn('outsourced_orders load:',e)}
 
   // Load bloom enrichment data (patient names, aligner counts)
   let bloomCaseMap={}, bloomAlMap={}
@@ -513,6 +535,12 @@ async function load(){
     console.log('[trac] bloom orders added:',bloomOrders.filter(b=>!excluded.has(b.current_status||'')).length)
   }catch(e){console.warn('Bloom-status load:',e)}
   
+  // Attach outsourcing info to each order so list + detail can flag it
+  Object.values(byOrder).forEach(o=>{
+    const oo=outsourceByCase[String(o.order_no||'')]
+    if(oo) o.outsource=oo
+  })
+
   // Bloom-only orders inherit their sort key from last_synced_at so the
   // most recently updated cases bubble up first.
   orders=Object.values(byOrder).sort((a,b)=>{
@@ -579,6 +607,12 @@ function renderList(){
     const cnt=stepsDone(o)
     const isSel=selOrder?.order_no===o.order_no
     const safe=String(o.order_no).replace(/"/g,'&quot;')
+    const oo=o.outsource
+    const outBadge = oo
+      ? (oo.received_date
+          ? '<span class="or-badge" style="background:#dcfce7;color:#166534;border:1px solid #86efac;margin-left:4px" title="Retourné du sous-traitant — production reprise">📥 Retour</span>'
+          : '<span class="or-badge" style="background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;margin-left:4px" title="Sous-traité — chez le distributeur">🚚 Sous-traité</span>')
+      : ''
     return`<div class="order-row${isSel?' sel':''}" data-order="${safe}">
       <div class="or-icon" style="background:${done?'var(--g50)':'var(--b50)'}">${done?'✅':'🔄'}</div>
       <div style="flex:1;min-width:0">
@@ -586,7 +620,10 @@ function renderList(){
         ${o.patient_name?`<div style="font-size:11px;font-weight:600;color:var(--blue);margin-top:1px">${o.patient_name}${o.doctor?' · '+o.doctor:''}</div>`:''}
         <div class="or-sub">${cnt}/${STEPS.length} steps · ${o.aligner_total?o.aligner_total+' aligners · ':''}${fd(o.first_started||o.status_change_date||o.last_synced_at)}</div>
       </div>
-      <span class="or-badge ${done?'b-ok':'b-prog'}">${done?'Terminé':'En cours'}</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+        <span class="or-badge ${done?'b-ok':'b-prog'}">${done?'Terminé':'En cours'}</span>
+        ${outBadge}
+      </div>
     </div>`
   }).join('')
   // Attach the delegated click handler exactly once.
@@ -662,6 +699,13 @@ function renderDetail(o){
   // a real Date début. last_completed stays null until Packaging ends.
   const startDate=o.first_started||o.status_change_date||o.last_synced_at||o.creation_date||null
   const endDate=o.last_completed||null
+  // ── Outsourcing summary for this case (if any) ─────────────────────
+  const oo=o.outsource
+  const isOutsourced=!!oo
+  const isReturned=!!(oo && oo.received_date)
+  const outsourceLotBadge = isOutsourced
+    ? `<div style="margin-top:6px"><span class="pill" style="background:${isReturned?'#dcfce7':'#ede9fe'};color:${isReturned?'#166534':'#6d28d9'};border:1px solid ${isReturned?'#86efac':'#c4b5fd'}">${isReturned?'📥 Retour sous-traitance':'🚚 Lot sous-traité'}${oo.supplier_name?' · '+oo.supplier_name:''}</span></div>`
+    : ''
   document.getElementById('detailPanel').innerHTML=`
     <div class="detail-content">
       <div class="fiche-head">
@@ -672,8 +716,9 @@ function renderDetail(o){
         </div>
         <div class="lot-num-box">
           <div class="lot-num">${lotNum}</div>
-          <div class="lot-lbl">Numéro de lot</div>
+          <div class="lot-lbl">Numéro de lot${isOutsourced?' · '+(isReturned?'RETOUR ST':'ST'):''}</div>
           <div style="margin-top:8px"><span class="pill" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">${done?'✅ Complet':'🔄 '+stepsDone(o)+'/'+STEPS.length+' étapes'}</span></div>
+          ${outsourceLotBadge}
         </div>
       </div>
 
@@ -695,6 +740,34 @@ function renderDetail(o){
           <div class="ib"><div class="ib-l">Machines utilisées</div><div class="ib-v" style="font-size:11px">${allMachines.join(', ')||'—'}</div></div>
           <div class="ib"><div class="ib-l">Temps technicien total</div><div class="ib-v" style="color:var(--blue)">${dur(totalTechMs)}</div></div>
         </div>
+
+        ${isOutsourced?`
+        <!-- OUTSOURCING -->
+        <div class="sec-title">🚚 Sous-traitance</div>
+        <div style="background:${isReturned?'#f0fdf4':'#faf5ff'};border:1px solid ${isReturned?'#bbf7d0':'#ddd6fe'};border-radius:12px;padding:14px 16px;margin-bottom:18px">
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+            <div style="font-size:22px;line-height:1">${isReturned?'📥':'🚚'}</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:800;color:${isReturned?'#166534':'#6d28d9'}">
+                ${isReturned?'Cas retourné du sous-traitant — production reprise dans cette fiche':'Cas envoyé chez le sous-traitant'}
+              </div>
+              <div style="font-size:12px;color:var(--mu);margin-top:3px">
+                ${isReturned
+                  ?'Les étapes restantes continuent ci-dessous depuis le point où le lot a été expédié. Le numéro de lot reste inchangé pour assurer la traçabilité.'
+                  :'En attente du retour. Le pointage et la consommation matière sur place sont gelés tant que le lot est chez le distributeur.'}
+              </div>
+            </div>
+          </div>
+          <div class="info-grid" style="margin-top:6px">
+            <div class="ib"><div class="ib-l">Distributeur</div><div class="ib-v" style="font-size:12px">${oo.supplier_name||'—'}</div></div>
+            <div class="ib"><div class="ib-l">PO / Lot expédié</div><div class="ib-v" style="font-family:var(--mono);font-size:12px">${oo.batch_ref||lotNum}</div></div>
+            <div class="ib"><div class="ib-l">Date d'envoi</div><div class="ib-v" style="font-size:11px">${fd(oo.outsource_date)}</div></div>
+            <div class="ib"><div class="ib-l">Retour prévu</div><div class="ib-v" style="font-size:11px">${fd(oo.expected_return_date)}</div></div>
+            <div class="ib"><div class="ib-l">Date de réception</div><div class="ib-v" style="font-size:11px;color:${isReturned?'var(--green)':'var(--amber)'}">${isReturned?fd(oo.received_date):'En attente'}</div></div>
+            <div class="ib"><div class="ib-l">Aligneurs (U/L)</div><div class="ib-v" style="font-family:var(--mono);font-size:12px">${oo.aligners_upper||0} / ${oo.aligners_lower||0}</div></div>
+          </div>
+          ${oo.notes?`<div style="font-size:11px;color:var(--mu);margin-top:8px;padding-top:8px;border-top:1px solid ${isReturned?'#bbf7d0':'#ddd6fe'}"><strong>Notes:</strong> ${oo.notes}</div>`:''}
+        </div>`:''}
 
         <!-- STEPS -->
         <div class="sec-title">🔄 Étapes de production</div>

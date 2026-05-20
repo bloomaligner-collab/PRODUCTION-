@@ -310,7 +310,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
               <div>
                 <div class="ct">⚗️ Bill of Materials</div>
-                <div class="cs" style="margin-bottom:0">Define how much of each material is consumed per aligner produced. Used by auto-requisition to calculate purchase orders.</div>
+                <div class="cs" style="margin-bottom:0">Define how much of each material is consumed per aligner (in-house production) <strong>or per case</strong> for outsourced shipments. Used by auto-requisition and triggered as stock-out when cases leave for the sous-traitant. Use category <strong>🚚 Outsourcing</strong> for boxes/packaging consumed only by outsourced cases.</div>
               </div>
               <button class="btn b-pri b-sm" onclick="openAddBom()">+ Add Material</button>
             </div>
@@ -332,6 +332,7 @@
                   <option value="Resin">Resin</option>
                   <option value="Packaging">Packaging</option>
                   <option value="Cleaning">Cleaning</option>
+                  <option value="Outsourcing">🚚 Outsourcing (boxes, packaging for sous-traités)</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -943,10 +944,11 @@ window.onBomMaterialChange = function() {
   if (!o) return
   const u = o.dataset.unit, c = o.dataset.category
   if (u && !$('bomUnit').value.trim()) $('bomUnit').value = u
-  if (c && ['Film','Resin','Packaging','Cleaning','Other'].includes(c)) {
+  if (c && ['Film','Resin','Packaging','Cleaning','Outsourcing','Other'].includes(c)) {
     $('bomCategory').value = c
-    // Packaging defaults to per_case; other categories default to per_aligner
-    if (c === 'Packaging') $('bomQtyBasis').value = 'per_case'
+    // Packaging + Outsourcing default to per_case (one box per case,
+    // not per aligner); everything else stays per_aligner.
+    if (c === 'Packaging' || c === 'Outsourcing') $('bomQtyBasis').value = 'per_case'
   }
 }
 

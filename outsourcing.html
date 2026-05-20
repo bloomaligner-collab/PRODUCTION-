@@ -481,6 +481,56 @@ let allCases=[], allOrders=[], suppliers=[], chart=null, currentModalCase=null
 let selectedIds=new Set()  // set of case_ids picked for the prepared order
 let defaultSupplier=null   // supplier row marked is_default_distributor
 
+// ── Outsourcing BOM stock-out ────────────────────────────────────────
+// When a case is sent to a sous-traitant, the boxes/packaging used for
+// the outsourced shipment have to leave inventory. The BOM page
+// (inventory.html → ⚗️ BOM tab) holds the per-case formula under
+// category='Outsourcing'. We FEFO-deduct against inventory_lots so
+// stock counters and low-stock alerts stay accurate.
+async function deductOutsourcingStock(caseCount){
+  if(!caseCount||caseCount<=0) return {ok:0,fail:0,lines:[]}
+  let bomRows=[]
+  try{
+    const{data,error}=await sb.from('bom').select('*').eq('category','Outsourcing').eq('active',true)
+    if(error) throw error
+    bomRows=data||[]
+  }catch(e){console.warn('[outsourcing] BOM load failed:',e); return {ok:0,fail:0,lines:[]}}
+  if(!bomRows.length) return {ok:0,fail:0,lines:[]}
+  // Resolve material names → item ids once
+  let itemMap={}
+  try{
+    const{data:its}=await sb.from('inventory_items').select('id,name,item_name,unit,unit_of_measure')
+    ;(its||[]).forEach(it=>{
+      const nm=(it.item_name||it.name||'').trim().toLowerCase()
+      if(nm) itemMap[nm]={id:it.id,name:it.item_name||it.name,unit:it.unit_of_measure||it.unit||''}
+    })
+  }catch(e){console.warn('[outsourcing] inventory_items lookup:',e)}
+  let ok=0, fail=0
+  const lines=[]
+  for(const b of bomRows){
+    const basis=b.qty_basis||'per_case'
+    const qty = basis==='per_case' ? Number(b.qty_per_aligner||0)*caseCount : 0
+    if(qty<=0) continue
+    const item=itemMap[(b.material_name||'').trim().toLowerCase()]
+    if(!item){fail++; lines.push(`⚠ ${b.material_name}: not in inventory (skipped)`); continue}
+    try{
+      const{data:f,error:fe}=await sb.rpc('get_fefo_lot',{p_item_id:item.id})
+      if(fe) throw fe
+      const lot=Array.isArray(f)?f[0]:f
+      if(!lot){fail++; lines.push(`⚠ ${item.name}: no available lot`); continue}
+      const useQty=Math.min(qty, Number(lot.available_qty||0))
+      await sb.from('inventory_lots').update({available_qty:Number(lot.available_qty)-useQty}).eq('id',lot.lot_id)
+      await sb.from('inventory_stock_history').insert([{
+        lot_id:lot.lot_id, action_type:'usage', quantity:useQty,
+        unit_cost:lot.unit_cost||0, note:`Outsourcing — ${caseCount} case(s)`
+      }])
+      ok++
+      lines.push(`✓ ${item.name}: −${useQty} ${b.unit||item.unit||''}`)
+    }catch(e){fail++; lines.push(`✗ ${b.material_name}: ${e.message}`); console.warn('FEFO outsourcing:',e)}
+  }
+  return {ok,fail,lines}
+}
+
 // ── Fetch everything in parallel, paginate bloom_cases past 1000-cap ──
 async function fetchAllBloom(){
   const PAGE=1000; let from=0; const all=[]
@@ -771,7 +821,10 @@ window.poBulkReceive=async()=>{
   if(invExp && /^\d{4}-\d{2}-\d{2}$/.test(invExp)) patch.invoice_due_date=invExp
   const{error}=await sb.from('outsourced_orders').update(patch).in('id',rows.map(r=>r.id))
   if(error){ntf('Error: '+error.message,'err');return}
-  ntf(`✅ ${rows.length} case(s) marked received`); await loadAll(); renderPOModal()
+  // On receipt cases return to the Fiche de Traçabilité where remaining
+  // production steps resume from where they left off.
+  ntf(`✅ ${rows.length} case(s) received — back to Fiche de Traçabilité`)
+  await loadAll(); renderPOModal()
 }
 window.poBulkInvoice=async()=>{
   const rows=allOrders.filter(o=>o.batch_ref===currentPO && !o.invoice_no)
@@ -972,11 +1025,25 @@ window.saveReceived=async()=>{
   const d=$('rDate').value
   if(!d){$('rErr').textContent='Received date required';return}
   const invExp=$('rInvExp').value||null
+  // Capture the case_id before update so we can deep-link to the fiche
+  const o=allOrders.find(x=>x.id===recvOrderId)
+  const caseId=o?.case_id
   const{error}=await sb.from('outsourced_orders').update({
     received_date:d, invoice_due_date:invExp, updated_at:new Date().toISOString()
   }).eq('id',recvOrderId)
   if(error){$('rErr').textContent=error.message;return}
-  ntf('✅ Order marked received'); closeRecvModal(); await loadAll()
+  // On receipt the case returns to the Fiche de Traçabilité where the
+  // remaining production steps resume. Show the operator a direct link
+  // so they can pick up immediately.
+  ntf('✅ Order received — continue in Fiche de Traçabilité')
+  closeRecvModal(); await loadAll()
+  if(caseId){
+    setTimeout(()=>{
+      if(confirm(`Case ${caseId} returned from outsourcer.\nOpen Fiche de Traçabilité to continue production?`)){
+        location.href='tracabilite.html?order='+encodeURIComponent(caseId)
+      }
+    },150)
+  }
 }
 
 window.openInvModal=(id)=>{
@@ -1149,6 +1216,10 @@ window.saveOut=async()=>{
   if(error){$('mErr').textContent=error.message;return}
   ntf('✅ Case marked as outsourced')
   closeOutModal()
+  // Auto-deduct outsourcing materials (boxes, packaging) from stock
+  const r=await deductOutsourcingStock(1)
+  if(r.ok>0) ntf(`📦 Stock deducted: ${r.ok} item(s) for outsourcing`)
+  else if(r.fail>0) ntf(`⚠ ${r.fail} outsourcing item(s) failed to deduct — check BOM/inventory`,'err')
   await loadAll()
 }
 
@@ -1380,6 +1451,11 @@ window.savePreparedOrder=async()=>{
   const{error}=await sb.from('outsourced_orders').insert(rows)
   if(error){$('pErr').textContent=error.message;return}
   ntf(`✅ ${rows.length} case${rows.length>1?'s':''} outsourced (${po})`)
+  // Auto-deduct outsourcing materials (boxes, packaging) from stock —
+  // one ration per case, FEFO via BOM rows where category='Outsourcing'.
+  const r=await deductOutsourcingStock(rows.length)
+  if(r.ok>0) ntf(`📦 Stock deducted for ${r.ok} outsourcing item(s) × ${rows.length} case(s)`)
+  else if(r.fail>0) ntf(`⚠ ${r.fail} outsourcing item(s) failed to deduct — check BOM/inventory`,'err')
   selectedIds.clear(); prepOverrides={}; preparedPoNum=''
   ;['pSupplier','pPrice','pCur','pReturn','pInvExp','pNotes'].forEach(id=>{if($(id))$(id).value=''})
   switchTab('orders')
