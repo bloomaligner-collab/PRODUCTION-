@@ -592,7 +592,20 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
           try { sessionStorage.setItem('cw_sw_reloaded', '1'); } catch (e) {}
           location.reload();
         });
-        navigator.serviceWorker.register('sw.js').then((reg) => {
+        // Best-effort: drop any older SW (the previous sw.js still
+        // active on stuck devices) so the fresh sw-v2.js can take over.
+        (async () => {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const r of (regs || [])) {
+              try {
+                const url = r.active && r.active.scriptURL ? r.active.scriptURL : '';
+                if (url && !/\/sw-v2\.js(\?|$)/.test(url)) await r.unregister();
+              } catch (e) {}
+            }
+          } catch (e) {}
+        })();
+        navigator.serviceWorker.register('sw-v2.js').then((reg) => {
           const promote = (w) => { if (w) w.postMessage('skipWaiting'); };
           if (reg.waiting) promote(reg.waiting);
           reg.addEventListener('updatefound', () => {
