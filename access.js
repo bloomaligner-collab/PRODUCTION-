@@ -523,7 +523,8 @@ const CW_ACCESS = {
   width:42px;height:42px;align-items:center;justify-content:center;border-radius:10px;background:#fff;
   border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:18px;cursor:pointer;
   font-family:inherit;color:#0f172a;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;
-  touch-action:manipulation}
+  touch-action:manipulation;transition:top .18s ease}
+body.cw-banner-on #cw-mnav{top:calc(env(safe-area-inset-top) + 72px)}
 #cw-mnav-bd{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1150;opacity:0;
   pointer-events:none;transition:opacity .2s}
 body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
