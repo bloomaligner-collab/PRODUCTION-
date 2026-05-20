@@ -519,9 +519,9 @@ const CW_ACCESS = {
   input,select,textarea,.fi{font-size:16px!important}
   .kpi-row,.cards,.grid{grid-template-columns:1fr!important}
 }
-#cw-mnav{display:none;position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;
-  z-index:100001;width:48px;height:48px;align-items:center;justify-content:center;border-radius:50%;
-  background:#3b5fe2;border:none;box-shadow:0 4px 14px rgba(15,23,42,.35);font-size:22px;cursor:pointer;
+#cw-mnav{display:none;position:fixed;top:calc(env(safe-area-inset-top) + 84px);left:12px;
+  z-index:100001;width:44px;height:44px;align-items:center;justify-content:center;border-radius:12px;
+  background:#3b5fe2;border:none;box-shadow:0 4px 14px rgba(15,23,42,.3);font-size:20px;cursor:pointer;
   font-family:inherit;color:#fff;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;
   touch-action:manipulation}
 #cw-mnav:active{transform:scale(.92)}
