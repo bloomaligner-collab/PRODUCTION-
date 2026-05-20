@@ -202,6 +202,7 @@ tbody tr:hover{background:#f8fafc}
     <a href="tracabilite.html" class="nl"><span class="ic">🔖</span>Traceability</a>
     <a href="qualite.html" class="nl"><span class="ic">✅</span>Quality Control</a>
     <a href="non_conformity.html" class="nl on"><span class="ic">⚠️</span>Non-Conformity</a>
+    <a href="capa.html" class="nl"><span class="ic">🛠</span>CAPAs</a>
     <a href="suppliers.html" class="nl"><span class="ic">🏭</span>Suppliers</a>
     <a href="customer_feedback.html" class="nl"><span class="ic">💬</span>Customer Feedback</a>
     <a href="internal_audit.html" class="nl"><span class="ic">🔍</span>Internal Audits</a>
@@ -559,7 +560,7 @@ async function loadNcCapas(ncId){
   if(error){ el.innerHTML='<span style="color:#dc2626">Could not load CAPAs: '+error.message+'</span>'; return }
   if(!data||!data.length){ el.innerHTML='<span style="color:#94a3b8">No CAPA linked yet — fill the form below to create one.</span>'; return }
   el.innerHTML=data.map(c=>`<div style="display:flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid var(--bdr);border-radius:8px;background:#fff;margin-bottom:6px">
-    <span style="background:#eef2ff;color:#3b5fe2;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700">${c.capa_no||c.id.slice(0,8)}</span>
+    <a href="capa.html?id=${encodeURIComponent(c.id)}" title="Open in CAPA register" style="background:#eef2ff;color:#3b5fe2;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">${c.capa_no||c.id.slice(0,8)}</a>
     <strong style="flex:1;font-size:13px">${c.title||'—'}</strong>
     <span style="font-size:11px;color:#64748b">${c.owner||''}</span>
     <span style="font-size:11px;color:#0f172a">${c.due_date?'due '+c.due_date:''}</span>

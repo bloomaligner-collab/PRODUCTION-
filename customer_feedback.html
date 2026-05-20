@@ -260,6 +260,7 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
     <a href="tracabilite.html" class="nl"><span class="ic">🔖</span>Traceability</a>
     <a href="qualite.html" class="nl"><span class="ic">✅</span>Quality Control</a>
     <a href="non_conformity.html" class="nl"><span class="ic">⚠️</span>Non-Conformity</a>
+    <a href="capa.html" class="nl"><span class="ic">🛠</span>CAPAs</a>
     <a href="suppliers.html" class="nl"><span class="ic">🏭</span>Suppliers</a>
     <a href="customer_feedback.html" class="nl"><span class="ic">💬</span>Customer Feedback</a>
     <a href="internal_audit.html" class="nl"><span class="ic">🔍</span>Internal Audits</a>
@@ -1282,7 +1283,7 @@ window.viewRec=async(id)=>{
       if(r.capa_id){
         const capa=(typeof _capaListCache!=='undefined'&&_capaListCache)?_capaListCache.find(c=>String(c.id)===String(r.capa_id)):null
         const lbl=capa?_esc((capa.capa_no||r.capa_id)+(capa.title?` — ${capa.title}`:'')+(capa.status?` · ${capa.status}`:'')):_esc(r.capa_id)
-        rows.push(['CAPA ID', lbl])
+        rows.push(['CAPA ID', `<a class="case-link" href="capa.html?id=${encodeURIComponent(r.capa_id)}" title="Open in CAPA register">${lbl}</a>`])
       }
       if(r.vigilance_reportable!=null) rows.push(['Vigilance reportable', r.vigilance_reportable?'Yes':'No'])
       if(r.vigilance_id) rows.push(['Vigilance reference', _esc(r.vigilance_id)])

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- CW defensive help cleanup -->
+<script>
+(function(){
+  function kill(){
+    var el=document.getElementById("cw-help-btn");if(el)el.remove();
+    var root=document.getElementById("cw-help-root");if(root)root.remove();
+  }
+  document.addEventListener("DOMContentLoaded",function(){
+    kill();
+    try{
+      var mo=new MutationObserver(kill);
+      mo.observe(document.body,{childList:true,subtree:false});
+      setTimeout(function(){mo.disconnect()},5000);
+    }catch(e){}
+  });
+})();
+</script>
+
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings — CAPA Register</title>
+<script type="module" src="auth_guard.js?v=20260422c"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
+  --blue:#3b5fe2;--b50:#eff3ff;--green:#16a34a;--g50:#f0fdf4;
+  --red:#dc2626;--r50:#fff1f2;--amber:#d97706;--a50:#fffbeb;
+  --purple:#7c3aed;--p50:#f5f3ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 18px 80px}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mu);text-decoration:none;margin-bottom:14px}
+.back:hover{color:var(--blue)}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.hdr h1{font-size:22px;font-weight:800}
+.hdr .sub{font-size:13px;color:var(--mu);margin-top:2px}
+.btn{padding:9px 18px;background:var(--blue);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:hover{opacity:.9}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-red{background:var(--red)}
+.btn-ghost{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .12s}
+.kpi:hover{border-color:var(--blue);transform:translateY(-1px)}
+.kpi.on{border-color:var(--blue);background:var(--b50)}
+.kpi-l{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.kpi-v{font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;letter-spacing:-1px}
+.kpi.k-open .kpi-v{color:var(--red)}
+.kpi.k-prog .kpi-v{color:var(--amber)}
+.kpi.k-ver .kpi-v{color:var(--blue)}
+.kpi.k-clo .kpi-v{color:var(--green)}
+.kpi.k-can .kpi-v{color:var(--dim)}
+
+.tools{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.tools input,.tools select{padding:8px 12px;border:1.5px solid var(--bdr);border-radius:9px;font-size:13px;font-family:inherit;background:var(--card);outline:none}
+.tools input:focus,.tools select:focus{border-color:var(--blue)}
+.tools input{min-width:240px}
+
+.tbl-wrap{background:var(--card);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--bdr);vertical-align:top}
+th{background:#f8fafc;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none}
+th:hover{color:var(--blue)}
+tr.row:hover{background:var(--b50);cursor:pointer}
+tr.row td:first-child{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--blue)}
+.empty{padding:50px 20px;text-align:center;color:var(--mu)}
+
+.b{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase}
+.b-open{background:var(--r50);color:var(--red)}
+.b-prog{background:var(--a50);color:var(--amber)}
+.b-ver{background:var(--b50);color:var(--blue)}
+.b-clo{background:var(--g50);color:var(--green)}
+.b-can{background:#f1f5f9;color:var(--dim)}
+.b-src{background:var(--p50);color:var(--purple);font-size:10px;padding:1px 7px}
+.due-over{color:var(--red);font-weight:700}
+.due-soon{color:var(--amber);font-weight:700}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center;padding:20px}
+.overlay.on{display:flex}
+.mo{background:var(--card);border-radius:16px;padding:24px;width:min(640px,95vw);max-height:92vh;overflow-y:auto}
+.mo-t{font-size:18px;font-weight:800;margin-bottom:4px}
+.mo-s{font-size:12px;color:var(--mu);margin-bottom:18px}
+.fg{display:flex;flex-direction:column;gap:11px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+label{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.fi{width:100%;padding:8px 11px;border:1.5px solid var(--bdr);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--txt);outline:none}
+.fi:focus{border-color:var(--blue)}
+textarea.fi{resize:vertical;min-height:60px}
+.row-btns{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+
+@media (max-width:680px){
+  th:nth-child(3),td:nth-child(3),th:nth-child(6),td:nth-child(6){display:none}
+  .tools input{min-width:0;flex:1}
+}
+</style>
+</head>
+<body>
+<script src="access.js?v=20260422c"></script>
+<script>const PAGE_KEY='capa'</script>
+
+<div class="wrap">
+  <a class="back" href="non_conformity.html">← Back to Non-Conformity</a>
+  <div class="hdr">
+    <div>
+      <h1>🛠 CAPA Register</h1>
+      <div class="sub">Corrective &amp; Preventive Actions — separated from non-conformities</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="exportCsv()">📥 Export CSV</button>
+      <button class="btn" onclick="openNew()">+ New CAPA</button>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="tools">
+    <input id="qsearch" placeholder="Search CAPA #, title, owner, source…"/>
+    <select id="qsource">
+      <option value="">All sources</option>
+      <option value="nc">From NC</option>
+      <option value="feedback">From Feedback</option>
+      <option value="audit">From Audit</option>
+      <option value="other">Other / standalone</option>
+    </select>
+    <select id="qowner">
+      <option value="">All owners</option>
+    </select>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-sort="capa_no">CAPA #</th>
+          <th data-sort="title">Title</th>
+          <th data-sort="source_type">Source</th>
+          <th data-sort="owner">Owner</th>
+          <th data-sort="due_date">Due</th>
+          <th data-sort="status">Status</th>
+          <th data-sort="opened_at">Opened</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="7" class="empty">Loading CAPAs…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="modal">
+  <div class="mo">
+    <div class="mo-t" id="moTitle">New CAPA</div>
+    <div class="mo-s">CAPA # auto-generates if left blank.</div>
+    <div class="fg">
+      <div class="fg2">
+        <div><label>CAPA #</label><input class="fi" id="fNo" placeholder="auto"/></div>
+        <div><label>Status</label>
+          <select class="fi" id="fStatus">
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="verified">Verified</option>
+            <option value="closed">Closed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div><label>Title</label><input class="fi" id="fTitle" placeholder="Short summary of the action"/></div>
+      <div class="fg2">
+        <div><label>Source</label>
+          <select class="fi" id="fSrc">
+            <option value="">—</option>
+            <option value="nc">Non-Conformity</option>
+            <option value="feedback">Customer Feedback</option>
+            <option value="audit">Audit</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div><label>Source reference</label><input class="fi" id="fSrcRef" placeholder="NC / feedback ID (optional)"/></div>
+      </div>
+      <div><label>Problem statement</label><textarea class="fi" id="fProb" rows="2"></textarea></div>
+      <div><label>Root cause</label><textarea class="fi" id="fRoot" rows="2"></textarea></div>
+      <div><label>Action plan</label><textarea class="fi" id="fAction" rows="3"></textarea></div>
+      <div class="fg3">
+        <div><label>Owner</label><input class="fi" id="fOwner" placeholder="who's responsible"/></div>
+        <div><label>Due date</label><input class="fi" id="fDue" type="date"/></div>
+        <div><label>Verified by</label><input class="fi" id="fVerBy" placeholder="(when closing)"/></div>
+      </div>
+      <div><label>Effectiveness check</label><textarea class="fi" id="fEff" rows="2" placeholder="Has the action been effective? evidence…"></textarea></div>
+      <div><label>Notes</label><textarea class="fi" id="fNotes" rows="2"></textarea></div>
+      <div class="row-btns">
+        <button class="btn" onclick="save()">💾 Save</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-red btn-sm" id="delBtn" onclick="del()" style="margin-left:auto;display:none">🗑 Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import{createClient}from'https://esm.sh/@supabase/supabase-js@2'
+import{SUPABASE_CONFIG}from'./config.js'
+const sb=createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey)
+
+let all=[], filtered=[], editId=null, sortKey='opened_at', sortDir=-1
+let filterStatus=''
+
+const STATUS_LABEL={open:'Open',in_progress:'In Progress',verified:'Verified',closed:'Closed',cancelled:'Cancelled'}
+const STATUS_CLASS={open:'b-open',in_progress:'b-prog',verified:'b-ver',closed:'b-clo',cancelled:'b-can'}
+const SRC_LABEL={nc:'NC',feedback:'Feedback',audit:'Audit',other:'Other'}
+
+function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fdt(d){if(!d)return '—';try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}catch{return d}}
+
+async function load(){
+  const{data,error}=await sb.from('capa').select('*').order('opened_at',{ascending:false}).limit(1000)
+  if(error){document.getElementById('tbody').innerHTML=`<tr><td colspan="7" class="empty" style="color:#dc2626">Could not load: ${_esc(error.message)}</td></tr>`;return}
+  all=data||[]
+  // owner dropdown
+  const owners=[...new Set(all.map(r=>r.owner).filter(Boolean))].sort()
+  const sel=document.getElementById('qowner')
+  sel.innerHTML='<option value="">All owners</option>'+owners.map(o=>`<option value="${_esc(o)}">${_esc(o)}</option>`).join('')
+  renderKpis()
+  apply()
+  // Open ?id=... from URL if present
+  const q=new URLSearchParams(location.search)
+  const openId=q.get('id')
+  if(openId){ const r=all.find(x=>String(x.id)===String(openId)); if(r) edit(r.id) }
+}
+
+function renderKpis(){
+  const counts={open:0,in_progress:0,verified:0,closed:0,cancelled:0}
+  all.forEach(r=>{counts[r.status||'open']=(counts[r.status||'open']||0)+1})
+  const k=document.getElementById('kpis')
+  k.innerHTML=`
+    <div class="kpi ${filterStatus===''?'on':''}" data-s=""><div class="kpi-l">Total</div><div class="kpi-v">${all.length}</div></div>
+    <div class="kpi k-open ${filterStatus==='open'?'on':''}" data-s="open"><div class="kpi-l">Open</div><div class="kpi-v">${counts.open}</div></div>
+    <div class="kpi k-prog ${filterStatus==='in_progress'?'on':''}" data-s="in_progress"><div class="kpi-l">In Progress</div><div class="kpi-v">${counts.in_progress}</div></div>
+    <div class="kpi k-ver ${filterStatus==='verified'?'on':''}" data-s="verified"><div class="kpi-l">Verified</div><div class="kpi-v">${counts.verified}</div></div>
+    <div class="kpi k-clo ${filterStatus==='closed'?'on':''}" data-s="closed"><div class="kpi-l">Closed</div><div class="kpi-v">${counts.closed}</div></div>
+    <div class="kpi k-can ${filterStatus==='cancelled'?'on':''}" data-s="cancelled"><div class="kpi-l">Cancelled</div><div class="kpi-v">${counts.cancelled}</div></div>`
+  k.querySelectorAll('.kpi').forEach(el=>el.onclick=()=>{filterStatus=el.dataset.s;renderKpis();apply()})
+}
+
+function apply(){
+  const q=document.getElementById('qsearch').value.trim().toLowerCase()
+  const src=document.getElementById('qsource').value
+  const own=document.getElementById('qowner').value
+  filtered=all.filter(r=>{
+    if(filterStatus && (r.status||'open')!==filterStatus) return false
+    if(src && r.source_type!==src) return false
+    if(own && r.owner!==own) return false
+    if(q){
+      const hay=[r.capa_no,r.title,r.owner,r.problem_statement,r.action_plan,r.root_cause,r.source_id].map(x=>String(x||'').toLowerCase()).join(' ')
+      if(!hay.includes(q)) return false
+    }
+    return true
+  })
+  filtered.sort((a,b)=>{
+    const va=a[sortKey]||'', vb=b[sortKey]||''
+    if(va<vb) return -sortDir
+    if(va>vb) return sortDir
+    return 0
+  })
+  render()
+}
+
+function render(){
+  const tb=document.getElementById('tbody')
+  if(!filtered.length){tb.innerHTML='<tr><td colspan="7" class="empty">No CAPAs match the current filters.</td></tr>';return}
+  const today=new Date().toISOString().slice(0,10)
+  const soon=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+  tb.innerHTML=filtered.map(r=>{
+    const st=r.status||'open'
+    const dueCls = !r.due_date || ['closed','cancelled','verified'].includes(st) ? ''
+      : (r.due_date<today ? 'due-over' : r.due_date<soon ? 'due-soon' : '')
+    return `<tr class="row" onclick="edit('${r.id}')">
+      <td>${_esc(r.capa_no||r.id.slice(0,8))}</td>
+      <td><div style="font-weight:600">${_esc(r.title||'—')}</div>${r.problem_statement?`<div style="font-size:11px;color:var(--mu);margin-top:2px">${_esc(r.problem_statement.slice(0,90))}${r.problem_statement.length>90?'…':''}</div>`:''}</td>
+      <td>${r.source_type?`<span class="b b-src">${SRC_LABEL[r.source_type]||r.source_type}</span>`:'—'}</td>
+      <td>${_esc(r.owner||'—')}</td>
+      <td class="${dueCls}">${fdt(r.due_date)}</td>
+      <td><span class="b ${STATUS_CLASS[st]||'b-open'}">${STATUS_LABEL[st]||st}</span></td>
+      <td style="color:var(--mu)">${fdt(r.opened_at)}</td>
+    </tr>`
+  }).join('')
+}
+
+window.openNew=()=>{
+  editId=null
+  document.getElementById('moTitle').textContent='New CAPA'
+  ;['fNo','fTitle','fSrcRef','fProb','fRoot','fAction','fOwner','fDue','fVerBy','fEff','fNotes'].forEach(id=>document.getElementById(id).value='')
+  document.getElementById('fStatus').value='open'
+  document.getElementById('fSrc').value=''
+  document.getElementById('delBtn').style.display='none'
+  document.getElementById('modal').classList.add('on')
+}
+
+window.edit=(id)=>{
+  const r=all.find(x=>String(x.id)===String(id));if(!r)return
+  editId=r.id
+  document.getElementById('moTitle').textContent='Edit '+(r.capa_no||'CAPA')
+  document.getElementById('fNo').value=r.capa_no||''
+  document.getElementById('fStatus').value=r.status||'open'
+  document.getElementById('fTitle').value=r.title||''
+  document.getElementById('fSrc').value=r.source_type||''
+  document.getElementById('fSrcRef').value=r.source_id||''
+  document.getElementById('fProb').value=r.problem_statement||''
+  document.getElementById('fRoot').value=r.root_cause||''
+  document.getElementById('fAction').value=r.action_plan||''
+  document.getElementById('fOwner').value=r.owner||''
+  document.getElementById('fDue').value=r.due_date||''
+  document.getElementById('fVerBy').value=r.verified_by||''
+  document.getElementById('fEff').value=r.effectiveness_check||''
+  document.getElementById('fNotes').value=r.notes||''
+  document.getElementById('delBtn').style.display=''
+  document.getElementById('modal').classList.add('on')
+}
+
+window.save=async()=>{
+  const title=document.getElementById('fTitle').value.trim()
+  if(!title){ alert('Title is required'); return }
+  const src=document.getElementById('fSrc').value||null
+  const srcRef=document.getElementById('fSrcRef').value.trim()
+  const isUuid=v=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+  const payload={
+    capa_no: document.getElementById('fNo').value.trim() ||
+      ('CAPA-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+Math.floor(Math.random()*900+100)),
+    status: document.getElementById('fStatus').value,
+    title,
+    source_type: src,
+    source_id: src && srcRef && isUuid(srcRef) ? srcRef : null,
+    problem_statement: document.getElementById('fProb').value.trim()||null,
+    root_cause: document.getElementById('fRoot').value.trim()||null,
+    action_plan: document.getElementById('fAction').value.trim()||null,
+    owner: document.getElementById('fOwner').value.trim()||null,
+    due_date: document.getElementById('fDue').value||null,
+    verified_by: document.getElementById('fVerBy').value.trim()||null,
+    effectiveness_check: document.getElementById('fEff').value.trim()||null,
+    notes: document.getElementById('fNotes').value.trim()||null,
+  }
+  if(['verified','closed'].includes(payload.status) && payload.verified_by && !editId) payload.verified_at=new Date().toISOString()
+  if(payload.status==='closed') payload.closed_at=new Date().toISOString()
+  let res
+  if(editId){
+    // preserve original capa_no if user blanked it
+    if(!document.getElementById('fNo').value.trim()){
+      const cur=all.find(x=>x.id===editId); if(cur && cur.capa_no) payload.capa_no=cur.capa_no
+    }
+    res=await sb.from('capa').update(payload).eq('id',editId).select().single()
+  } else {
+    res=await sb.from('capa').insert([payload]).select().single()
+  }
+  if(res.error){ alert('Save failed: '+res.error.message); return }
+  closeModal()
+  await load()
+}
+
+window.del=async()=>{
+  if(!editId) return
+  if(!confirm('Delete this CAPA? This cannot be undone.')) return
+  const{error}=await sb.from('capa').delete().eq('id',editId)
+  if(error){ alert('Delete failed: '+error.message); return }
+  closeModal()
+  await load()
+}
+
+window.closeModal=()=>{document.getElementById('modal').classList.remove('on')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal()})
+
+// Sorting
+document.querySelectorAll('th[data-sort]').forEach(th=>{
+  th.onclick=()=>{
+    const k=th.dataset.sort
+    if(sortKey===k) sortDir=-sortDir; else { sortKey=k; sortDir=1 }
+    apply()
+  }
+})
+
+// Filter wiring
+;['qsearch','qsource','qowner'].forEach(id=>document.getElementById(id).addEventListener('input',apply))
+
+window.exportCsv=()=>{
+  const cols=['capa_no','title','status','source_type','source_id','owner','due_date','opened_at','closed_at','problem_statement','root_cause','action_plan','effectiveness_check','verified_by','verified_at','notes']
+  const head=cols.join(',')
+  const esc=v=>{const s=String(v==null?'':v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+  const body=filtered.map(r=>cols.map(c=>esc(r[c])).join(',')).join('\n')
+  const blob=new Blob([head+'\n'+body],{type:'text/csv;charset=utf-8'})
+  const a=document.createElement('a')
+  a.href=URL.createObjectURL(blob)
+  a.download=`capa_register_${new Date().toISOString().slice(0,10)}.csv`
+  document.body.appendChild(a); a.click(); a.remove()
+}
+
+load()
+</script>
+
+<!-- CW_HELP mount -->
+<div id="helpPanelMount"></div>
+<script src="lang.js?v=20260423b"></script>
+<script>
+(function(){
+  function mountHelp(){
+    if(typeof CW_HELP==="undefined"||typeof CW_HELP.buildPanel!=="function"){setTimeout(mountHelp,50);return}
+    var m=document.getElementById("helpPanelMount")
+    if(m) m.innerHTML=CW_HELP.buildPanel("capa","🛠","CAPA","CAPA Register")
+    CW_HELP.init("capa","🛠","CAPA","CAPA Register")
+  }
+  document.addEventListener("DOMContentLoaded",mountHelp)
+})();
+</script>
+</body>
+</html>
