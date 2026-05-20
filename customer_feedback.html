@@ -1241,6 +1241,9 @@ window.editRec=(id)=>{
 
 window.viewRec=async(id)=>{
   const r=all.find(x=>String(x.id)===String(id));if(!r)return
+  if(r.capa_id && _capaListCache===null){
+    try{ const{data}=await sb.from('capa').select('id,capa_no,title,status').limit(500); _capaListCache=data||[] }catch{ _capaListCache=[] }
+  }
   // Record view activity + auto-mark seen if this viewer is an assignee (user or role)
   const nowIso=new Date().toISOString()
   const patch={last_viewed_by:currentUser, last_viewed_at:nowIso}
@@ -1269,6 +1272,25 @@ window.viewRec=async(id)=>{
     </table>
     <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">DESCRIPTION</div><div style="background:var(--r50);border-radius:8px;padding:12px;font-size:13px">${r.description||'—'}</div></div>
     ${r.notes?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">ROOT CAUSE / NOTES</div><div style="background:var(--a50);border-radius:8px;padding:12px;font-size:13px">${r.notes}</div></div>`:''}
+    ${(r.lot_udi||r.investigation_started_at||r.investigation_result||r.root_cause||r.capa_required!=null||r.capa_id||r.vigilance_reportable!=null||r.vigilance_id)?(() => {
+      const rows=[]
+      if(r.lot_udi) rows.push(['Lot / UDI', _esc(r.lot_udi)])
+      if(r.investigation_started_at) rows.push(['Investigation started', fdt(r.investigation_started_at)])
+      if(r.root_cause) rows.push(['Root cause', _esc(r.root_cause)])
+      if(r.investigation_result) rows.push(['Investigation result', _esc(r.investigation_result)])
+      if(r.capa_required!=null) rows.push(['CAPA required', r.capa_required?'Yes':'No'])
+      if(r.capa_id){
+        const capa=(typeof _capaListCache!=='undefined'&&_capaListCache)?_capaListCache.find(c=>String(c.id)===String(r.capa_id)):null
+        const lbl=capa?_esc((capa.capa_no||r.capa_id)+(capa.title?` — ${capa.title}`:'')+(capa.status?` · ${capa.status}`:'')):_esc(r.capa_id)
+        rows.push(['CAPA ID', lbl])
+      }
+      if(r.vigilance_reportable!=null) rows.push(['Vigilance reportable', r.vigilance_reportable?'Yes':'No'])
+      if(r.vigilance_id) rows.push(['Vigilance reference', _esc(r.vigilance_id)])
+      return `<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">🔍 INVESTIGATION &amp; COMPLIANCE</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;background:var(--b50);border-radius:8px;overflow:hidden">
+        ${rows.map(([k,v])=>`<tr><td style="padding:7px 10px;color:var(--mu);font-weight:600;width:38%;border-bottom:1px solid var(--bdr)">${k}</td><td style="padding:7px 10px;border-bottom:1px solid var(--bdr)">${v}</td></tr>`).join('')}
+        </table></div>`
+    })():''}
     ${r.resolution?`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px">RESOLUTION</div><div style="background:var(--g50);border-radius:8px;padding:12px;font-size:13px">${r.resolution}</div></div>`:''}
     ${r.follow_up_date?(() => {
       const today=new Date().toISOString().slice(0,10)
