@@ -129,7 +129,7 @@ label{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transfor
       <div id="supDocSection" style="display:none;margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px">
         <label style="font-weight:700">📜 Certifications &amp; contracts</label>
         <div id="supDocList" style="margin:8px 0;font-size:13px"></div>
-        <div style="display:grid;grid-template-columns:120px 1fr 130px 140px auto;gap:6px;align-items:end">
+        <div style="display:grid;grid-template-columns:120px 1fr 130px 140px;gap:6px;align-items:end;margin-bottom:8px">
           <div><label style="font-size:11px;color:#64748b">Kind</label>
             <select class="fi" id="sdKind" style="height:36px">
               <option value="certification">Certification</option>
@@ -146,7 +146,12 @@ label{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transfor
           <div><label style="font-size:11px;color:#64748b">Expires</label>
             <input class="fi" id="sdExp" type="date"/>
           </div>
-          <button class="btn" type="button" onclick="addSupDoc()" style="height:36px">＋ Add</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0" for="sdFile">📎 Attach PDF</label>
+          <input id="sdFile" type="file" accept="application/pdf,image/*" style="display:none" onchange="onPickSupDoc()"/>
+          <span id="sdFileName" style="font-size:12px;color:#64748b">No file selected</span>
+          <button class="btn btn-sm" type="button" onclick="addSupDoc()" style="margin-left:auto">＋ Add document</button>
         </div>
       </div>
 
@@ -199,7 +204,8 @@ function renderGrid(suppliers,items){
   }).join('')
 }
 
-// Supplier documents (certifications, contracts) with expiry badges.
+// Supplier documents (certifications, contracts) with expiry badges +
+// optional PDF/image attachment served via signed URL.
 async function loadSupDocs(supId){
   const wrap=document.getElementById('supDocList'); wrap.innerHTML='⏳'
   const{data,error}=await sb.from('supplier_documents').select('*').eq('supplier_id',supId).order('expires_at',{ascending:true,nullsFirst:false})
@@ -211,16 +217,36 @@ async function loadSupDocs(supId){
     const status = !d.expires_at ? '' : (d.expires_at<today ? '<span style="background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">EXPIRED</span>'
                               : d.expires_at<soon ? '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">SOON</span>'
                               : '<span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">VALID</span>')
+    const file = d.attachment_url
+      ? `<a href="#" data-att="${d.attachment_url.replace(/"/g,'&quot;')}" onclick="openSupDoc(event,this)" title="Open attachment" style="font-size:11px;color:#3b5fe2;font-weight:700;text-decoration:none">📎 PDF</a>`
+      : '<span style="font-size:11px;color:#cbd5e1">no file</span>'
     return `<div style="display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;background:#fff">
       <span style="background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700">${d.kind}</span>
       <strong style="flex:1;font-size:13px">${(d.title||'—')}</strong>
       <span style="font-size:11px;color:#64748b">${d.reference_no||''}</span>
       <span style="font-size:11px;color:#0f172a">${d.expires_at?'exp '+d.expires_at:''}</span>
       ${status}
-      <button class="btn btn-sm btn-ghost" type="button" onclick="deleteSupDoc('${d.id}','${supId}')" title="Delete">🗑</button>
+      ${file}
+      <button class="btn btn-sm btn-ghost" type="button" onclick="deleteSupDoc('${d.id}','${supId}','${(d.attachment_url||'').replace(/'/g,"\\'")}')" title="Delete">🗑</button>
     </div>`
   }).join('')
 }
+
+let _sdPicked=null
+window.onPickSupDoc=()=>{
+  const f=document.getElementById('sdFile').files[0]
+  _sdPicked=f||null
+  document.getElementById('sdFileName').textContent=f?`${f.name} (${Math.round(f.size/1024)} KB)`:'No file selected'
+}
+
+window.openSupDoc=async(ev,el)=>{
+  ev.preventDefault()
+  const path=el.getAttribute('data-att'); if(!path) return
+  const{data,error}=await sb.storage.from('supplier-docs').createSignedUrl(path,300)
+  if(error||!data?.signedUrl){ alert('Could not open: '+(error?.message||'no URL')); return }
+  window.open(data.signedUrl,'_blank','noopener')
+}
+
 window.addSupDoc=async()=>{
   if(!editId){ alert('Save the supplier first, then re-open to add documents.'); return }
   const row = {
@@ -229,17 +255,34 @@ window.addSupDoc=async()=>{
     title: document.getElementById('sdTitle').value.trim()||null,
     reference_no: document.getElementById('sdRef').value.trim()||null,
     expires_at: document.getElementById('sdExp').value||null,
+    attachment_url: null,
   }
-  if(!row.title && !row.reference_no){ alert('Add a title or a reference number.'); return }
+  if(!row.title && !row.reference_no && !_sdPicked){ alert('Add a title, a reference number, or attach a file.'); return }
+  if(_sdPicked){
+    if(_sdPicked.size > 20*1024*1024){ alert('File too large (max 20 MB).'); return }
+    const ext=(_sdPicked.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')
+    const path=`${editId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
+    const{error:upErr}=await sb.storage.from('supplier-docs').upload(path,_sdPicked,{contentType:_sdPicked.type||'application/octet-stream',upsert:false})
+    if(upErr){ alert('Upload failed: '+upErr.message); return }
+    row.attachment_url=path
+  }
   const{error}=await sb.from('supplier_documents').insert([row])
-  if(error){ alert('Could not save: '+error.message); return }
+  if(error){
+    if(row.attachment_url){ try{ await sb.storage.from('supplier-docs').remove([row.attachment_url]) }catch{} }
+    alert('Could not save: '+error.message); return
+  }
   ;['sdTitle','sdRef','sdExp'].forEach(id=>document.getElementById(id).value='')
+  document.getElementById('sdFile').value=''
+  document.getElementById('sdFileName').textContent='No file selected'
+  _sdPicked=null
   loadSupDocs(editId)
 }
-window.deleteSupDoc=async(id,supId)=>{
+
+window.deleteSupDoc=async(id,supId,attPath)=>{
   if(!confirm('Delete this document?')) return
   const{error}=await sb.from('supplier_documents').delete().eq('id',id)
   if(error){ alert('Could not delete: '+error.message); return }
+  if(attPath){ try{ await sb.storage.from('supplier-docs').remove([attPath]) }catch{} }
   loadSupDocs(supId)
 }
 
@@ -252,6 +295,9 @@ window.openAdd=()=>{
   document.getElementById('invLinkSection').style.display='none'
   document.getElementById('supDocSection').style.display='none'
   document.getElementById('supDocList').innerHTML=''
+  const _f=document.getElementById('sdFile'); if(_f) _f.value=''
+  const _fn=document.getElementById('sdFileName'); if(_fn) _fn.textContent='No file selected'
+  _sdPicked=null
   document.getElementById('mSupplier').classList.add('on')
 }
 
@@ -271,6 +317,9 @@ window.editSupplier=async(id)=>{
   document.getElementById('sDefDist').checked=!!s.is_default_distributor
   // Documents (certifications + contracts)
   document.getElementById('supDocSection').style.display='block'
+  const _f=document.getElementById('sdFile'); if(_f) _f.value=''
+  const _fn=document.getElementById('sdFileName'); if(_fn) _fn.textContent='No file selected'
+  _sdPicked=null
   loadSupDocs(id)
   // Load linked inventory items
   const{data:items}=await sb.from('inventory_items').select('id,name').eq('preferred_supplier_id',id)
