@@ -347,14 +347,16 @@ const CW_HELP = {
         ['2. Créer le rapport', 'Cliquer sur "+ Nouveau RC". Saisir date, commande/lot, catégorie, sévérité, étape.'],
         ['3. Décrire le problème', 'Description détaillée de ce qui a été trouvé.'],
         ['4. Analyse des causes', 'POURQUOI cela s\'est-il produit ? (erreur machine, matière, humaine, processus...)'],
-        ['5. Action corrective (CAPA)', 'QUE faire pour corriger et éviter la récurrence ?'],
-        ['6. Clôturer quand résolu', 'Mettre le statut à Clôturé avec une date de clôture.'],
+        ['5. Correction immédiate', 'Action immédiate sur le lot/processus (quarantaine, rework, scrap…). Champ « Corrective action » de la fiche NC — distinct des CAPAs.'],
+        ['6. CAPAs liés (audit 2026-05)', 'Les CAPAs sont séparés des corrections. Dans la fiche NC, tuile « 🛠 Linked CAPAs » : créer un ou plusieurs CAPAs (chacun avec son propriétaire, échéance, contrôle d\'efficacité). Chaque CAPA-… est un lien vers le registre CAPA standalone.'],
+        ['7. Clôturer quand résolu', 'Mettre le statut à Clôturé avec une date de clôture — la NC ne se clôture que quand tous les CAPAs liés sont Verified/Closed.'],
       ],
       buttons: [
         ['+ Nouveau RC', 'Ouvrir le formulaire pour documenter une non-conformité.'],
         ['👁 Voir', 'Lire le rapport complet.'],
-        ['✏️ Modifier', 'Mettre à jour, ajouter la CAPA ou clôturer.'],
+        ['✏️ Modifier', 'Mettre à jour, ajouter un CAPA ou clôturer.'],
         ['🖨️ Imprimer', 'Imprimer le rapport NC formel pour le dossier qualité.'],
+        ['🛠 Linked CAPAs', 'Tuile dans la fiche NC qui liste les CAPAs liés et permet d\'en créer un nouveau directement (titre + plan + owner + due date + statut). Chaque CAPA-… ouvre le registre CAPA.'],
       ]
     },
     en: {
@@ -365,14 +367,16 @@ const CW_HELP = {
         ['2. Create NC report', 'Click "+ New NC Report". Enter date, order/lot, category, severity, step.'],
         ['3. Describe the problem', 'Detailed description of what was found wrong.'],
         ['4. Root cause analysis', 'WHY did it happen? (machine, material, human error, process gap...)'],
-        ['5. Corrective action (CAPA)', 'WHAT was done or will be done to fix it and prevent recurrence?'],
-        ['6. Close when resolved', 'Set status to Closed with a closed date.'],
+        ['5. Immediate correction', 'Immediate action on the lot/process (quarantine, rework, scrap…). The NC\'s "Corrective action" field — distinct from CAPAs.'],
+        ['6. Linked CAPAs (2026-05 audit)', 'CAPAs are separated from corrections. Inside the NC, the "🛠 Linked CAPAs" tile lets you spawn one or several CAPAs (each with its own owner, due date, effectiveness check). Every CAPA-… is a link to the standalone CAPA register.'],
+        ['7. Close when resolved', 'Set status to Closed with a closed date — the NC stays open until every linked CAPA is Verified/Closed.'],
       ],
       buttons: [
         ['+ New NC Report', 'Open the form to document a new non-conformity.'],
         ['👁 View', 'Read the full NC report.'],
-        ['✏️ Edit', 'Update the NC report or close it.'],
+        ['✏️ Edit', 'Update the NC report, add a CAPA, or close it.'],
         ['🖨️ Print', 'Print the formal NC report for the quality file.'],
+        ['🛠 Linked CAPAs', 'Tile inside the NC that lists linked CAPAs and lets you create a new one inline (title + plan + owner + due date + status). Every CAPA-… badge opens the CAPA register.'],
       ]
     }
   },
@@ -387,7 +391,8 @@ const CW_HELP = {
         ['4. Réévaluation annuelle', 'Obligatoire. La LFA montre en rouge les fournisseurs dont la dernière évaluation remonte à plus de 12 mois. Refaire l\'évaluation pour réinitialiser le compteur.'],
         ['5. Paramétrage Outsourcing', 'Pour les sous-traitants aligneurs : cocher « ★ Set as default distributor » et renseigner le Prix par défaut / aligneur + devise. Ces valeurs remplissent automatiquement le formulaire Outsourcing → Prepared List Order — pas besoin de les resaisir à chaque commande.'],
         ['6. Historique d\'achats', 'Chaque fournisseur affiche ses commandes passées via Réquisitions — nombre de lots livrés, litiges, défauts remontés dans Non-Conformité.'],
-        ['7. Suppression', 'La suppression est à éviter — préférer Disqualifié pour conserver la traçabilité historique des achats.'],
+        ['7. Certifications & contrats (audit 2026-05)', 'Section « 📜 Certifications & contracts » dans la fiche fournisseur : ajouter une ligne par certificat (ISO 13485, ISO 9001, CE…) ou contrat avec Kind, Titre, Référence, Date d\'expiration et PDF en pièce jointe. Badges automatiques : EXPIRED (date passée) · SOON (≤30 j) · VALID. Les PDFs sont stockés dans un bucket privé et ouverts via une URL signée éphémère (5 min).'],
+        ['8. Suppression', 'La suppression est à éviter — préférer Disqualifié pour conserver la traçabilité historique des achats.'],
       ],
       buttons: [
         ['+ Ajouter Fournisseur', 'Formulaire de création + évaluation initiale.'],
@@ -410,7 +415,8 @@ const CW_HELP = {
         ['4. Annual re-evaluation', 'Mandatory. The ASL shows in red any supplier whose last evaluation is >12 months old. Re-run the evaluation to reset the counter.'],
         ['5. Outsourcing defaults', 'For aligner sub-contractors: tick "Set as default distributor" and set Default Price / Aligner + currency. These values auto-fill the Outsourcing → Prepared List Order form so you don\'t retype them every time.'],
         ['6. Purchase history', 'Each supplier shows their past orders via Requisitions — number of lots delivered, disputes, defects routed to Non-Conformity.'],
-        ['7. Deletion', 'Avoid — prefer Disqualified to keep purchase history traceable.'],
+        ['7. Certifications & contracts (2026-05 audit)', '"📜 Certifications & contracts" tile inside the supplier card: add one row per certificate (ISO 13485, ISO 9001, CE…) or contract with Kind, Title, Reference, Expiry date and an attached PDF. Auto badges: EXPIRED (past expiry) · SOON (≤30 days) · VALID. PDFs are stored in a private bucket and opened through a short-lived signed URL (5 min).'],
+        ['8. Deletion', 'Avoid — prefer Disqualified to keep purchase history traceable.'],
       ],
       buttons: [
         ['+ Add Supplier', 'Create-and-evaluate form.'],
@@ -506,6 +512,7 @@ const CW_HELP = {
         ['4. Notification & accusé de lecture', 'Le destinataire voit un 🔔 toast à l\'ouverture de l\'application + une bannière persistante dans toutes les pages. Ouvrir le dossier (👁 View) le marque automatiquement « seen » : l\'icône enveloppe passe de 📧 à 📬.'],
         ['5. Rappel de suivi (Follow-up)', 'Renseigner Follow-up Date + Follow-up Assignee. Le dossier apparaît sur le Tableau de Bord avec un compteur « jours restants » : rouge si en retard, ambre ≤3 jours. Bouton ✓ Mark Follow-up Done pour clôturer uniquement le rappel (sans clôturer le dossier).'],
         ['6. Enquête cause racine', 'Renseigner Root Cause : pourquoi c\'est arrivé. Si défaut produit, créer un rapport Non-Conformité — la page NC pré-remplit le même Case # / numéro de commande.'],
+        ['6b. Investigation & Compliance (audit 2026-05)', 'Section dépliable du formulaire : Lot / UDI, Investigation started (date/heure), Investigation result (conclusion), CAPA required? (oui → choisir un CAPA dans le registre), Vigilance reportable? (oui → saisir la référence régulateur). Tous ces champs sont visibles aussi dans la vue lecture seule.'],
         ['7. Action corrective (Resolution)', 'Renseigner Resolution / Response : ce qui a été fait pour satisfaire le client ET prévenir la récidive. Obligatoire pour passer en Resolved.'],
         ['8. Clôture du dossier', 'Statut Resolved → Closed avec Resolved Date. Le Tableau de Bord calcule la satisfaction client sur les 30 derniers jours à partir des dossiers clôturés.'],
       ],
@@ -548,6 +555,7 @@ const CW_HELP = {
         ['4. Notification & read receipt', 'The assignee gets a 🔔 toast on app open + a persistent banner across all pages. Opening the record (👁 View) marks it "seen" automatically — the envelope icon flips from 📧 to 📬.'],
         ['5. Follow-up reminder', 'Fill Follow-up Date + Follow-up Assignee. The record shows up on the Dashboard with a "days remaining" counter: red if overdue, amber ≤3 days. Use ✓ Mark Follow-up Done to close only the reminder (without closing the record).'],
         ['6. Root-cause investigation', 'Fill Root Cause: why did this happen. If it\'s a product defect, create a Non-Conformity report — the NC page prefills the same Case # / order number.'],
+        ['6b. Investigation & Compliance (2026-05 audit)', 'Collapsible section on the form: Lot / UDI, Investigation started (date/time), Investigation result (findings), CAPA required? (yes → pick a CAPA from the register), Vigilance reportable? (yes → enter the regulator reference). All these fields are also visible on the read-only view.'],
         ['7. Corrective action (Resolution)', 'Fill Resolution / Response: what was done to satisfy the customer AND prevent recurrence. Required before moving to Resolved.'],
         ['8. Close the record', 'Status Resolved → Closed with a Resolved Date. The Dashboard computes customer satisfaction (last 30 days) from closed records.'],
       ],
@@ -730,12 +738,14 @@ const CW_HELP = {
         ['2. Réceptionner les livraisons', 'Créer un lot pour chaque livraison : quantité, date de péremption, fournisseur.'],
         ['3. Consommation FEFO', 'Le système déduit automatiquement du lot le plus ancien en premier.'],
         ['4. Surveiller les alertes', 'Le tableau de bord affiche les alertes stock pour les articles sous le seuil.'],
-        ['5. Demander un réapprovisionnement', 'Créer une réquisition pour demander l\'approbation d\'achat.'],
+        ['5. Conditions de stockage (audit 2026-05)', 'Champ Storage conditions sur la fiche article (ex : « 15-25 °C, sec, protégé de la lumière ») — visible directement dans la colonne « Storage » du catalogue. Texte tronqué à 50 caractères ; passer la souris pour voir l\'intégralité.'],
+        ['6. Demander un réapprovisionnement', 'Créer une réquisition pour demander l\'approbation d\'achat.'],
       ],
       buttons: [
         ['+ Ajouter Matière', 'Enregistrer un nouveau type de matière.'],
         ['+ Réceptionner Lot', 'Enregistrer une nouvelle livraison comme lot daté.'],
         ['📋 Réquisitions', 'Soumettre une demande de réapprovisionnement.'],
+        ['Colonne Storage', 'Conditions de stockage de l\'article (température, humidité, lumière…) — depuis le catalogue des articles. Modifiable via ✏ Edit.'],
       ]
     },
     en: {
@@ -746,12 +756,14 @@ const CW_HELP = {
         ['2. Receive deliveries', 'Create a lot for each delivery: quantity, expiry date, supplier.'],
         ['3. FEFO consumption', 'System automatically deducts from the oldest lot first.'],
         ['4. Monitor alerts', 'Dashboard shows stock alerts for items below minimum threshold.'],
-        ['5. Request restock', 'Create a requisition to request purchasing approval.'],
+        ['5. Storage conditions (2026-05 audit)', 'Storage conditions field on the item card (e.g. "15-25 °C, dry, protected from light") — visible directly in the catalogue\'s "Storage" column. Long text is truncated to 50 chars; hover to read the full string.'],
+        ['6. Request restock', 'Create a requisition to request purchasing approval.'],
       ],
       buttons: [
         ['+ Add Material', 'Register a new material type.'],
         ['+ Receive Lot', 'Record a new delivery as a dated lot.'],
         ['📋 Requisitions', 'Submit a restock request to management.'],
+        ['Storage column', 'Storage conditions for the item (temperature, humidity, light…) — sourced from the item catalogue. Edit via ✏ Edit.'],
       ]
     }
   },
@@ -800,7 +812,8 @@ const CW_HELP = {
         ['4. Soumettre', 'Bouton ✅ Approuver (libération pour expédition) · ❌ Rejeter (quarantaine + NC obligatoire) · ⏸ Mettre en attente (vérification supplémentaire).'],
         ['5. Si rejeté', 'Sélectionner l\'étape à reprendre (Printing/Thermoforming/etc.) — le pipeline clocking.html remet cette étape en "pending" pour le prochain opérateur. Une bannière NC s\'affiche avec un lien pré-rempli vers non_conformity.html.'],
         ['6. Hand-off automatique', 'Arrivée depuis la Traçabilité avec ?order=&lot= : la commande et le lot sont pré-sélectionnés, le formulaire s\'ouvre, on scrolle dessus. Rejet → NC → source=qc automatiquement tracé.'],
-        ['7. Historique & certificat', 'Tableau en bas : chaque QC passé avec contrôleur, date, compteurs passed/failed, verdict. Cliquer 🖨 Rapport pour réimprimer un certificat ancien.'],
+        ['7. Liens NC + Procédure + Mesures (audit 2026-05)', 'Trois champs supplémentaires en bas du formulaire : Linked Non-Conformity (dropdown des NC ouvertes — sélectionner pour lier le QC à un rapport NC existant) · Procedure reference (le n° de SOP/WI suivi lors du contrôle) · Measures taken (quarantaine, rework, scrap…).'],
+        ['8. Historique & certificat', 'Tableau en bas : chaque QC passé avec contrôleur, date, compteurs passed/failed, verdict. Cliquer 🖨 Rapport pour réimprimer un certificat ancien.'],
       ],
       buttons: [
         ['+ New QC Check', 'Ouvrir le formulaire de contrôle.'],
@@ -822,7 +835,8 @@ const CW_HELP = {
         ['4. Submit', '✅ Approve (release for shipment) · ❌ Reject (quarantine + NC required) · ⏸ On hold (extra verification).'],
         ['5. On rejection', 'Pick the step to redo (Printing/Thermoforming/etc.) — the clocking.html pipeline flips that step back to "pending" for the next operator. NC banner appears with a pre-filled link to non_conformity.html.'],
         ['6. Auto hand-off', 'Arriving from Traceability with ?order=&lot=: the order and lot are pre-selected, the form opens, we scroll to it. Reject → NC → source=qc is tracked automatically.'],
-        ['7. History & certificate', 'Table at the bottom: every past QC with controller, date, pass/fail counters, verdict. Click 🖨 Report to re-print an old certificate.'],
+        ['7. NC link + Procedure + Measures (2026-05 audit)', 'Three extra fields at the bottom of the form: Linked Non-Conformity (dropdown of open NCs — pick to bind the QC to an existing NC report) · Procedure reference (the SOP/WI number that was followed) · Measures taken (quarantine, rework, scrap…).'],
+        ['8. History & certificate', 'Table at the bottom: every past QC with controller, date, pass/fail counters, verdict. Click 🖨 Report to re-print an old certificate.'],
       ],
       buttons: [
         ['+ New QC Check', 'Open the inspection form.'],
@@ -1205,6 +1219,72 @@ const CW_HELP = {
       ]
     }
   },
+
+  capa: {
+    fr: {
+      role: 'Responsable Qualité · propriétaire de chaque CAPA = personne nommée dans le champ Owner',
+      purpose: 'ISO 13485 §8.5.2 / §8.5.3 — Registre des actions correctives et préventives (CAPA). Séparé des Non-Conformités : une NC peut générer 0, 1 ou plusieurs CAPAs ; un CAPA peut aussi venir d\'une Réclamation, d\'un Audit ou être autonome. Chaque CAPA suit son propre cycle de vie Open → In Progress → Verified → Closed, avec contrôle d\'efficacité obligatoire avant clôture.',
+      process: [
+        ['1. Créer un CAPA', '+ New CAPA, ou créé en ligne depuis la fiche NC (« 🛠 Linked CAPAs ») ou la fiche Réclamation (case « CAPA required? » → Yes).'],
+        ['2. Renseigner la source', 'Source = NC / Feedback / Audit / Other. Si NC ou Feedback : coller l\'UUID source pour conserver la traçabilité.'],
+        ['3. Décrire le problème + cause racine', 'Problem statement (ce qui s\'est passé) et Root cause (pourquoi). Le système n\'impose pas de méthode (5 pourquoi, Ishikawa…) mais le champ est obligatoire avant clôture.'],
+        ['4. Plan d\'action + propriétaire + échéance', 'Action plan : ce qui sera fait. Owner : qui s\'en charge. Due date : date butoir. Le registre surligne en rouge les CAPAs en retard, en ambre celles à ≤7 jours.'],
+        ['5. Suivi de l\'avancement', 'Statut : Open (créé, rien fait) → In Progress (action en cours) → Verified (action terminée + vérifiée) → Closed (clôture formelle après contrôle d\'efficacité). Cancelled si le CAPA est invalidé.'],
+        ['6. Contrôle d\'efficacité', 'Effectiveness check : preuve que l\'action a corrigé le problème (audit de suivi, absence de récidive sur N lots, retour client…). Renseigner avant de passer en Verified.'],
+        ['7. Clôture + signature', 'Verified by + Verified at sont posés automatiquement quand le statut passe à Verified ou Closed. Closed at est posé au moment du passage à Closed.'],
+        ['8. Export CSV pour audit', 'Le bouton 📥 Export CSV exporte la vue filtrée actuelle (cohérente avec les KPIs et la barre de recherche) — utilisable directement dans le classeur ISO 13485.'],
+      ],
+      buttons: [
+        ['+ New CAPA', 'Ouvre le formulaire de création. CAPA # auto-généré (préfixe CAPA-YYYYMMDD-NNN) si laissé vide.'],
+        ['📥 Export CSV', 'Télécharge la vue filtrée (filtres + recherche actifs) en .csv.'],
+        ['Carreau Total / Open / In Progress / Verified / Closed / Cancelled', 'KPI cliquable — filtre la liste par statut. Cliquer à nouveau pour effacer le filtre.'],
+        ['🔎 Barre de recherche', 'Recherche libre sur CAPA #, titre, propriétaire, source, problème, action.'],
+        ['Filtre Source', 'NC · Feedback · Audit · Other ou « All sources ».'],
+        ['Filtre Owner', 'Liste auto-générée à partir des owners existants.'],
+        ['Colonnes triables', 'Clic sur l\'en-tête pour trier asc/desc (CAPA #, Title, Source, Owner, Due, Status, Opened).'],
+        ['Lien depuis NC', 'Le badge CAPA-… dans la fiche NC (tuile « 🛠 Linked CAPAs ») ouvre le CAPA correspondant.'],
+        ['Lien depuis Feedback', 'Champ « CAPA ID » de la vue Réclamation : clic = ouvre le CAPA correspondant.'],
+        ['🗑 Delete', 'Supprime le CAPA — bouton visible uniquement en mode édition. Préférer Cancelled pour conserver la trace.'],
+        ['Statut : Open', 'CAPA créé, aucune action démarrée.'],
+        ['Statut : In Progress', 'Plan d\'action en cours d\'exécution.'],
+        ['Statut : Verified', 'Action terminée + contrôle d\'efficacité validé.'],
+        ['Statut : Closed', 'Clôture formelle (Closed at posé automatiquement).'],
+        ['Statut : Cancelled', 'CAPA invalidé (doublon, faux positif…) — conservé pour l\'historique.'],
+      ]
+    },
+    en: {
+      role: 'Quality Manager · each CAPA is owned by the person named in the Owner field',
+      purpose: 'ISO 13485 §8.5.2 / §8.5.3 — Corrective & Preventive Action register. Separated from Non-Conformities: one NC may spawn 0, 1 or several CAPAs; a CAPA may also come from a Customer Feedback record, an Audit, or be standalone. Each CAPA has its own lifecycle Open → In Progress → Verified → Closed, with a mandatory effectiveness check before closure.',
+      process: [
+        ['1. Create the CAPA', '+ New CAPA, or create inline from an NC ("🛠 Linked CAPAs" tile) or from a Customer Feedback record (set "CAPA required?" → Yes).'],
+        ['2. Set the source', 'Source = NC / Feedback / Audit / Other. If NC or Feedback, paste the source UUID to preserve traceability.'],
+        ['3. State the problem + root cause', 'Problem statement (what happened) and Root cause (why). The system does not impose a method (5-Whys, Ishikawa…) but the field is required before closure.'],
+        ['4. Action plan + owner + due date', 'Action plan: what will be done. Owner: who owns it. Due date: deadline. The register highlights overdue CAPAs in red and ≤7-day-due in amber.'],
+        ['5. Track progress', 'Status: Open (created, nothing done) → In Progress (action under way) → Verified (action done + verified) → Closed (formal closure after effectiveness check). Cancelled if the CAPA was invalidated.'],
+        ['6. Effectiveness check', 'Effectiveness check: evidence the action fixed the problem (follow-up audit, no recurrence over N lots, customer confirmation…). Fill it in before moving to Verified.'],
+        ['7. Closure + signature', 'Verified by + Verified at are auto-stamped when the status moves to Verified or Closed. Closed at is set on the move to Closed.'],
+        ['8. CSV export for audit', 'The 📥 Export CSV button exports the current filtered view (consistent with the KPI tiles and the search bar) — ready for the ISO 13485 binder.'],
+      ],
+      buttons: [
+        ['+ New CAPA', 'Opens the create form. CAPA # is auto-generated (prefix CAPA-YYYYMMDD-NNN) if left blank.'],
+        ['📥 Export CSV', 'Downloads the filtered view (current filters + search) as .csv.'],
+        ['Total / Open / In Progress / Verified / Closed / Cancelled tiles', 'Clickable KPI — filters the list by status. Click again to clear.'],
+        ['🔎 Search bar', 'Free-text search over CAPA #, title, owner, source, problem, action plan.'],
+        ['Source filter', 'NC · Feedback · Audit · Other or "All sources".'],
+        ['Owner filter', 'Dropdown auto-populated from existing owners.'],
+        ['Sortable columns', 'Click a header to sort asc/desc (CAPA #, Title, Source, Owner, Due, Status, Opened).'],
+        ['Link from NC', 'The CAPA-… badge in an NC\'s "🛠 Linked CAPAs" tile opens the matching CAPA.'],
+        ['Link from Feedback', '"CAPA ID" field in the feedback view: click = opens the linked CAPA.'],
+        ['🗑 Delete', 'Hard-delete — visible only in edit mode. Prefer Cancelled to keep a paper trail.'],
+        ['Status: Open', 'CAPA created, no action started.'],
+        ['Status: In Progress', 'Action plan being executed.'],
+        ['Status: Verified', 'Action complete + effectiveness check validated.'],
+        ['Status: Closed', 'Formal closure (Closed at auto-stamped).'],
+        ['Status: Cancelled', 'CAPA invalidated (duplicate, false positive…) — retained for history.'],
+      ]
+    }
+  },
+
 };
 
 // ─── Build bilingual help panel HTML ───────────────────────────────────
