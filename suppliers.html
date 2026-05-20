@@ -126,6 +126,29 @@ label{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transfor
         <label>Inventory Items Using This Supplier</label>
         <div id="invLinks"></div>
       </div>
+      <div id="supDocSection" style="display:none;margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px">
+        <label style="font-weight:700">📜 Certifications &amp; contracts</label>
+        <div id="supDocList" style="margin:8px 0;font-size:13px"></div>
+        <div style="display:grid;grid-template-columns:120px 1fr 130px 140px auto;gap:6px;align-items:end">
+          <div><label style="font-size:11px;color:#64748b">Kind</label>
+            <select class="fi" id="sdKind" style="height:36px">
+              <option value="certification">Certification</option>
+              <option value="contract">Contract</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div><label style="font-size:11px;color:#64748b">Title</label>
+            <input class="fi" id="sdTitle" placeholder="e.g. ISO 13485:2016"/>
+          </div>
+          <div><label style="font-size:11px;color:#64748b">Reference no.</label>
+            <input class="fi" id="sdRef" placeholder="cert / contract #"/>
+          </div>
+          <div><label style="font-size:11px;color:#64748b">Expires</label>
+            <input class="fi" id="sdExp" type="date"/>
+          </div>
+          <button class="btn" type="button" onclick="addSupDoc()" style="height:36px">＋ Add</button>
+        </div>
+      </div>
 
       <div class="row-btns">
         <button class="btn" onclick="saveSupplier()">💾 Save</button>
@@ -176,6 +199,50 @@ function renderGrid(suppliers,items){
   }).join('')
 }
 
+// Supplier documents (certifications, contracts) with expiry badges.
+async function loadSupDocs(supId){
+  const wrap=document.getElementById('supDocList'); wrap.innerHTML='⏳'
+  const{data,error}=await sb.from('supplier_documents').select('*').eq('supplier_id',supId).order('expires_at',{ascending:true,nullsFirst:false})
+  if(error){ wrap.innerHTML='<div style="color:#dc2626">Could not load: '+error.message+'</div>'; return }
+  if(!data||!data.length){ wrap.innerHTML='<div style="color:#94a3b8">No documents yet.</div>'; return }
+  const today=new Date().toISOString().slice(0,10)
+  const soon=new Date(Date.now()+30*86400000).toISOString().slice(0,10)
+  wrap.innerHTML=data.map(d=>{
+    const status = !d.expires_at ? '' : (d.expires_at<today ? '<span style="background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">EXPIRED</span>'
+                              : d.expires_at<soon ? '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">SOON</span>'
+                              : '<span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">VALID</span>')
+    return `<div style="display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;background:#fff">
+      <span style="background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700">${d.kind}</span>
+      <strong style="flex:1;font-size:13px">${(d.title||'—')}</strong>
+      <span style="font-size:11px;color:#64748b">${d.reference_no||''}</span>
+      <span style="font-size:11px;color:#0f172a">${d.expires_at?'exp '+d.expires_at:''}</span>
+      ${status}
+      <button class="btn btn-sm btn-ghost" type="button" onclick="deleteSupDoc('${d.id}','${supId}')" title="Delete">🗑</button>
+    </div>`
+  }).join('')
+}
+window.addSupDoc=async()=>{
+  if(!editId){ alert('Save the supplier first, then re-open to add documents.'); return }
+  const row = {
+    supplier_id: editId,
+    kind: document.getElementById('sdKind').value,
+    title: document.getElementById('sdTitle').value.trim()||null,
+    reference_no: document.getElementById('sdRef').value.trim()||null,
+    expires_at: document.getElementById('sdExp').value||null,
+  }
+  if(!row.title && !row.reference_no){ alert('Add a title or a reference number.'); return }
+  const{error}=await sb.from('supplier_documents').insert([row])
+  if(error){ alert('Could not save: '+error.message); return }
+  ;['sdTitle','sdRef','sdExp'].forEach(id=>document.getElementById(id).value='')
+  loadSupDocs(editId)
+}
+window.deleteSupDoc=async(id,supId)=>{
+  if(!confirm('Delete this document?')) return
+  const{error}=await sb.from('supplier_documents').delete().eq('id',id)
+  if(error){ alert('Could not delete: '+error.message); return }
+  loadSupDocs(supId)
+}
+
 window.openAdd=()=>{
   editId=null
   document.getElementById('moTitle').textContent='Add Supplier'
@@ -183,6 +250,8 @@ window.openAdd=()=>{
   document.getElementById('sDefCur').value='EUR'
   document.getElementById('sDefDist').checked=false
   document.getElementById('invLinkSection').style.display='none'
+  document.getElementById('supDocSection').style.display='none'
+  document.getElementById('supDocList').innerHTML=''
   document.getElementById('mSupplier').classList.add('on')
 }
 
@@ -200,6 +269,9 @@ window.editSupplier=async(id)=>{
   document.getElementById('sDefPrice').value=s.default_price_per_aligner??''
   document.getElementById('sDefCur').value=s.default_currency||'EUR'
   document.getElementById('sDefDist').checked=!!s.is_default_distributor
+  // Documents (certifications + contracts)
+  document.getElementById('supDocSection').style.display='block'
+  loadSupDocs(id)
   // Load linked inventory items
   const{data:items}=await sb.from('inventory_items').select('id,name').eq('preferred_supplier_id',id)
   const sec=document.getElementById('invLinkSection')

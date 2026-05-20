@@ -400,6 +400,32 @@ tbody tr:hover{background:#f8fafc}
       </div>
       <div><label class="lbl">Closed Date</label><input type="date" class="fi" id="nClosed"/></div>
     </div>
+    <!-- LINKED CAPA (separate register from the corrective action above) -->
+    <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--bdr)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">🛠 Linked CAPAs</strong>
+        <span style="font-size:11px;color:var(--mu)">A CAPA tackles the root cause — separate from the immediate correction above.</span>
+      </div>
+      <div id="ncCapaList" style="font-size:13px;margin-bottom:8px">Save the NC first to link CAPAs.</div>
+      <div id="ncCapaForm" style="display:none;background:#f8fafc;border:1px solid var(--bdr);border-radius:10px;padding:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label class="lbl" style="font-size:11px">Title *</label><input class="fi" id="ncCapaTitle" placeholder="e.g. Update QC procedure"/></div>
+          <div><label class="lbl" style="font-size:11px">Owner</label><input class="fi" id="ncCapaOwner" placeholder="Person responsible"/></div>
+          <div style="grid-column:1/-1"><label class="lbl" style="font-size:11px">Action plan</label><textarea class="fi" id="ncCapaPlan" rows="2" placeholder="What will be done to prevent recurrence?"></textarea></div>
+          <div><label class="lbl" style="font-size:11px">Due date</label><input type="date" class="fi" id="ncCapaDue"/></div>
+          <div><label class="lbl" style="font-size:11px">Status</label>
+            <select class="fi" id="ncCapaStatus">
+              <option value="open">Open</option><option value="in_progress">In progress</option>
+              <option value="verified">Verified</option><option value="closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-ghost" type="button" onclick="document.getElementById('ncCapaForm').style.display='none'">Cancel</button>
+          <button class="btn btn-blue" type="button" onclick="saveNcCapa()">💾 Save CAPA</button>
+        </div>
+      </div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:16px;border-top:1px solid var(--bdr)">
       <button class="btn btn-ghost" onclick="closeNC()">Cancel</button>
       <button class="btn btn-blue" id="btnSave" onclick="saveNC()">💾 Save NC Report</button>
@@ -501,6 +527,8 @@ function render(){
 
 window.openNew=async(prefill={})=>{
   editId=null;$('ncTitle').textContent='⚠️ New Non-Conformity Report';
+  document.getElementById('ncCapaList').textContent='Save the NC first to link CAPAs.';
+  document.getElementById('ncCapaForm').style.display='none';
   $('nDate').value=new Date().toISOString().slice(0,10);
   ['nDet','nDesc','nRoot','nAction','nClosed','nAssigned','nDue','nVerified'].forEach(id=>$(id).value='');
   if(prefill.desc) $('nDesc').value=prefill.desc;
@@ -523,9 +551,46 @@ window.openNew=async(prefill={})=>{
   }
   $('ncModal').classList.add('on');
 };
+// CAPA register — separate table; one NC can have several CAPAs.
+async function loadNcCapas(ncId){
+  const el=document.getElementById('ncCapaList'); if(!el) return
+  el.textContent='⏳ Loading…'
+  const{data,error}=await sb.from('capa').select('id,capa_no,title,owner,due_date,status,action_plan').eq('source_type','nc').eq('source_id',ncId).order('created_at',{ascending:false})
+  if(error){ el.innerHTML='<span style="color:#dc2626">Could not load CAPAs: '+error.message+'</span>'; return }
+  if(!data||!data.length){ el.innerHTML='<span style="color:#94a3b8">No CAPA linked yet — fill the form below to create one.</span>'; return }
+  el.innerHTML=data.map(c=>`<div style="display:flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid var(--bdr);border-radius:8px;background:#fff;margin-bottom:6px">
+    <span style="background:#eef2ff;color:#3b5fe2;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700">${c.capa_no||c.id.slice(0,8)}</span>
+    <strong style="flex:1;font-size:13px">${c.title||'—'}</strong>
+    <span style="font-size:11px;color:#64748b">${c.owner||''}</span>
+    <span style="font-size:11px;color:#0f172a">${c.due_date?'due '+c.due_date:''}</span>
+    <span style="background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">${c.status||''}</span>
+  </div>`).join('')
+}
+window.saveNcCapa=async()=>{
+  if(!editId){ alert('Save the NC first, then add CAPAs.'); return }
+  const title=document.getElementById('ncCapaTitle').value.trim()
+  if(!title){ alert('CAPA title is required.'); return }
+  const row={
+    capa_no: 'CAPA-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+Math.floor(Math.random()*900+100),
+    source_type: 'nc', source_id: editId,
+    title,
+    action_plan: document.getElementById('ncCapaPlan').value.trim()||null,
+    owner: document.getElementById('ncCapaOwner').value.trim()||null,
+    due_date: document.getElementById('ncCapaDue').value||null,
+    status: document.getElementById('ncCapaStatus').value||'open',
+  }
+  const{error}=await sb.from('capa').insert([row])
+  if(error){ alert('Could not save CAPA: '+error.message); return }
+  ;['ncCapaTitle','ncCapaPlan','ncCapaOwner','ncCapaDue'].forEach(id=>document.getElementById(id).value='')
+  document.getElementById('ncCapaStatus').value='open'
+  loadNcCapas(editId)
+}
+
 window.editNC=(id)=>{
   const r=all.find(x=>String(x.id)===String(id));if(!r)return;
   editId=id;$('ncTitle').textContent='✏️ Edit NC — '+r.nc_number;
+  loadNcCapas(id);
+  document.getElementById('ncCapaForm').style.display='';
   $('nDate').value=r.report_date||'';
   loadOrderOptions().then(()=>{
     // After options loaded, try to set the value; if not found, add it

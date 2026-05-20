@@ -438,6 +438,18 @@ tr:hover td{background:#fafbfc}
           <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Action corrective proposée</label>
           <textarea class="fi" id="qcCA" rows="3" placeholder="Action corrective ou préventive..."></textarea>
         </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Lien à la NC (lot rejeté)</label>
+          <select class="fi" id="qcNcLink"><option value="">— No linked NC —</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Procédure CQ finale (référence)</label>
+          <input type="text" class="fi" id="qcProc" placeholder="e.g. QC-SOP-001 Rev.2"/>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Mesures prises</label>
+          <textarea class="fi" id="qcMeasures" rows="2" placeholder="Measurements taken / readings recorded..."></textarea>
+        </div>
       </div>
 
       <!-- RETURN TO STEP (shown only when rejected) -->
@@ -585,7 +597,15 @@ function ntf(msg,type){
 }
 
 // ── LOAD ──────────────────────────────────────────────────
+async function loadNcDropdown(){
+  try{
+    const{data}=await sb.from('non_conformity_reports').select('id,nc_number,description,status').order('created_at',{ascending:false}).limit(200)
+    const sel=document.getElementById('qcNcLink'); if(!sel) return
+    sel.innerHTML='<option value="">— No linked NC —</option>'+(data||[]).map(n=>`<option value="${n.id}">${(n.nc_number||n.id.slice(0,8))} — ${(n.description||'').slice(0,40)} · ${n.status||''}</option>`).join('')
+  }catch(e){}
+}
 async function load(){
+  loadNcDropdown()
   const[lr,er,qr,stRes,ssRes,bcRes,baRes]=await Promise.all([
     Promise.resolve({data:[]}),  // production_lots skipped — production tracked externally
     sb.from("employees").select("name,username").eq("is_active",true).order("name"),
@@ -945,7 +965,10 @@ window.submitQC=async(result)=>{
     overall_result:result,
     non_conformities:document.getElementById("qcNC").value.trim()||null,
     corrective_action:document.getElementById("qcCA").value.trim()||null,
-    return_to_step:document.getElementById("qcReturnStep")?document.getElementById("qcReturnStep").value||null:null
+    return_to_step:document.getElementById("qcReturnStep")?document.getElementById("qcReturnStep").value||null:null,
+    nc_id:(document.getElementById("qcNcLink")?document.getElementById("qcNcLink").value:null)||null,
+    procedure_ref:document.getElementById("qcProc")?document.getElementById("qcProc").value.trim()||null:null,
+    measures_taken:document.getElementById("qcMeasures")?document.getElementById("qcMeasures").value.trim()||null:null
   }])
   if(error){ntf("Erreur: "+error.message,"err");return}
 

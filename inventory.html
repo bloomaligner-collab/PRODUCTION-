@@ -457,6 +457,7 @@
       <div class="fg"><div><label class="fl">Min Qty (reorder point)</label><input class="fi" id="iMn" type="number" step="0.01" placeholder="0"/></div><div><label class="fl">Max Qty (target)</label><input class="fi" id="iMx" type="number" step="0.01" placeholder="0"/></div></div>
       <div class="fg"><div><label class="fl">Monthly Consumption</label><input class="fi" id="iMC" type="number" step="0.01" placeholder="0"/></div><div><label class="fl">Lead Time (days)</label><input class="fi" id="iLT" type="number" placeholder="0"/></div></div>
       <div class="fg"><div><label class="fl">Preferred Supplier</label><select class="fi" id="iSup"><option value="">— Select Supplier —</option></select></div><div><label class="fl">Auto Requisition</label><select class="fi" id="iAR"><option value="true">Enabled</option><option value="false">Disabled</option></select></div></div>
+      <div><label class="fl">Storage conditions</label><textarea class="fi" id="iStor" style="min-height:50px;resize:vertical" placeholder="e.g. Store at 15–25 °C, dry, protected from light"></textarea></div>
       <div><label class="fl">Notes</label><textarea class="fi" id="iNt" style="min-height:55px;resize:vertical" placeholder="Optional…"></textarea></div>
     </div>
     <div class="moa"><button class="btn b-gho" id="cItem">Cancel</button><button class="btn b-pri" id="svItem">Save Item</button></div>
@@ -758,11 +759,12 @@ window.doAdj=async(id,name,cur)=>{
 window.doEditItem=(id)=>{
   const it=allItems.find(x=>x.id===id);if(!it)return
   $('eiId').value=id;$('mItemT').textContent='Edit Item'
-  ;['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(f=>$(f).value='')
+  ;['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt','iStor'].forEach(f=>$(f).value='')
   $('iN').value=it.item_name||it.name||'';$('iC').value=it.category_name||it.category||'';$('iU').value=it.unit_of_measure||it.unit||''
   $('iSK').value=it.sku||'';$('iMn').value=it.min_qty||'';$('iMx').value=it.max_qty||''
   $('iMC').value=it.monthly_consumption||'';$('iLT').value=it.lead_time_days||''
   $('iAR').value=it.auto_requisition_enabled?'true':'false';$('iNt').value=it.notes||''
+  $('iStor').value=it.storage_conditions||''
   fillSupplierDropdowns();setTimeout(()=>{$('iSup').value=it.preferred_supplier_id||''},50)
   $('mItem').classList.add('on')
 }
@@ -772,7 +774,7 @@ $('btnAI').addEventListener('click',()=>{
   if(!_suppliersReady) loadSupplierDropdowns()
   whenSuppliersReady(()=>{
     $('eiId').value='';$('mItemT').textContent='Add New Item'
-    ;['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt'].forEach(id=>$(id).value='')
+    ;['iN','iC','iU','iSK','iMn','iMx','iMC','iLT','iNt','iStor'].forEach(id=>$(id).value='')
     $('iSup').value='';$('iAR').value='true'
     fillSupplierDropdowns()
     $('eItem').textContent=''
@@ -785,7 +787,7 @@ $('svItem').addEventListener('click',async()=>{
   const nm=$('iN').value.trim();if(!nm){$('eItem').textContent='Item name required';return}
   const id=$('eiId').value
   const _cat=$('iC').value.trim()||null,_unit=$('iU').value.trim()||'pcs'
-  const p={name:nm,item_name:nm,category_name:_cat,category:_cat,unit_of_measure:_unit,unit:_unit,sku:$('iSK').value.trim()||null,min_qty:Number($('iMn').value||0),min_stock:Number($('iMn').value||0),max_qty:Number($('iMx').value||0),monthly_consumption:Number($('iMC').value||0),lead_time_days:Number($('iLT').value||0),auto_requisition_enabled:$('iAR').value==='true',notes:$('iNt').value.trim()||null,active:true,updated_at:new Date().toISOString()}
+  const p={name:nm,item_name:nm,category_name:_cat,category:_cat,unit_of_measure:_unit,unit:_unit,sku:$('iSK').value.trim()||null,min_qty:Number($('iMn').value||0),min_stock:Number($('iMn').value||0),max_qty:Number($('iMx').value||0),monthly_consumption:Number($('iMC').value||0),lead_time_days:Number($('iLT').value||0),auto_requisition_enabled:$('iAR').value==='true',notes:$('iNt').value.trim()||null,storage_conditions:$('iStor').value.trim()||null,active:true,updated_at:new Date().toISOString()}
   const supIdVal=$('iSup').value;if(supIdVal)p.preferred_supplier_id=supIdVal
   // Set created_by only on new items (not edits)
   if(!id) p.created_by = (typeof CW_ACCESS!=='undefined'?CW_ACCESS.getName():null)||'Manager'

@@ -468,6 +468,38 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
       </div>
     </details>
 
+    <!-- COLLAPSIBLE: Investigation & Compliance (Lot/UDI, investigation, CAPA, vigilance) -->
+    <details class="fb-section">
+      <summary><span class="cw-ic">🔍 </span>Investigation &amp; Compliance</summary>
+      <div class="fb-section-body">
+        <div class="fw"><label class="form-label">Lot / UDI</label>
+          <input type="text" class="fi" id="fLotUdi" placeholder="Lot number or UDI (e.g. LOT-2026-031 / 0100…)"/>
+        </div>
+        <div><label class="form-label">Investigation started</label>
+          <input type="datetime-local" class="fi" id="fInvStart"/>
+        </div>
+        <div><label class="form-label">CAPA required?</label>
+          <select class="fi" id="fCapaReq" onchange="onCapaReqChange()">
+            <option value="">—</option><option value="no">No</option><option value="yes">Yes</option>
+          </select>
+        </div>
+        <div id="fCapaIdWrap" class="fw" style="display:none"><label class="form-label">CAPA ID (linked record)</label>
+          <select class="fi" id="fCapaId"><option value="">— Select an existing CAPA —</option></select>
+        </div>
+        <div><label class="form-label">Vigilance reportable?</label>
+          <select class="fi" id="fVigRep" onchange="onVigRepChange()">
+            <option value="">—</option><option value="no">No</option><option value="yes">Yes</option>
+          </select>
+        </div>
+        <div id="fVigIdWrap" style="display:none"><label class="form-label">Vigilance ID / reference</label>
+          <input type="text" class="fi" id="fVigId" placeholder="e.g. ANSM-MED-2026-…"/>
+        </div>
+        <div class="fw"><label class="form-label">Investigation result</label>
+          <textarea class="fi" id="fInvRes" rows="2" placeholder="What did the investigation conclude?"></textarea>
+        </div>
+      </div>
+    </details>
+
     <!-- COLLAPSIBLE: Follow-up Reminder -->
     <details class="fb-section">
       <summary><span class="cw-ic">⏰ </span>Follow-up Reminder</summary>
@@ -1099,12 +1131,38 @@ window.resetFbCustomise=async()=>{
   ntf(err?('Reset failed: '+err):'Form layout reset', err?'err':'ok')
 }
 
+window.onCapaReqChange=()=>{
+  const v=document.getElementById('fCapaReq').value
+  document.getElementById('fCapaIdWrap').style.display=(v==='yes')?'':'none'
+  if(v==='yes') populateCapaDropdown()
+}
+window.onVigRepChange=()=>{
+  const v=document.getElementById('fVigRep').value
+  document.getElementById('fVigIdWrap').style.display=(v==='yes')?'':'none'
+}
+let _capaListCache=null
+async function populateCapaDropdown(){
+  const sel=document.getElementById('fCapaId'); if(!sel) return
+  if(_capaListCache===null){
+    try{
+      const{data}=await sb.from('capa').select('id,capa_no,title,status').order('created_at',{ascending:false}).limit(500)
+      _capaListCache=data||[]
+    }catch{ _capaListCache=[] }
+  }
+  const cur=sel.value
+  sel.innerHTML='<option value="">— Select an existing CAPA —</option>'
+    + _capaListCache.map(c=>`<option value="${_esc(c.id)}">${_esc(c.capa_no||c.id.slice(0,8))} — ${_esc((c.title||'').slice(0,40))} · ${_esc(c.status||'')}</option>`).join('')
+  if(cur) sel.value=cur
+}
+
 window.openNew=()=>{
   editId=null
   caseChatTeardown()  // blank new record has no case yet — hide the panel
   document.getElementById('mTitle').textContent='💬 Log Feedback'
   document.getElementById('fDate').value=new Date().toISOString().slice(0,10)
-  ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed','fFollowDate','fFollowNote'].forEach(id=>document.getElementById(id).value='')
+  ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed','fFollowDate','fFollowNote','fLotUdi','fInvStart','fInvRes','fVigId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
+  ;['fCapaReq','fVigRep','fCapaId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
+  ;['fCapaIdWrap','fVigIdWrap'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'})
   const _cNew=document.getElementById('fCase'); _cNew.readOnly=false; _cNew.title=''; _cNew.style.background=''; _cNew.style.cursor=''
   // Default follow-up owner = Me (so 'remind me to check back')
   const fa=document.getElementById('fFollowAssignee'); if(fa) fa.value='__self__'
@@ -1146,8 +1204,18 @@ window.editRec=(id)=>{
   setPriority(r.severity||'medium')
   document.getElementById('fStatus').value=r.status||'open'
   document.getElementById('fDesc').value=r.description||''
-  document.getElementById('fRoot').value=r.notes||''
+  document.getElementById('fRoot').value=r.root_cause||r.notes||''
   document.getElementById('fAction').value=r.resolution||''
+  // Investigation & Compliance
+  document.getElementById('fLotUdi').value=r.lot_udi||''
+  document.getElementById('fInvStart').value=r.investigation_started_at?String(r.investigation_started_at).slice(0,16):''
+  document.getElementById('fInvRes').value=r.investigation_result||''
+  const _fcr=document.getElementById('fCapaReq'); _fcr.value=r.capa_required===true?'yes':(r.capa_required===false?'no':'')
+  const _fvr=document.getElementById('fVigRep'); _fvr.value=r.vigilance_reportable===true?'yes':(r.vigilance_reportable===false?'no':'')
+  document.getElementById('fVigId').value=r.vigilance_id||''
+  document.getElementById('fCapaIdWrap').style.display=(_fcr.value==='yes')?'':'none'
+  document.getElementById('fVigIdWrap').style.display=(_fvr.value==='yes')?'':'none'
+  ;(async()=>{ await populateCapaDropdown(); const sel=document.getElementById('fCapaId'); if(sel) sel.value=r.capa_id||'' })()
   document.getElementById('fAssigned').value=r.assigned_to||''
   document.getElementById('fClosed').value=r.resolved_at?String(r.resolved_at).slice(0,10):''
   // Follow-up fields — stored owner value maps back to the dropdown;
@@ -1349,7 +1417,15 @@ window.save=async()=>{
     status:document.getElementById('fStatus').value,
     description:desc,
     notes:document.getElementById('fRoot').value.trim()||null,
+    root_cause:document.getElementById('fRoot').value.trim()||null,
     resolution:document.getElementById('fAction').value.trim()||null,
+    lot_udi:document.getElementById('fLotUdi').value.trim()||null,
+    investigation_started_at:document.getElementById('fInvStart').value?new Date(document.getElementById('fInvStart').value).toISOString():null,
+    investigation_result:document.getElementById('fInvRes').value.trim()||null,
+    capa_required:(()=>{const v=document.getElementById('fCapaReq').value;return v==='yes'?true:(v==='no'?false:null)})(),
+    capa_id:(document.getElementById('fCapaReq').value==='yes'?(document.getElementById('fCapaId').value||null):null),
+    vigilance_reportable:(()=>{const v=document.getElementById('fVigRep').value;return v==='yes'?true:(v==='no'?false:null)})(),
+    vigilance_id:(document.getElementById('fVigRep').value==='yes'?(document.getElementById('fVigId').value.trim()||null):null),
     assigned_to:newAssignee,
     resolved_at:document.getElementById('fClosed').value||null
   }
