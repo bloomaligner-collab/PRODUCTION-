@@ -760,7 +760,7 @@ $('btnAutoR').addEventListener('click',async()=>{
   loadAll()
 })
 async function updReq(status){const id=$('raId').value.trim();if(!id){notify('Paste requisition ID','err');return}
-  const act=$('raAct').value.trim(),note=$('raNote').value.trim(),p={status,note:note||null}
+  const act=$('raAct').value.trim(),note=$('raNote').value.trim(),p={status,notes:note||null}
   if(status==='approved'){p.approved_by=act||null;p.approved_at=new Date().toISOString()}
   if(status==='fulfilled')p.fulfilled_at=new Date().toISOString()
   const{error}=await sb.from('inventory_requisitions').update(p).eq('id',id);if(error){notify(error.message,'err');return}
