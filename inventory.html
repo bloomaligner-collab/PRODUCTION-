@@ -1067,60 +1067,42 @@ window.calculateRequisition = async function() {
     notify('Add BOM entries first before calculating', 'err'); return
   }
 
-  // Get current inventory snapshot
-  const { data: lots } = await sb.from('inventory_lots_enriched_view')
-    .select('item_name,available_qty').limit(500)
-  const stockMap = {}
-  ;(lots||[]).forEach(l => { stockMap[l.item_name] = (stockMap[l.item_name]||0) + Number(l.available_qty||0) })
-
-  // Calculate aligners still to produce
-  const _excl=await getBloomExcluded()
-  const activeCases = bomCaseData.filter(c => !_excl.has((c.current_status||'').toUpperCase()))
-  let totalPlanned = 0
-  activeCases.forEach(c => {
-    const als = alignerMapBom[String(c.case_id)] || []
-    const tp = als.find(a=>a.order_type==='TreatmentPlan') || als[0]
-    if (tp) totalPlanned += Number(tp.number_of_aligners)||(Number(tp.aligner_upper||0)+Number(tp.aligner_lower||0))
-  })
-  const produced = prodRecordsBom.filter(r=>r.status==='complete').reduce((a,r)=>a+(r.aligners_produced||0),0)
-  const alignersLeft = Math.max(0, totalPlanned - produced)
-  const casesLeft = activeCases.length
-
-  // Calculate materials needed
-  reqResults = allBom.filter(b=>b.active).map(b => {
-    const reserve = (b.safety_reserve_pct||10) / 100
-    const basis = b.qty_basis || 'per_aligner'
-    const multiplier = basis === 'per_case' ? casesLeft : alignersLeft
-    const qtyRaw = b.qty_per_aligner * multiplier
-    const qtyWithReserve = Math.ceil(qtyRaw * (1 + reserve))
-    const inStock = stockMap[b.material_name] || 0
-    const toOrder = Math.max(0, qtyWithReserve - inStock)
-    const packsToOrder = b.pack_size ? Math.ceil(toOrder / b.pack_size) : null
+  // Single source of truth: the generate_auto_requisitions() RPC. It
+  // already handles per-case vs per-aligner BOM, available-qty stock, and
+  // min-stock (below min_qty) top-ups — so the calculator matches the
+  // Auto-Generate button exactly.
+  const { data: rows, error } = await sb.rpc('generate_auto_requisitions')
+  if (error) { notify(error.message, 'err'); return }
+  const nN = v => { const n = Number(v); return Number.isFinite(n) ? n : 0 }
+  reqResults = (rows || []).map(r => {
+    const need = nN(r.qty_needed), inStock = nN(r.qty_in_stock), toOrder = nN(r.qty_to_order)
     return {
-      bom_id: b.id,
-      material_name: b.material_name,
-      unit: b.unit,
-      qty_needed: Math.ceil(qtyRaw),
-      qty_reserve: Math.ceil(qtyRaw * reserve),
-      qty_total: qtyWithReserve,
+      bom_id: r.bom_id || null,
+      material_name: r.material_name,
+      unit: r.unit || '',
+      qty_needed: need,
+      qty_reserve: 0,
+      qty_total: need,
       in_stock: inStock,
       to_order: toOrder,
-      pack_size: b.pack_size,
-      pack_unit: b.pack_unit,
-      packs_to_order: packsToOrder,
-      sufficient: toOrder <= 0
+      pack_size: r.pack_size != null ? nN(r.pack_size) : null,
+      pack_unit: '',
+      packs_to_order: r.packs_to_order != null ? nN(r.packs_to_order) : null,
+      sufficient: toOrder <= 0,
+      from_bom: r.bom_id != null
     }
-  })
+  }).sort((a,b)=> b.to_order - a.to_order)
 
   // Render results
   $('reqResultCard').style.display = 'block'
-  $('reqSubTitle').textContent = `Based on ${alignersLeft.toLocaleString()} aligners still to produce across ${activeCases.length} active cases`
+  const alignersLeft = Number(($('reqAlignersLeft').textContent||'0').replace(/,/g,'')) || 0
+  $('reqSubTitle').textContent = `${reqResults.length} material(s) · forecast + min-stock reorder`
   $('reqLastCalc').textContent = `Last calculated: ${new Date().toLocaleTimeString()}`
 
   const needsOrder = reqResults.filter(r=>!r.sufficient)
   $('reqResultTbl').innerHTML = reqResults.map(r => {
     const stCls = r.sufficient ? 'bg' : r.to_order > 1000 ? 'br' : 'ba'
-    const stLbl = r.sufficient ? '✅ Covered' : '⚠️ Order Needed'
+    const stLbl = r.sufficient ? '✅ Covered' : (r.from_bom ? '⚠️ Order Needed' : '⚠️ Below Min')
     return `<tr style="${!r.sufficient?'background:var(--amber-50)':''}">
       <td style="font-weight:700">${r.material_name}</td>
       <td class="mono">${r.unit}</td>
