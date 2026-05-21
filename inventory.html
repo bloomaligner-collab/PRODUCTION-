@@ -692,7 +692,7 @@ function rReqs(){
   const mk=r=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;gap:8px">
       <div><div style="font-size:14px;font-weight:700">${r.item_name}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Qty: <strong>${r.quantity_requested}</strong> · ${r.requester_name||'—'} · ${fdt(r.created_at)}</div>${r.purpose?`<div style="font-size:11px;color:var(--dim);margin-top:2px">${r.purpose}</div>`:''}</div>
-      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${stBdg(r.status)}<span class="bdg ${r.priority==='urgent'?'br':r.priority==='high'?'ba':'bgy'}">${r.priority}</span><span class="bdg bgy" style="font-size:9px">${r.generated_by==='auto'?'⚡Auto':'👤Manual'}</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${stBdg(r.status)}<span class="bdg ${r.priority==='urgent'?'br':r.priority==='high'?'ba':'bgy'}">${r.priority}</span><span class="bdg bgy" style="font-size:9px">${(r.generated_by==='auto'||r.requester_name==='Auto-Generator')?'⚡Auto':'👤Manual'}</span></div>
     </div>
     <div style="font-size:10px;color:var(--dim);margin-top:8px;word-break:break-all">ID: ${r.id}</div>
   </div>`
@@ -734,11 +734,31 @@ $('btnFefo').addEventListener('click',async()=>{
 // Requisitions
 $('btnSubR').addEventListener('click',async()=>{
   const item=$('nrItem').value.trim(),qty=Number($('nrQty').value||0);if(!item||qty<=0){notify('Item and quantity required','err');return}
-  const{error}=await sb.from('inventory_requisitions').insert([{requester_name:$('nrBy').value.trim()||'Manager',item_name:item,quantity_requested:qty,priority:$('nrPri').value,purpose:$('nrNote').value.trim()||null,generated_by:'manual',status:'pending'}])
+  const{error}=await sb.from('inventory_requisitions').insert([{requester_name:$('nrBy').value.trim()||'Manager',item_name:item,quantity_requested:qty,priority:$('nrPri').value,notes:$('nrNote').value.trim()||null,status:'pending'}])
   if(error){notify(error.message,'err');return}
   notify('Requisition submitted');['nrItem','nrQty','nrNote','nrBy'].forEach(id=>$(id).value='');loadAll()
 })
-$('btnAutoR').addEventListener('click',async()=>{const{error}=await sb.rpc('generate_auto_requisitions');if(error){notify(error.message,'err');return}notify('Auto-requisitions generated');loadAll()})
+$('btnAutoR').addEventListener('click',async()=>{
+  const{data,error}=await sb.rpc('generate_auto_requisitions')
+  if(error){notify(error.message,'err');return}
+  const toOrder=(data||[]).filter(r=>Number(r.qty_to_order)>0)
+  if(!toOrder.length){notify('✅ All materials sufficiently stocked — nothing to requisition');return}
+  // Refresh the auto-generated rows so repeated clicks don't pile up.
+  await sb.from('inventory_requisitions').delete().eq('status','pending').eq('requester_name','Auto-Generator')
+  const rows=toOrder.map(r=>({
+    item_name:r.material_name,
+    quantity_requested:Number(r.qty_to_order)||0,
+    unit:r.unit||null,
+    requester_name:'Auto-Generator',
+    priority:'normal',
+    status:'pending',
+    notes:`Auto · need ${Math.round(Number(r.qty_needed)||0)}, in stock ${Math.round(Number(r.qty_in_stock)||0)}`
+  }))
+  const{error:ie}=await sb.from('inventory_requisitions').insert(rows)
+  if(ie){notify(ie.message,'err');return}
+  notify(`✅ ${rows.length} item(s) added to the requisition queue`)
+  loadAll()
+})
 async function updReq(status){const id=$('raId').value.trim();if(!id){notify('Paste requisition ID','err');return}
   const act=$('raAct').value.trim(),note=$('raNote').value.trim(),p={status,note:note||null}
   if(status==='approved'){p.approved_by=act||null;p.approved_at=new Date().toISOString()}
