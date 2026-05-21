@@ -578,7 +578,7 @@ window.openAutoReq=async function(){
   const prod=prodRecords.filter(r=>r.status==='complete').reduce((a,r)=>a+(r.aligners_produced||0),0)
   const rem=Math.max(0,tp-prod)
   $('arActiveCases').textContent=active.length.toLocaleString();$('arTotalPlanned').textContent=tp.toLocaleString();$('arProduced').textContent=prod.toLocaleString();$('arRemaining').textContent=rem.toLocaleString()
-  window._arRem=rem;$('autoReqModal').classList.add('open')
+  window._arRem=rem;window._arCases=active.length;$('autoReqModal').classList.add('open')
 }
 
 window.calculateAutoReq=async function(){
@@ -587,7 +587,8 @@ window.calculateAutoReq=async function(){
   if(rem===0){$('arStatus').textContent='⚠️ No aligners remaining — no requisition needed';return}
   const{data:lots}=await sb.from('inventory_lots_enriched_view').select('item_name,available_qty').limit(500)
   const stock={};(lots||[]).forEach(l=>{stock[l.item_name]=(stock[l.item_name]||0)+Number(l.available_qty||0)})
-  autoReqLines=allBom.map(b=>{const res=(b.safety_reserve_pct||10)/100,qr=b.qty_per_aligner*rem,qt=Math.ceil(qr*(1+res)),ins=stock[b.material_name]||0,to=Math.max(0,qt-ins),pt=b.pack_size?Math.ceil(to/b.pack_size):null;return{bom_id:b.id,material_name:b.material_name,unit:b.unit,qty_needed:Math.ceil(qr),qty_reserve:Math.ceil(qr*res),qty_total:qt,qty_in_stock:ins,qty_to_order:to,pack_size:b.pack_size,pack_unit:b.pack_unit,packs_to_order:pt,ok:to<=0}})
+  const cases=window._arCases||0
+  autoReqLines=allBom.map(b=>{const res=(b.safety_reserve_pct||10)/100,mult=(b.qty_basis==='per_case')?cases:rem,qr=Number(b.qty_per_aligner||0)*mult,qt=Math.ceil(qr*(1+res)),ins=stock[b.material_name]||0,to=Math.max(0,qt-ins),pt=b.pack_size?Math.ceil(to/b.pack_size):null;return{bom_id:b.id,material_name:b.material_name,unit:b.unit,qty_needed:Math.ceil(qr),qty_reserve:Math.ceil(qr*res),qty_total:qt,qty_in_stock:ins,qty_to_order:to,pack_size:b.pack_size,pack_unit:b.pack_unit,packs_to_order:pt,ok:to<=0}})
   const tord=autoReqLines.filter(l=>!l.ok)
   $('arStatus').textContent=`✅ Calculated for ${rem.toLocaleString()} aligners — ${tord.length} materials to order`
   $('arLineItems').innerHTML=autoReqLines.map(l=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bdr);font-size:13px"><div><div style="font-weight:700">${l.material_name}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">Need: ${l.qty_total.toLocaleString()} ${l.unit} (${l.qty_needed.toLocaleString()} + ${l.qty_reserve.toLocaleString()} reserve) · Stock: ${l.qty_in_stock.toLocaleString()}</div></div><div style="text-align:right;flex-shrink:0;margin-left:16px">${l.ok?`<span class="bdg b-g">✅ OK</span>`:`<div style="font-size:16px;font-weight:800;font-family:var(--mono);color:var(--red)">${l.qty_to_order.toLocaleString()} ${l.unit}</div>${l.packs_to_order?`<div style="font-size:11px;color:var(--mu)">${l.packs_to_order} ${l.pack_unit||'packs'}</div>`:''}`}</div></div>`).join('')
