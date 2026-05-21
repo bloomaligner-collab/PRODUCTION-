@@ -502,6 +502,7 @@ window.cancelReq=async function(id){
 
 // Shared notifier for requisition workflow events.
 import { notifyAssignees } from './notify_assignment.js';
+import { createAndEmailPOs } from './po.js?v=20260521a';
 function _reqLink(r){
   const origin = location.origin + location.pathname.replace(/[^/]+$/, '')
   return `${origin}requisition.html`
@@ -550,7 +551,21 @@ function _notifyReqDecision(r, decision) {
     link: _reqLink(r),
   })
 }
-window.markSent=async function(id){await sb.from('requisitions').update({status:'sent',sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);toast('📬 Marked as sent');loadAll()}
+window.markSent=async function(id){
+  // Generate + email a PO per supplier from this requisition's lines,
+  // then mark it sent.
+  const{data:lns}=await sb.from('requisition_lines').select('*').eq('requisition_id',id)
+  const items=(lns||[]).map(l=>({item_name:l.material_name,quantity:(Number(l.qty_to_order)||Number(l.qty_needed)||0),unit:l.unit,bom_id:l.bom_id})).filter(i=>i.quantity>0)
+  let poMsg=''
+  if(items.length){
+    const res=await createAndEmailPOs(sb,items,{source:'requisition',source_ref:id,createdBy:(typeof CW_ACCESS!=='undefined'?CW_ACCESS.getName():null)||'Manager'})
+    poMsg=` · ${res.pos.length} PO(s), ${res.emailed} emailed`
+    if(res.noSupplier.length) poMsg+=`, ${res.noSupplier.length} skipped (no supplier)`
+    if(res.failed.length) console.warn('[PO] issues:',res.failed)
+  }
+  await sb.from('requisitions').update({status:'sent',sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id)
+  toast('📬 Marked as sent'+poMsg);loadAll()
+}
 window.markReceived=async function(id){await sb.from('requisitions').update({status:'received',updated_at:new Date().toISOString()}).eq('id',id);toast('📦 Received!');loadAll()}
 
 window.openNewReq=function(){manualLines=[{name:'',unit:'',qty:''}];$('nTitle').value='';$('nNotes').value='';renderManualLines();$('newReqModal').classList.add('open')}
