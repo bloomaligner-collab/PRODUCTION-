@@ -1123,26 +1123,29 @@ window.calculateRequisition = async function() {
 
 window.saveRequisition = async function() {
   if (!reqResults.length) { notify('Run calculation first', 'err'); return }
+  // Coerce to a finite number or null — never send "" to a numeric column.
+  const nN = v => { const n = Number(v); return Number.isFinite(n) ? n : null }
   const { data: req, error: e1 } = await sb.from('requisitions').insert({
     title: 'Auto-Requisition ' + new Date().toLocaleDateString('en-GB'),
     generated_by: 'auto-calculator',
-    aligners_base: parseInt($('reqAlignersLeft').textContent.replace(/,/g,'')),
+    aligners_base: nN($('reqAlignersLeft').textContent.replace(/,/g,'')) ?? 0,
     status: 'draft'
   }).select().single()
   if (e1) { notify(e1.message, 'err'); return }
 
   const lines = reqResults.map(r => ({
     requisition_id: req.id,
-    bom_id: r.bom_id,
+    bom_id: r.bom_id || null,
     material_name: r.material_name,
-    unit: r.unit,
-    qty_needed: r.qty_total,
-    qty_in_stock: r.in_stock,
-    qty_to_order: r.to_order,
-    pack_size: r.pack_size,
-    packs_to_order: r.packs_to_order
+    unit: r.unit || null,
+    qty_needed: nN(r.qty_total),
+    qty_in_stock: nN(r.in_stock),
+    qty_to_order: nN(r.to_order),
+    pack_size: nN(r.pack_size),
+    packs_to_order: nN(r.packs_to_order)
   }))
-  await sb.from('requisition_lines').insert(lines)
+  const { error: e2 } = await sb.from('requisition_lines').insert(lines)
+  if (e2) { notify(e2.message, 'err'); return }
   notify(`✅ Requisition ${req.requisition_no} saved as draft!`)
   loadSavedRequisitions()
 }

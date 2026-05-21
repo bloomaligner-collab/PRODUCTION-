@@ -332,7 +332,7 @@ window.clearFilters=function(){$('srchReq').value='';$('fStatus').value='';filte
 import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
 window.exportFilteredCsv = () => {
   downloadCsv(`requisitions_${todayIso()}.csv`, [
-    { header:'Req #',       get: r => r.req_no || r.req_ref || r.id || '' },
+    { header:'Req #',       get: r => r.requisition_no || r.reference || r.id || '' },
     { header:'Title',       get: r => r.title || '' },
     { header:'Status',      get: r => r.status || '' },
     { header:'Created',     get: r => r.created_at || '' },
@@ -477,7 +477,7 @@ window.submitReq=async function(id){
   if(error){toast('❌ '+error.message,'red');return}
   toast('📤 Submitted for approval')
   // Ping every manager that there's something to approve.
-  const { data: r } = await sb.from('requisitions').select('id,title,req_no,generated_by,notes').eq('id',id).maybeSingle()
+  const { data: r } = await sb.from('requisitions').select('id,title,requisition_no,generated_by,notes').eq('id',id).maybeSingle()
   if (r) _notifyReqApprovers(r).catch(e => console.warn('[req notify]', e))
   loadAll()
 }
@@ -507,7 +507,7 @@ function _reqLink(r){
   return `${origin}requisition.html`
 }
 function _notifyReqApprovers(r) {
-  const ref = r.req_no || r.id || ''
+  const ref = r.requisition_no || r.reference || r.id || ''
   return notifyAssignees(sb, 'role:manager', {
     type:          'requisition_pending',
     subjectPrefix: `[Cedarwings] Requisition ${ref}`,
@@ -524,7 +524,7 @@ function _notifyReqApprovers(r) {
   })
 }
 function _notifyReqDecision(r, decision) {
-  const ref = r.req_no || r.id || ''
+  const ref = r.requisition_no || r.reference || r.id || ''
   const headline = decision === 'approved'
     ? 'A requisition you submitted has been approved'
     : 'A requisition you submitted has been rejected'
@@ -562,7 +562,9 @@ window.saveReqAs=async function(status){
   const emp=CW_ACCESS.getName()||'Manager'
   const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,notes:$('nNotes').value||null,updated_at:new Date().toISOString()}).select().single()
   if(error){toast('❌ '+error.message,'red');return}
-  await sb.from('requisition_lines').insert(vl.map(l=>({requisition_id:req.id,material_name:l.name.trim(),unit:l.unit.trim()||null,qty_to_order:parseFloat(l.qty)||null,qty_needed:parseFloat(l.qty)||null})))
+  const qN=v=>{const n=parseFloat(v);return Number.isFinite(n)?n:null}
+  const{error:le}=await sb.from('requisition_lines').insert(vl.map(l=>({requisition_id:req.id,material_name:l.name.trim(),unit:l.unit.trim()||null,qty_to_order:qN(l.qty),qty_needed:qN(l.qty)})))
+  if(le){toast('❌ '+le.message,'red');return}
   closeModal('newReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted!')
   if (status === 'pending_approval') _notifyReqApprovers(req).catch(e => console.warn('[req notify]', e))
   loadAll()
@@ -598,10 +600,13 @@ window.calculateAutoReq=async function(){
 
 window.saveAutoReq=async function(status){
   if(!autoReqLines.length){toast('❌ Calculate first','red');return}
+  // Coerce to a finite number or null — never send "" to a numeric column.
+  const nN=v=>{const n=Number(v);return Number.isFinite(n)?n:null}
   const title=$('arTitle').value.trim()||`Auto-Req ${new Date().toLocaleDateString('en-GB')}`,emp=CW_ACCESS.getName()||'System'
-  const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,aligners_base:window._arRem||0,notes:$('arNotes').value||null,updated_at:new Date().toISOString()}).select().single()
+  const{data:req,error}=await sb.from('requisitions').insert({title,status,generated_by:emp,aligners_base:nN(window._arRem)??0,notes:$('arNotes').value||null,updated_at:new Date().toISOString()}).select().single()
   if(error){toast('❌ '+error.message,'red');return}
-  await sb.from('requisition_lines').insert(autoReqLines.map(l=>({requisition_id:req.id,bom_id:l.bom_id,material_name:l.material_name,unit:l.unit,qty_needed:l.qty_needed,qty_in_stock:l.qty_in_stock,qty_to_order:l.qty_to_order,pack_size:l.pack_size,packs_to_order:l.packs_to_order})))
+  const{error:le}=await sb.from('requisition_lines').insert(autoReqLines.map(l=>({requisition_id:req.id,bom_id:l.bom_id||null,material_name:l.material_name,unit:l.unit||null,qty_needed:nN(l.qty_needed),qty_in_stock:nN(l.qty_in_stock),qty_to_order:nN(l.qty_to_order),pack_size:nN(l.pack_size),packs_to_order:nN(l.packs_to_order)})))
+  if(le){toast('❌ '+le.message,'red');return}
   closeModal('autoReqModal');toast(status==='draft'?'💾 Saved as draft':'📤 Submitted for approval!')
   if (status === 'pending_approval') _notifyReqApprovers(req).catch(e => console.warn('[req notify]', e))
   loadAll()
