@@ -12,12 +12,13 @@ async function _getSettings(){
 }
 
 export const CW_Notify={
-  async sendEmail(toEmail,toName,subject,htmlContent,type="system",attachments=null){
+  async sendEmail(toEmail,toName,subject,htmlContent,type="system",attachments=null,cc=null){
     const s=await _getSettings()
     if(!s.brevo_api_key||!s.brevo_sender_email)return{ok:false,error:"Brevo not configured"}
     try{
       const payload={sender:{name:s.brevo_sender_name||"Cedarwings SAS",email:s.brevo_sender_email},to:[{email:toEmail,name:toName}],subject,htmlContent}
       if(attachments&&attachments.length)payload.attachment=attachments
+      if(cc&&cc.length)payload.cc=cc
       const r=await fetch("https://api.brevo.com/v3/smtp/email",{
         method:"POST",
         headers:{"api-key":s.brevo_api_key,"content-type":"application/json","accept":"application/json"},

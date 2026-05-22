@@ -192,6 +192,9 @@ tbody tr:last-child td{border:none}
         <div><label class="fl">Sender Name</label><input class="fi" id="brevoName" placeholder="Cedarwings SAS"/></div>
         <div><label class="fl">Company Name</label><input class="fi" id="companyName" placeholder="Cedarwings SAS"/></div>
       </div>
+      <div class="fg">
+        <div><label class="fl">Order email CC</label><input class="fi" id="poCc" placeholder="orders@cedarwings.com" type="text"/><div class="card-sub" style="margin-top:4px">Every purchase-order email is auto-CC'd here for follow-up. Separate multiple addresses with a comma.</div></div>
+      </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
         <button class="btn bg" onclick="testBrevo()">🧪 Test Connection</button>
         <div id="brevoStatus"></div>
@@ -418,6 +421,7 @@ async function load(){
   if(smap.twilio_from){document.getElementById('twilioFrom').value=smap.twilio_from}
   if(smap.brevo_sender_email){document.getElementById('brevoEmail').value=smap.brevo_sender_email;window._brevoEmail=smap.brevo_sender_email}
   if(smap.brevo_sender_name){document.getElementById('brevoName').value=smap.brevo_sender_name;window._brevoName=smap.brevo_sender_name}
+  if(smap.po_cc_email)document.getElementById('poCc').value=smap.po_cc_email
   if(smap.company_name)document.getElementById('companyName').value=smap.company_name
   if(smap.daily_report_time)document.getElementById('reportTime').value=smap.daily_report_time
   // MDR regulatory info (feeds Annex XIII declaration)
@@ -490,6 +494,7 @@ window.saveAll=async()=>{
     {key:'brevo_api_key',value:document.getElementById('brevoKey').value.trim()},
     {key:'brevo_sender_email',value:document.getElementById('brevoEmail').value.trim()},
     {key:'brevo_sender_name',value:document.getElementById('brevoName').value.trim()},
+    {key:'po_cc_email',value:document.getElementById('poCc').value.trim()},
     {key:'twilio_account_sid',value:document.getElementById('twilioSid').value.trim()},
     {key:'twilio_auth_token',value:document.getElementById('twilioToken').value.trim()},
     {key:'twilio_from',value:document.getElementById('twilioFrom').value.trim()},
