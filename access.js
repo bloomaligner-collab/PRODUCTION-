@@ -1226,7 +1226,7 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 // Temporary visible build stamp so we can confirm which deploy a device
 // is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = 'menu-debug-4';
+const CW_BUILD = 'menu-debug-5';
 // Global tap logger: records the element actually under the finger so we
 // can see what the user is pressing when the "menu" flickers. Temporary.
 function _cwInitTapLogger() {
@@ -1254,11 +1254,18 @@ function _cwDbgRender() {
   try {
     const el = document.getElementById('cw-build');
     if (!el) return;
+    let mnav = 'MISSING';
+    const b = document.getElementById('cw-mnav');
+    if (b) {
+      const cs = getComputedStyle(b);
+      const r = b.getBoundingClientRect();
+      mnav = cs.display + '@' + Math.round(r.left) + ',' + Math.round(r.top);
+    }
     el.textContent = CW_BUILD
-      + ' | load' + _cwDbgGet('load')
+      + ' | w' + window.innerWidth
+      + ' mnav:' + mnav
+      + ' | hit' + _cwDbgGet('hit')
       + ' tap' + _cwDbgGet('tap')
-      + ' hit' + _cwDbgGet('hit')
-      + ' op' + _cwDbgGet('op')
       + ' | ' + (localStorage.getItem('cw_dbg_hitel') || '?');
   } catch (e) {}
 }
