@@ -49,6 +49,37 @@ function poHtml(po, supplier, lines, totalCost, currency){
   </div>`
 }
 
+// Clone a past PO into a new one for the same supplier and email it.
+export async function reorderPO(sb, poId, opts = {}){
+  const { data: src } = await sb.from('purchase_orders').select('*').eq('id', poId).single()
+  if (!src) return { ok:false, error:'PO not found' }
+  const { data: lines } = await sb.from('purchase_order_lines').select('*').eq('po_id', poId)
+  if (!lines || !lines.length) return { ok:false, error:'PO has no lines' }
+  const totalCost = lines.reduce((a,l)=> a + num(l.line_total), 0)
+  const { data: po, error: pe } = await sb.from('purchase_orders').insert({
+    supplier_id: src.supplier_id, supplier_name: src.supplier_name, supplier_email: src.supplier_email,
+    status: 'sent', source: 'reorder', source_ref: src.id,
+    item_count: lines.length, total_cost: totalCost, currency: src.currency,
+    created_by: opts.createdBy || null
+  }).select().single()
+  if (pe) return { ok:false, error: pe.message }
+  await sb.from('purchase_order_lines').insert(lines.map(l => ({
+    po_id: po.id, item_name: l.item_name, quantity: num(l.quantity),
+    unit: l.unit, unit_cost: num(l.unit_cost), line_total: num(l.line_total), bom_id: l.bom_id
+  })))
+  let emailStatus = 'no_email'
+  if (src.supplier_email){
+    const sup = { name: src.supplier_name, currency: src.currency }
+    const r = await CW_Notify.sendEmail(src.supplier_email, src.supplier_name, `Purchase Order ${po.po_number}`,
+      poHtml(po, sup, lines, totalCost, src.currency), 'purchase_order')
+    emailStatus = r.ok ? 'sent' : 'failed'
+  }
+  await sb.from('purchase_orders').update({
+    emailed_at: src.supplier_email ? new Date().toISOString() : null, email_status: emailStatus
+  }).eq('id', po.id)
+  return { ok:true, po_number: po.po_number, emailStatus }
+}
+
 // Re-email an already-created PO to its supplier.
 export async function resendPO(sb, poId){
   const { data: po } = await sb.from('purchase_orders').select('*').eq('id', poId).single()

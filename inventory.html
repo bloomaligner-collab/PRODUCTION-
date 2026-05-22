@@ -728,6 +728,7 @@ function rPOs(){
     <td style="padding:8px 10px;font-size:12px;color:var(--muted)">${fdt(p.created_at)}</td>
     <td style="padding:8px 10px;white-space:nowrap" onclick="event.stopPropagation()">
       ${p.supplier_email?`<button class="btn b-gho b-sm" onclick="poResend('${p.id}')">↻ Re-send</button>`:''}
+      <button class="btn b-gho b-sm" onclick="poReorder('${p.id}')">🔁 Order again</button>
       ${p.status==='sent'?`<button class="btn b-pri b-sm" onclick="poReceive('${p.id}')">📥 Receive</button>`:''}
     </td>
   </tr>
@@ -751,6 +752,13 @@ window.poResend=async function(id){
   notify('Re-sending PO…')
   const r=await resendPO(sb,id)
   notify(r.ok?'✉ PO re-sent to supplier':('Failed: '+(r.error||'')),r.ok?'success':'err')
+  loadPOs()
+}
+window.poReorder=async function(id){
+  notify('🔁 Creating new order…')
+  const r=await reorderPO(sb,id,{createdBy:(typeof CW_ACCESS!=='undefined'?CW_ACCESS.getName():null)||'Manager'})
+  if(!r.ok){notify('Failed: '+(r.error||''),'err');return}
+  notify(`🔁 ${r.po_number} created · ${r.emailStatus==='sent'?'emailed':r.emailStatus==='no_email'?'no supplier email':'email failed'}`,r.emailStatus==='failed'?'warn':'success')
   loadPOs()
 }
 // Mark a PO received: create an inventory lot per line and flip status.
@@ -1012,7 +1020,7 @@ window.exportFilteredCsv = () => {
 };
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
-import { createAndEmailPOs, resendPO } from './po.js?v=20260521b';
+import { createAndEmailPOs, resendPO, reorderPO } from './po.js?v=20260521c';
 mountSavedViews({
   sb, page: 'inventory',
   mountEl: document.getElementById('savedViewsMount'),
