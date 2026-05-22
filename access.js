@@ -513,7 +513,11 @@ const CW_ACCESS = {
       css.id = 'cw-m-css';
       css.textContent = `
 @media (max-width:860px){
-  .sb,.sidebar{position:fixed!important;top:0;bottom:0;left:0;width:min(84vw,290px)!important;
+  /* Pages hide their fixed sidebar with .sidebar{display:none} at small
+     widths; force it back so the off-canvas drawer can slide in. Without
+     this the menu never appears and tapping ☰ only flashes the backdrop. */
+  .sb,.sidebar{display:flex!important;flex-direction:column!important;
+    position:fixed!important;top:0;bottom:0;left:0;width:min(84vw,290px)!important;
     transform:translateX(-100%);transition:transform .25s ease;z-index:1200;overflow-y:auto;
     -webkit-overflow-scrolling:touch}
   body.cw-nav-open .sb,body.cw-nav-open .sidebar{transform:none;box-shadow:0 0 40px rgba(0,0,0,.35)}
