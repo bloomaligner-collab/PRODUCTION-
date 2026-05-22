@@ -602,20 +602,20 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         // loop never self-terminated. Letting the new SW claim silently
         // is invisible to the user and avoids the flicker entirely.
 
-        // Best-effort: drop any older SW (the previous sw.js still
-        // active on stuck devices) so the fresh sw-v2.js can take over.
+        // Best-effort: drop any older SW (sw.js / sw-v2.js, now
+        // self-destruct shims) so the fresh sw-v3.js can take over.
         (async () => {
           try {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of (regs || [])) {
               try {
                 const url = r.active && r.active.scriptURL ? r.active.scriptURL : '';
-                if (url && !/\/sw-v2\.js(\?|$)/.test(url)) await r.unregister();
+                if (url && !/\/sw-v3\.js(\?|$)/.test(url)) await r.unregister();
               } catch (e) {}
             }
           } catch (e) {}
         })();
-        navigator.serviceWorker.register('sw-v2.js').then((reg) => {
+        navigator.serviceWorker.register('sw-v3.js').then((reg) => {
           const promote = (w) => { if (w) w.postMessage('skipWaiting'); };
           if (reg.waiting) promote(reg.waiting);
           reg.addEventListener('updatefound', () => {
