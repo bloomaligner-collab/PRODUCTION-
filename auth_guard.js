@@ -72,8 +72,20 @@ restoreSessionFromLocal()
 //    rejected here (not just stale-looking). getSession() would lie.
 const { data: userData, error: userErr } = await _guardSb.auth.getUser()
 if (userErr || !userData?.user) {
-  try { await _guardSb.auth.signOut() } catch { /* best effort */ }
-  redirectToLogin()
+  // Distinguish a genuinely invalid/expired token from a transient
+  // network failure. On flaky mobile connections getUser() (which hits
+  // the network) can fail to reach the server; signing the user out in
+  // that case forces a needless re-login and a redirect flicker. Only
+  // bounce to login when the token is actually rejected (HTTP 401/403)
+  // or there is no stored session at all. Otherwise keep the user in
+  // and let autoRefreshToken recover in the background.
+  const status = userErr?.status
+  const { data: sessionData } = await _guardSb.auth.getSession()
+  const hasLocalSession = !!sessionData?.session
+  if (status === 401 || status === 403 || !hasLocalSession) {
+    try { await _guardSb.auth.signOut() } catch { /* best effort */ }
+    redirectToLogin()
+  }
 }
 
 // 3. React to sign-out in another tab too.
