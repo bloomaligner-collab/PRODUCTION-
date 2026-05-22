@@ -1226,7 +1226,24 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 // Temporary visible build stamp so we can confirm which deploy a device
 // is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = 'menu-debug-3';
+const CW_BUILD = 'menu-debug-4';
+// Global tap logger: records the element actually under the finger so we
+// can see what the user is pressing when the "menu" flickers. Temporary.
+function _cwInitTapLogger() {
+  try {
+    document.addEventListener('pointerdown', (e) => {
+      const t = e.target;
+      let desc = '?';
+      if (t && t.tagName) {
+        desc = t.tagName.toLowerCase();
+        if (t.id) desc += '#' + t.id;
+        else if (typeof t.className === 'string' && t.className.trim()) desc += '.' + t.className.trim().split(/\s+/)[0];
+      }
+      try { localStorage.setItem('cw_dbg_hitel', desc); } catch (e2) {}
+      _cwDbgBump('hit');
+    }, true);
+  } catch (e) {}
+}
 // Persistent debug counters (survive reloads via localStorage) so we can
 // tell from the device whether tapping the menu reloads the page or
 // storms events. Temporary.
@@ -1240,10 +1257,9 @@ function _cwDbgRender() {
     el.textContent = CW_BUILD
       + ' | load' + _cwDbgGet('load')
       + ' tap' + _cwDbgGet('tap')
+      + ' hit' + _cwDbgGet('hit')
       + ' op' + _cwDbgGet('op')
-      + ' cl' + _cwDbgGet('cl')
-      + ' blk' + _cwDbgGet('blk')
-      + ' ' + (localStorage.getItem('cw_dbg_evt') || '');
+      + ' | ' + (localStorage.getItem('cw_dbg_hitel') || '?');
   } catch (e) {}
 }
 function _cwBuildStamp() {
@@ -1258,14 +1274,15 @@ function _cwBuildStamp() {
     // New page load: bump the persistent load counter, zero the per-tap
     // counters so a single tap reads cleanly. If tapping the menu secretly
     // reloads the page, the "load" number will jump and tap/op reset.
-    _cwDbgSet('tap', 0); _cwDbgSet('op', 0); _cwDbgSet('cl', 0); _cwDbgSet('blk', 0);
-    try { localStorage.setItem('cw_dbg_evt', ''); } catch (e) {}
+    _cwDbgSet('tap', 0); _cwDbgSet('op', 0); _cwDbgSet('cl', 0); _cwDbgSet('blk', 0); _cwDbgSet('hit', 0);
+    try { localStorage.setItem('cw_dbg_evt', ''); localStorage.setItem('cw_dbg_hitel', ''); } catch (e) {}
     _cwDbgBump('load');   // increments + renders
   } catch (e) {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   _cwBuildStamp();
+  _cwInitTapLogger();
   CW_ACCESS.injectButtonStyles();
   CW_ACCESS._initPWA();
   CW_ACCESS._initMobile();
