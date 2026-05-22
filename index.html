@@ -244,7 +244,7 @@ window.doLogin=async()=>{
     let pageAccess=asArr(user.page_access)
     const customRole=user.custom_role||user.role
     if(!pageAccess.length){
-      if(user.role==="manager"){ pageAccess=["all"] }
+      if(["manager","admin","super_admin"].includes(user.role)){ pageAccess=["all"] }
       else{
         const names=[customRole,user.role,...asArr(user.extra_roles)]
           .filter(Boolean).map(String)

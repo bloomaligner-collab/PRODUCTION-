@@ -53,9 +53,20 @@ const CW_ACCESS = {
       return Array.isArray(arr) ? arr : [];
     } catch { return []; }
   },
+  // Access tiers (privilege, independent of the functional role templates
+  // that drive page access): super_admin > admin > user. 'manager' is a
+  // legacy synonym for an admin-level tier.
+  ADMIN_TIERS: ['manager', 'admin', 'super_admin'],
+  isSuperAdmin() { return this.getRole() === 'super_admin'; },
+  isAdmin()      { return this.ADMIN_TIERS.includes(this.getRole()); },
+  roleLabel(role) {
+    const r = role || this.getRole();
+    return { super_admin: 'Super Admin', admin: 'Admin', manager: 'Manager', employee: 'User' }[r]
+        || (r.charAt(0).toUpperCase() + r.slice(1));
+  },
   hasFullAccess() {
     const a = this.getAccess();
-    return this.getRole() === 'manager' || a.includes('all');
+    return this.isAdmin() || a.includes('all');
   },
   homePage() {
     if (this.hasFullAccess()) return 'manager.html';
@@ -116,7 +127,7 @@ const CW_ACCESS = {
   injectSidebar(activeKey) {
     const name = this.getName();
     const role = this.getRole();
-    const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+    const roleLabel = this.roleLabel(role);
     const home = this.homePage();
 
     const navEl = document.querySelector('.sb-nav');
