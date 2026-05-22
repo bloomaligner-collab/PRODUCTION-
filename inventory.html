@@ -280,6 +280,10 @@
 
     <!-- PURCHASE ORDERS -->
     <div class="tp" id="tp-pos">
+      <div class="card" id="poSetupCard" style="display:none;margin-bottom:14px;border-left:3px solid #f59e0b">
+        <div class="ct" style="margin-bottom:10px">⚠️ Needs setup before POs can send</div>
+        <div id="poSetup" style="font-size:13px;color:var(--muted)"></div>
+      </div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
           <div class="ct">📤 Purchase Orders</div>
@@ -691,25 +695,51 @@ async function loadAll(){_cachedExcluded=null // reset config cache on each load
 let allPOs=[]
 async function loadPOs(){
   const{data}=await sb.from('purchase_orders').select('*').order('created_at',{ascending:false}).limit(100)
-  allPOs=data||[];rPOs()
+  allPOs=data||[];rPOs();rPOSetup()
+}
+async function rPOSetup(){
+  const{data:sups}=await sb.from('suppliers').select('id,name,email,contact_email')
+  const supById={};(sups||[]).forEach(s=>supById[s.id]=s)
+  const noSupEmail=(sups||[]).filter(s=>!(s.email||s.contact_email)).map(s=>s.name)
+  const noItemSup=allItems.filter(it=>!(it.preferred_supplier_id||it.supplier_id)).map(it=>it.item_name||it.name||'?')
+  const parts=[]
+  if(noItemSup.length)parts.push(`<div style="margin-bottom:8px"><strong style="color:var(--text)">${noItemSup.length} item(s) without a preferred supplier</strong> — these get skipped when generating POs:<div style="margin-top:4px;color:var(--dim)">${noItemSup.slice(0,20).join(', ')}${noItemSup.length>20?` … +${noItemSup.length-20} more`:''}</div></div>`)
+  if(noSupEmail.length)parts.push(`<div><strong style="color:var(--text)">${noSupEmail.length} supplier(s) without an email</strong> — their POs are recorded but can't be emailed:<div style="margin-top:4px;color:var(--dim)">${noSupEmail.slice(0,20).join(', ')}${noSupEmail.length>20?` … +${noSupEmail.length-20} more`:''}</div></div>`)
+  $('poSetupCard').style.display=parts.length?'':'none'
+  $('poSetup').innerHTML=parts.join('')
 }
 function poEmailBdg(s){const m={sent:'<span class="bdg bg">✉ Sent</span>',failed:'<span class="bdg br">✉ Failed</span>',no_email:'<span class="bdg ba">No email</span>'};return m[s]||'<span class="bdg bgy">—</span>'}
 function rPOs(){
   const f=$('poFilter').value
   const rows=allPOs.filter(p=>!f||p.status===f)
-  $('tPOs').innerHTML=rows.length?rows.map(p=>`<tr style="border-top:1px solid var(--border)">
-    <td style="padding:8px 10px;font-weight:700">${p.po_number||'—'}</td>
+  $('tPOs').innerHTML=rows.length?rows.map(p=>`<tr style="border-top:1px solid var(--border);cursor:pointer" onclick="poToggle('${p.id}')">
+    <td style="padding:8px 10px;font-weight:700"><span id="poarw-${p.id}" style="color:var(--muted);font-size:10px">▶</span> ${p.po_number||'—'}</td>
     <td style="padding:8px 10px">${p.supplier_name||'—'}<div style="font-size:11px;color:var(--muted)">${p.supplier_email||'no email'}</div></td>
     <td style="padding:8px 10px;text-align:center">${p.item_count||0}</td>
     <td style="padding:8px 10px;text-align:right;font-family:monospace">${Number(p.total_cost||0)?Number(p.total_cost).toLocaleString():'—'} ${p.currency||''}</td>
     <td style="padding:8px 10px">${poEmailBdg(p.email_status)}</td>
     <td style="padding:8px 10px">${stBdg(p.status)}</td>
     <td style="padding:8px 10px;font-size:12px;color:var(--muted)">${fdt(p.created_at)}</td>
-    <td style="padding:8px 10px;white-space:nowrap">
+    <td style="padding:8px 10px;white-space:nowrap" onclick="event.stopPropagation()">
       ${p.supplier_email?`<button class="btn b-gho b-sm" onclick="poResend('${p.id}')">↻ Re-send</button>`:''}
       ${p.status==='sent'?`<button class="btn b-pri b-sm" onclick="poReceive('${p.id}')">📥 Receive</button>`:''}
     </td>
-  </tr>`).join(''):'<tr><td colspan="8" style="padding:14px;color:var(--dim)">No purchase orders yet.</td></tr>'
+  </tr>
+  <tr id="podtl-${p.id}" style="display:none"><td colspan="8" style="padding:0 10px 12px;background:var(--bg)"><div id="podtlc-${p.id}" style="font-size:12px;color:var(--muted);padding:8px 0">Loading lines…</div></td></tr>`).join(''):'<tr><td colspan="8" style="padding:14px;color:var(--dim)">No purchase orders yet.</td></tr>'
+}
+window.poToggle=async function(id){
+  const row=$('podtl-'+id),arw=$('poarw-'+id)
+  if(!row)return
+  const open=row.style.display!=='none'
+  row.style.display=open?'none':'';if(arw)arw.textContent=open?'▶':'▼'
+  if(open||row.dataset.loaded)return
+  const{data:lines}=await sb.from('purchase_order_lines').select('*').eq('po_id',id)
+  const c=$('podtlc-'+id)
+  c.innerHTML=(lines&&lines.length)?`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="text-align:left;color:var(--muted)"><th style="padding:4px 8px">Item</th><th style="padding:4px 8px;text-align:right">Qty</th><th style="padding:4px 8px">Unit</th><th style="padding:4px 8px;text-align:right">Unit Cost</th><th style="padding:4px 8px;text-align:right">Line Total</th></tr></thead>
+    <tbody>${lines.map(l=>`<tr><td style="padding:4px 8px;color:var(--text)">${l.item_name}</td><td style="padding:4px 8px;text-align:right;font-family:monospace">${Number(l.quantity||0).toLocaleString()}</td><td style="padding:4px 8px">${l.unit||'—'}</td><td style="padding:4px 8px;text-align:right;font-family:monospace">${Number(l.unit_cost||0)?Number(l.unit_cost).toLocaleString():'—'}</td><td style="padding:4px 8px;text-align:right;font-family:monospace">${Number(l.line_total||0)?Number(l.line_total).toLocaleString():'—'}</td></tr>`).join('')}</tbody>
+  </table>`:'<div style="padding:6px 8px">No line items.</div>'
+  row.dataset.loaded='1'
 }
 window.poResend=async function(id){
   notify('Re-sending PO…')
