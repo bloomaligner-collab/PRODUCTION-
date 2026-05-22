@@ -1,7 +1,7 @@
-// admin-user — manager-only Supabase Auth admin bridge.
+// admin-user — Supabase Auth admin bridge for the Admin / Super Admin tiers.
 // Deployment:  supabase functions deploy admin-user --project-ref cvrmadmzzualqukxxlro
-// Requires:    project already has the employees table with auth_user_id column
-//              and at least one employee row with role='manager' linked to a session.
+// Access:      Admin and Super Admin (and legacy Manager) may create/update
+//              logins; only Super Admin may delete a login.
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SB_SERVICE_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const AUTH_BASE = `${SUPABASE_URL}/auth/v1/admin/users`
@@ -42,7 +42,11 @@ Deno.serve(async (req: Request) => {
     const caller = Array.isArray(emps) ? emps[0] : null
     if (!caller) return json({ error: 'No employee profile linked to this account', trace }, 403)
     if (!caller.is_active) return json({ error: 'Your account is blocked', trace }, 403)
-    if (caller.role !== 'manager') return json({ error: 'Managers only', trace }, 403)
+    // Access tiers allowed to manage logins. 'manager' kept for backwards
+    // compatibility with legacy rows; Admin and Super Admin are the current
+    // tiers. Destructive deletes are gated to Super Admin below.
+    const ADMIN_ROLES = ['manager', 'admin', 'super_admin']
+    if (!ADMIN_ROLES.includes(caller.role)) return json({ error: 'Admins only', trace }, 403)
 
     const body = await req.json().catch(() => ({}))
     const { action, uid, email, password, name, role, updates } = body
@@ -60,6 +64,7 @@ Deno.serve(async (req: Request) => {
       if (!uid) return json({ error: 'uid required', trace }, 400)
       r = await fetch(`${AUTH_BASE}/${uid}`, { method: 'PUT', headers: H, body: JSON.stringify(updates || {}) })
     } else if (action === 'delete') {
+      if (caller.role !== 'super_admin') return json({ error: 'Only a Super Admin can delete a user login', trace }, 403)
       if (!uid) return json({ error: 'uid required', trace }, 400)
       r = await fetch(`${AUTH_BASE}/${uid}`, { method: 'DELETE', headers: H })
     } else {

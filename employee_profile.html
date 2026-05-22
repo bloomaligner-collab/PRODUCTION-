@@ -540,7 +540,7 @@ function getRange(){
 // LOAD EMPLOYEES
 // Check if current user is manager or employee
 const currentRole = sessionStorage.getItem("cw_role") || "employee"
-const isManager = currentRole === "manager"
+const isManager = (typeof CW_ACCESS!=="undefined"&&CW_ACCESS.isAdmin)?CW_ACCESS.isAdmin():["manager","admin","super_admin"].includes(currentRole)
 
 // Hide admin tab and edit button if not manager
 if(!isManager){

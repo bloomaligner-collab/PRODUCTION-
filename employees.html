@@ -197,7 +197,7 @@ tbody tr:hover{background:#f8fafc}
     <div class="kpi-row">
       <div class="kpi"><div class="kpi-icon">👥</div><div class="kpi-lbl">Total</div><div class="kpi-val" id="kpiTotal">—</div></div>
       <div class="kpi"><div class="kpi-icon">🟢</div><div class="kpi-lbl">Active Now</div><div class="kpi-val" id="kpiActive" style="color:#16a34a">—</div></div>
-      <div class="kpi"><div class="kpi-icon">📊</div><div class="kpi-lbl">Managers</div><div class="kpi-val" id="kpiManagers" style="color:#3b5fe2">—</div></div>
+      <div class="kpi"><div class="kpi-icon">🛡</div><div class="kpi-lbl">Admins</div><div class="kpi-val" id="kpiManagers" style="color:#7c3aed">—</div></div>
       <div class="kpi"><div class="kpi-icon">🚫</div><div class="kpi-lbl">Blocked</div><div class="kpi-val" id="kpiBlocked" style="color:#dc2626">—</div></div>
     </div>
 
@@ -206,7 +206,7 @@ tbody tr:hover{background:#f8fafc}
       <div id="savedViewsMount" style="margin-bottom:10px"></div>
       <div class="toolbar">
         <input class="srch" id="srch" placeholder="🔍  Search employees…"/>
-        <select class="flt" id="roleFlt"><option value="all">All Roles</option><option value="employee">Employee</option><option value="manager">Manager</option></select>
+        <select class="flt" id="roleFlt"><option value="all">All Tiers</option><option value="employee">User</option><option value="admin">Admin</option><option value="super_admin">Super Admin</option></select>
         <select class="flt" id="statFlt"><option value="all">All Status</option><option value="active">Active</option><option value="blocked">Blocked</option></select>
         <button class="btn bgh" onclick="exportFilteredCsv()" title="Download filtered employees as CSV" style="margin-left:auto">⬇ CSV</button>
         <button class="btn bgh" id="refreshBtn">↻ Refresh</button>
@@ -261,9 +261,20 @@ tbody tr:hover{background:#f8fafc}
       </div>
     </div>
 
+    <!-- ACCESS TIER -->
+    <div class="fgrp">
+      <div class="sec-lbl">Access Tier</div>
+      <select class="fi" id="fTier">
+        <option value="employee">User — sees only the pages from the roles below</option>
+        <option value="admin">Admin — full app access + manage users</option>
+        <option value="super_admin">Super Admin — full control, incl. users &amp; role catalog</option>
+      </select>
+      <div style="font-size:10px;color:var(--dim);margin-top:5px" id="fTierHint">Admin &amp; Super Admin automatically see every page. Only a Super Admin can grant Admin or Super Admin, or change the role catalog.</div>
+    </div>
+
     <!-- PRIMARY ROLE -->
     <div class="fgrp">
-      <div class="sec-lbl">Primary Role</div>
+      <div class="sec-lbl">Primary Role <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--dim)">(functional role — drives a User's page access)</span></div>
       <div class="rt-grid" id="rtGrid">Loading…</div>
     </div>
 
@@ -328,6 +339,17 @@ let allEmps=[],activeSess=[],roleTemplates=[]
 let selPrimary=null   // role template object
 let extraRoles=[]     // array of role template objects
 
+// Only a Super Admin may grant or change the elevated tiers (Admin /
+// Super Admin) or delete a user. Admins manage regular Users only.
+const ME_IS_SUPER=(typeof CW_ACCESS!=='undefined'&&CW_ACCESS.isSuperAdmin)?CW_ACCESS.isSuperAdmin():false
+const ADMIN_TIERS=['manager','admin','super_admin']
+function applyTierField(role){
+  const sel=document.getElementById('fTier')
+  sel.value=(role==='super_admin')?'super_admin':(role==='admin'||role==='manager')?'admin':'employee'
+  // Lock the selector for non-Super-Admins so they can only ever set "User".
+  sel.disabled=!ME_IS_SUPER
+}
+
 /* ─── LOAD ─── */
 async function load(){
   const[empR,sessR,rolesR]=await Promise.all([
@@ -340,7 +362,7 @@ async function load(){
   roleTemplates=rolesR.data||getDefaultRoles()
   document.getElementById('kpiTotal').textContent=allEmps.length
   document.getElementById('kpiActive').textContent=activeSess.length
-  document.getElementById('kpiManagers').textContent=allEmps.filter(e=>e.role==='manager').length
+  document.getElementById('kpiManagers').textContent=allEmps.filter(e=>ADMIN_TIERS.includes(e.role)).length
   document.getElementById('kpiBlocked').textContent=allEmps.filter(e=>!e.is_active).length
   renderTable()
 }
@@ -378,6 +400,7 @@ function renderTable(){
       </div></td>
       <td>
         <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+          ${ADMIN_TIERS.includes(e.role)?`<span class="role-pill" style="color:#7c3aed;border-color:#7c3aed40;background:#7c3aed15">${e.role==='super_admin'?'⭐ Super Admin':'🛡 Admin'}</span>`:''}
           <span class="role-pill" style="color:${pc};border-color:${pc}40;background:${pc}15">${pIcon} ${pLabel}</span>
           ${extraHtml}
         </div>
@@ -390,7 +413,7 @@ function renderTable(){
         <button class="btn bgh bs" onclick="openEdit('${e.id}')">✏ Edit</button>
         <a class="btn bgh bs" href="employee_profile.html?emp=${encodeURIComponent(e.name)}" style="text-decoration:none">👤 Profile</a>
         ${blk?`<button class="btn bg bs" onclick="toggleBlock('${e.id}',true)">✅ Unblock</button>`:`<button class="btn bam bs" onclick="toggleBlock('${e.id}',false)">🚫 Block</button>`}
-        <button class="btn br bs" onclick="deleteEmp('${e.id}','${e.name}')">🗑</button>
+        ${ME_IS_SUPER?`<button class="btn br bs" onclick="deleteEmp('${e.id}','${e.name}')">🗑</button>`:''}
       </div></td>
     </tr>`
   }).join(''):`<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--dim)">No employees found.</td></tr>`
@@ -515,6 +538,7 @@ function resetModal(){
   document.getElementById('moErr').textContent=''
   document.getElementById('editId').value=''
   document.getElementById('delBtn').style.display='none'
+  applyTierField('employee')
   selPrimary=null
   extraRoles=[]
   buildRoleGrid()
@@ -546,7 +570,8 @@ window.openEdit=(id)=>{
   document.getElementById('fStep').value=e.workflow_step||''
   document.getElementById('moTitle').textContent='Edit Employee: '+e.name
   document.getElementById('moSub').textContent=e.auth_user_id?'Update roles, PIN, or reset password.':'No login yet — set a username and password to enable login.'
-  document.getElementById('delBtn').style.display='inline-flex'
+  document.getElementById('delBtn').style.display=ME_IS_SUPER?'inline-flex':'none'
+  applyTierField(e.role)
   // Restore primary
   const pName=e.custom_role||e.role||'employee'
   selPrimary=roleTemplates.find(r=>r.name===pName)||null
@@ -626,8 +651,12 @@ document.getElementById('saveBtn').addEventListener('click',async()=>{
     if(pa.includes('all'))hasAll=true
     else pa.forEach(p=>mergedPages.add(p))
   })
-  const finalPages=hasAll?['all']:[...mergedPages]
-  const sysRole=allR.some(r=>r.name==='manager')?'manager':'employee'
+  // Access tier governs privilege; Admin & Super Admin always get full nav.
+  let sysRole=document.getElementById('fTier').value||'employee'
+  if(!ADMIN_TIERS.includes(sysRole))sysRole='employee'
+  if(sysRole!=='employee'&&!ME_IS_SUPER)return setErr('Only a Super Admin can grant the Admin or Super Admin tier.')
+  const isAdminTier=(sysRole==='admin'||sysRole==='super_admin')
+  const finalPages=(isAdminTier||hasAll)?['all']:[...mergedPages]
   const extraNames=extraRoles.map(r=>r.name)
   const payload={name,username,role:sysRole,pin:pin||null,is_active:true,
     email:email||null,phone:phone||null,

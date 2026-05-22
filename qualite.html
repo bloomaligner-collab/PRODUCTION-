@@ -692,7 +692,7 @@ async function load(){
 
   // ── Controller ──
   const currentUser=sessionStorage.getItem('cw_current_emp')||localStorage.getItem('cw_current_emp')||''
-  const isManager=(sessionStorage.getItem('cw_role')||'').toLowerCase()==='manager'
+  const isManager=(typeof CW_ACCESS!=='undefined'&&CW_ACCESS.isAdmin)?CW_ACCESS.isAdmin():['manager','admin','super_admin'].includes((sessionStorage.getItem('cw_role')||'').toLowerCase())
   const eSel=document.getElementById("qcController")
   const empList=er.data||[]
   if(isManager){

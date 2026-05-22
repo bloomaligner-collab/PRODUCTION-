@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
       const rk = assigned ? roleKey(assigned) : null
       targets = emps.filter((e: any) => {
         if (e.id === m.sender_id) return false
-        if (e.role === 'manager') return true
+        if (['manager', 'admin', 'super_admin'].includes(e.role)) return true
         if (!assigned) return false
         if (!rk) return assigned === e.name
         const mine = [String(e.custom_role || e.role || '').toLowerCase()]
