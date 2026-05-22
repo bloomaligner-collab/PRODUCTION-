@@ -513,6 +513,10 @@ const CW_ACCESS = {
       css.id = 'cw-m-css';
       css.textContent = `
 @media (max-width:860px){
+  /* No sideways scrolling on phones — keep everything within the viewport.
+     overflow-x:clip (not hidden) avoids creating a scroll container, so it
+     doesn't break the sticky top bar. */
+  html,body{max-width:100%!important;overflow-x:clip!important}
   /* Pages hide their fixed sidebar with .sidebar{display:none} at small
      widths; force it back so the off-canvas drawer can slide in. Without
      this the menu never appears and tapping ☰ only flashes the backdrop. */
