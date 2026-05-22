@@ -534,12 +534,12 @@ const CW_ACCESS = {
   input,select,textarea,.fi{font-size:16px!important}
   .kpi-row,.cards,.grid{grid-template-columns:1fr!important}
 }
-#cw-mnav{display:none;position:fixed;top:calc(env(safe-area-inset-top) + 84px);left:12px;
-  z-index:100001;width:44px;height:44px;align-items:center;justify-content:center;border-radius:12px;
-  background:#3b5fe2;border:none;box-shadow:0 4px 14px rgba(15,23,42,.3);font-size:20px;cursor:pointer;
-  font-family:inherit;color:#fff;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;
+#cw-mnav{display:none;position:fixed;top:calc(env(safe-area-inset-top) + var(--cw-fb-h, 0px) + 88px);left:12px;
+  z-index:100001;width:52px;height:52px;align-items:center;justify-content:center;border-radius:14px;
+  background:#fff;border:2.5px solid #3b5fe2;box-shadow:0 4px 16px rgba(15,23,42,.4);font-size:24px;cursor:pointer;
+  font-family:inherit;color:#3b5fe2;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;
   touch-action:manipulation}
-#cw-mnav:active{transform:scale(.92)}
+#cw-mnav:active{transform:scale(.92);background:#eef2ff}
 #cw-mnav-bd{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1150;opacity:0;
   pointer-events:none;transition:opacity .2s}
 body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
@@ -1163,7 +1163,11 @@ CW_ACCESS.injectFeedbackBanner = async function () {
       <a href="customer_feedback.html?open=${encodeURIComponent(first.id)}" style="background:#fff;color:#1d4ed8;padding:6px 14px;border-radius:8px;font-weight:700;text-decoration:none;white-space:nowrap">View now →</a>
     `;
     document.body.prepend(topBar);
-    document.body.style.paddingTop = (topBar.offsetHeight || 48) + 'px';
+    const fbH = (topBar.offsetHeight || 48);
+    document.body.style.paddingTop = fbH + 'px';
+    // Expose the banner height so the mobile menu button can sit clear of
+    // it instead of being hidden behind / camouflaged against it.
+    try { document.documentElement.style.setProperty('--cw-fb-h', fbH + 'px'); } catch (e) {}
 
     // LOGIN MODAL — big, deliberate, only shown ONCE per tab session.
     // After the user clicks Skip (or clicks outside / Esc), the modal
@@ -1226,7 +1230,7 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 // Temporary visible build stamp so we can confirm which deploy a device
 // is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = 'menu-debug-5';
+const CW_BUILD = 'menu-debug-6';
 // Global tap logger: records the element actually under the finger so we
 // can see what the user is pressing when the "menu" flickers. Temporary.
 function _cwInitTapLogger() {
