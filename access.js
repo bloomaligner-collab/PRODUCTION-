@@ -549,18 +549,35 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       btn.textContent = '☰';
       const bd = document.createElement('div');
       bd.id = 'cw-mnav-bd';
+      // After the drawer opens, the full-screen backdrop becomes
+      // clickable directly under the finger. On iOS the same tap can
+      // produce a delayed "ghost" click that lands on the backdrop (or a
+      // nav link) and instantly closes the drawer again — open/close =
+      // the flicker. Ignore any close that arrives within this window of
+      // an open so a single tap can only ever open it.
+      let lockUntil = 0;
+      const isOpen = () => document.body.classList.contains('cw-nav-open');
+      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; };
       const close = () => document.body.classList.remove('cw-nav-open');
       btn.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        document.body.classList.toggle('cw-nav-open');
+        if (isOpen()) { if (Date.now() >= lockUntil) close(); }
+        else open();
       });
-      bd.addEventListener('click', close);
+      bd.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (Date.now() < lockUntil) return;   // ignore ghost-click passthrough
+        close();
+      });
       const mount = () => {
         if (!document.body) return;
         document.body.appendChild(bd);
         document.body.appendChild(btn);
-        // Close the drawer when a nav link is tapped.
+        // Close the drawer when a nav link is tapped (but not from the
+        // same gesture that just opened it).
         document.addEventListener('click', (e) => {
+          if (Date.now() < lockUntil) return;
           const a = e.target.closest && e.target.closest('.sb a, .sidebar a, .nl, .nav-link');
           if (a) close();
         });
