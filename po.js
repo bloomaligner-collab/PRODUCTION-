@@ -49,6 +49,23 @@ function poHtml(po, supplier, lines, totalCost, currency){
   </div>`
 }
 
+// Re-email an already-created PO to its supplier.
+export async function resendPO(sb, poId){
+  const { data: po } = await sb.from('purchase_orders').select('*').eq('id', poId).single()
+  if (!po) return { ok:false, error:'PO not found' }
+  const email = po.supplier_email
+  if (!email) return { ok:false, error:'no email on file for supplier' }
+  const { data: lines } = await sb.from('purchase_order_lines').select('*').eq('po_id', poId)
+  const sup = { name: po.supplier_name, currency: po.currency }
+  const r = await CW_Notify.sendEmail(email, po.supplier_name, `Purchase Order ${po.po_number}`,
+    poHtml(po, sup, lines||[], po.total_cost, po.currency), 'purchase_order')
+  await sb.from('purchase_orders').update({
+    emailed_at: r.ok ? new Date().toISOString() : po.emailed_at,
+    email_status: r.ok ? 'sent' : 'failed'
+  }).eq('id', poId)
+  return { ok: r.ok, error: r.error }
+}
+
 export async function createAndEmailPOs(sb, items, opts = {}){
   const clean = (items||[]).filter(i => i && i.item_name && num(i.quantity) > 0)
   const result = { pos: [], emailed: 0, failed: [], noSupplier: [] }

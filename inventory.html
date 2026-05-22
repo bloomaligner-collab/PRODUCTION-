@@ -189,6 +189,7 @@
       <button class="tb on" data-t="stock">📦 Stock</button>
       <button class="tb" data-t="items">🗂 Items</button>
       <button class="tb" data-t="reqs">📋 Requisitions</button>
+      <button class="tb" data-t="pos">📤 Purchase Orders</button>
       <button class="tb" data-t="fefo">🔄 FEFO Consume</button>
       <button class="tb" data-t="bom">⚗️ BOM</button>
       <button class="tb" data-t="autoreq">🧮 Auto-Requisition</button>
@@ -273,6 +274,32 @@
               <button class="btn b-red b-sm" style="justify-content:center" id="btnRej">✗ Reject</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PURCHASE ORDERS -->
+    <div class="tp" id="tp-pos">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="ct">📤 Purchase Orders</div>
+          <select id="poFilter" class="fsel" style="max-width:170px">
+            <option value="">All statuses</option>
+            <option value="sent">Sent</option>
+            <option value="received">Received</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div style="overflow:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px">
+              <th style="padding:8px 10px">PO #</th><th style="padding:8px 10px">Supplier</th>
+              <th style="padding:8px 10px">Items</th><th style="padding:8px 10px;text-align:right">Total</th>
+              <th style="padding:8px 10px">Email</th><th style="padding:8px 10px">Status</th>
+              <th style="padding:8px 10px">Created</th><th style="padding:8px 10px">Actions</th>
+            </tr></thead>
+            <tbody id="tPOs"><tr><td colspan="8" style="padding:14px;color:var(--dim)">Loading…</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -659,7 +686,57 @@ async function loadAll(){_cachedExcluded=null // reset config cache on each load
   const pops=['lIt','fItem'];pops.forEach(id=>{const s=$(id),cv=s.value;s.innerHTML='<option value="">— Select item —</option>';allItems.forEach(it=>{const iname=it.item_name||it.name||'?';const o=document.createElement('option');o.value=it.id;o.dataset.name=iname;o.dataset.unit=it.unit_of_measure||it.unit||'';o.textContent=iname+((it.unit_of_measure||it.unit)?' ('+(it.unit_of_measure||it.unit)+')':'');s.appendChild(o)});if(cv)s.value=cv})
   // BOM material dropdown — value is the item name (BOM stores material_name)
   const bs=$('bomName');if(bs){const bcv=bs.value;bs.innerHTML='<option value="">— Select from inventory —</option>';allItems.forEach(it=>{const iname=it.item_name||it.name||'';if(!iname)return;const o=document.createElement('option');o.value=iname;o.dataset.unit=it.unit_of_measure||it.unit||'';o.dataset.category=it.category_name||it.category||'';o.textContent=iname+((it.unit_of_measure||it.unit)?' ('+(it.unit_of_measure||it.unit)+')':'');bs.appendChild(o)});if(bcv){if(![...bs.options].some(o=>o.value===bcv)){const o=document.createElement('option');o.value=bcv;o.textContent=bcv+' (not in inventory)';bs.appendChild(o)}bs.value=bcv}}
-  rStock();rItems();rReqs();rActivity(hr.data||[])
+  rStock();rItems();rReqs();rActivity(hr.data||[]);loadPOs()
+}
+let allPOs=[]
+async function loadPOs(){
+  const{data}=await sb.from('purchase_orders').select('*').order('created_at',{ascending:false}).limit(100)
+  allPOs=data||[];rPOs()
+}
+function poEmailBdg(s){const m={sent:'<span class="bdg bg">✉ Sent</span>',failed:'<span class="bdg br">✉ Failed</span>',no_email:'<span class="bdg ba">No email</span>'};return m[s]||'<span class="bdg bgy">—</span>'}
+function rPOs(){
+  const f=$('poFilter').value
+  const rows=allPOs.filter(p=>!f||p.status===f)
+  $('tPOs').innerHTML=rows.length?rows.map(p=>`<tr style="border-top:1px solid var(--border)">
+    <td style="padding:8px 10px;font-weight:700">${p.po_number||'—'}</td>
+    <td style="padding:8px 10px">${p.supplier_name||'—'}<div style="font-size:11px;color:var(--muted)">${p.supplier_email||'no email'}</div></td>
+    <td style="padding:8px 10px;text-align:center">${p.item_count||0}</td>
+    <td style="padding:8px 10px;text-align:right;font-family:monospace">${Number(p.total_cost||0)?Number(p.total_cost).toLocaleString():'—'} ${p.currency||''}</td>
+    <td style="padding:8px 10px">${poEmailBdg(p.email_status)}</td>
+    <td style="padding:8px 10px">${stBdg(p.status)}</td>
+    <td style="padding:8px 10px;font-size:12px;color:var(--muted)">${fdt(p.created_at)}</td>
+    <td style="padding:8px 10px;white-space:nowrap">
+      ${p.supplier_email?`<button class="btn b-gho b-sm" onclick="poResend('${p.id}')">↻ Re-send</button>`:''}
+      ${p.status==='sent'?`<button class="btn b-pri b-sm" onclick="poReceive('${p.id}')">📥 Receive</button>`:''}
+    </td>
+  </tr>`).join(''):'<tr><td colspan="8" style="padding:14px;color:var(--dim)">No purchase orders yet.</td></tr>'
+}
+window.poResend=async function(id){
+  notify('Re-sending PO…')
+  const r=await resendPO(sb,id)
+  notify(r.ok?'✉ PO re-sent to supplier':('Failed: '+(r.error||'')),r.ok?'success':'err')
+  loadPOs()
+}
+// Mark a PO received: create an inventory lot per line and flip status.
+window.poReceive=async function(id){
+  const{data:po}=await sb.from('purchase_orders').select('*').eq('id',id).single()
+  const{data:lines}=await sb.from('purchase_order_lines').select('*').eq('po_id',id)
+  if(!lines||!lines.length){notify('PO has no lines','err');return}
+  let made=0,skip=[]
+  for(const l of lines){
+    const it=allItems.find(x=>(x.item_name||x.name||'').trim().toLowerCase()===l.item_name.trim().toLowerCase())
+    if(!it){skip.push(l.item_name);continue}
+    const{data:nl,error}=await sb.from('inventory_lots').insert([{item_id:it.id,lot_no:`${po.po_number}-${made+1}`,initial_qty:Number(l.quantity)||0,available_qty:Number(l.quantity)||0,unit_cost:Number(l.unit_cost)||0,purchase_date:new Date().toISOString().slice(0,10),supplier_id:po.supplier_id||null,notes:`Received from ${po.po_number}`}]).select().single()
+    if(error){skip.push(l.item_name+' ('+error.message+')');continue}
+    await sb.from('inventory_stock_history').insert([{lot_id:nl.id,action_type:'purchase',quantity:Number(l.quantity)||0,unit_cost:Number(l.unit_cost)||0,note:`Received via ${po.po_number}`}])
+    made++
+  }
+  await sb.from('purchase_orders').update({status:'received'}).eq('id',id)
+  if(po.source==='inventory_queue') await sb.from('inventory_requisitions').update({status:'received'}).eq('po_id',id)
+  let msg=`📥 ${po.po_number} received · ${made} lot(s) created`
+  if(skip.length)msg+=` · ${skip.length} skipped (item not in inventory)`
+  notify(msg,skip.length?'warn':'success')
+  loadAll()
 }
 function rStock(){
   const term=$('sSearch').value.toLowerCase(),sf=$('sStatus').value,cf=$('sCat').value
@@ -870,6 +947,7 @@ document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{
   b.classList.add('on');$('tp-'+b.dataset.t).classList.add('on')
 }))
 $('sSearch').addEventListener('input',rStock);$('sStatus').addEventListener('change',rStock);$('sCat').addEventListener('change',rStock)
+$('poFilter').addEventListener('change',rPOs)
 
 // CSV export — respects current filters (search, status, category)
 import { downloadCsv, todayIso } from './csv_export.js?v=20260423d';
@@ -898,7 +976,7 @@ window.exportFilteredCsv = () => {
 };
 
 import { mountSavedViews } from './user_views.js?v=20260423d';
-import { createAndEmailPOs } from './po.js?v=20260521a';
+import { createAndEmailPOs, resendPO } from './po.js?v=20260521b';
 mountSavedViews({
   sb, page: 'inventory',
   mountEl: document.getElementById('savedViewsMount'),
