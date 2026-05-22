@@ -24,10 +24,10 @@ export const CW_Notify={
         body:JSON.stringify(payload)
       })
       const d=await r.json()
-      await _sb.from("notification_log").insert([{type,channel:"email",recipient:toEmail,subject,message:htmlContent.replace(/<[^>]+>/g,"").slice(0,200),status:r.ok?"sent":"failed",error_msg:r.ok?null:JSON.stringify(d)}])
+      await _sb.from("notification_log").insert([{type,recipient:toEmail,subject,status:r.ok?"sent":"failed",error_message:r.ok?null:JSON.stringify(d)}])
       return{ok:r.ok,data:d}
     }catch(e){
-      await _sb.from("notification_log").insert([{type,channel:"email",recipient:toEmail,subject,status:"failed",error_msg:e.message}])
+      await _sb.from("notification_log").insert([{type,recipient:toEmail,subject,status:"failed",error_message:e.message}])
       return{ok:false,error:e.message}
     }
   },
@@ -42,7 +42,7 @@ export const CW_Notify={
         body:JSON.stringify({receiverNumber:phone,type:"text",text:{body:message}})
       })
       const d=await r.json()
-      await _sb.from("notification_log").insert([{type,channel:"whatsapp",recipient:phone,message:message.slice(0,200),status:r.ok?"sent":"failed",error_msg:r.ok?null:JSON.stringify(d)}])
+      await _sb.from("notification_log").insert([{type,recipient:phone,subject:"WhatsApp",status:r.ok?"sent":"failed",error_message:r.ok?null:JSON.stringify(d)}])
       return{ok:r.ok,data:d}
     }catch(e){return{ok:false,error:e.message}}
   },
@@ -65,10 +65,10 @@ export const CW_Notify={
         body:body.toString()
       })
       const d=await r.json()
-      await _sb.from("notification_log").insert([{type,channel:"sms",recipient:phone,message:String(message).slice(0,200),status:r.ok?"sent":"failed",error_msg:r.ok?null:(d.message||JSON.stringify(d))}])
+      await _sb.from("notification_log").insert([{type,recipient:phone,subject:"SMS",status:r.ok?"sent":"failed",error_message:r.ok?null:(d.message||JSON.stringify(d))}])
       return{ok:r.ok,data:d}
     }catch(e){
-      await _sb.from("notification_log").insert([{type,channel:"sms",recipient:phone,status:"failed",error_msg:e.message}])
+      await _sb.from("notification_log").insert([{type,recipient:phone,subject:"SMS",status:"failed",error_message:e.message}])
       return{ok:false,error:e.message}
     }
   },
