@@ -592,29 +592,16 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
         head.appendChild(a);
       }
       if ('serviceWorker' in navigator && location.protocol === 'https:') {
-        const hadController = !!navigator.serviceWorker.controller;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // Auto-reload to pick up new code, but cap the rate so a
-          // misbehaving SW (or iOS clearing sessionStorage on a PWA
-          // swap) can never produce the "flashing ☰" reload loop.
-          // At most 2 auto-reloads in any 30-s window; the counter
-          // resets after 10 min of calm.
-          if (!hadController) return;
-          let attempts = 0, lastTs = 0;
-          const now = Date.now();
-          try {
-            attempts = parseInt(localStorage.getItem('cw_sw_reloads') || '0', 10) || 0;
-            lastTs   = parseInt(localStorage.getItem('cw_sw_reload_ts') || '0', 10) || 0;
-            if (now - lastTs > 600000) attempts = 0;
-            if (now - lastTs < 30000 && attempts >= 2) return; // loop detected → stop
-            localStorage.setItem('cw_sw_reloads', String(attempts + 1));
-            localStorage.setItem('cw_sw_reload_ts', String(now));
-          } catch (e) {
-            // localStorage unavailable: fail safe — do NOT auto-reload.
-            return;
-          }
-          location.reload();
-        });
+        // NOTE: we deliberately do NOT auto-reload on `controllerchange`.
+        // The service worker is network-first for HTML/JS (it fetches
+        // fresh with cache:'reload'), so a new worker taking control does
+        // not require an immediate page reload to pick up new code — the
+        // next navigation already does. Auto-reloading here caused the
+        // "flashing ☰" loop on iOS PWAs, where the rate-limit counter
+        // (stored in localStorage) could be cleared between swaps, so the
+        // loop never self-terminated. Letting the new SW claim silently
+        // is invisible to the user and avoids the flicker entirely.
+
         // Best-effort: drop any older SW (the previous sw.js still
         // active on stuck devices) so the fresh sw-v2.js can take over.
         (async () => {
