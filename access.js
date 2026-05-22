@@ -559,19 +559,23 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       // nav link) and instantly closes the drawer again — open/close =
       // the flicker. Ignore any close that arrives within this window of
       // an open so a single tap can only ever open it.
-      let lockUntil = 0;
+      let lockUntil = 0, lastToggle = 0;
       const setEvt = (t) => { try { localStorage.setItem('cw_dbg_evt', t); } catch (e) {} };
       const isOpen = () => document.body.classList.contains('cw-nav-open');
       const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; _cwDbgBump('op'); };
       const close = () => { document.body.classList.remove('cw-nav-open'); _cwDbgBump('cl'); };
-      const onActivate = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setEvt(e.type); _cwDbgBump('tap');
-        if (isOpen()) { if (Date.now() >= lockUntil) close(); else { _cwDbgBump('blk'); } }
-        else open();
+      // Debounced toggle, exposed globally so the document-level tap logger
+      // (which fires reliably) can drive it by coordinates even when the
+      // button's own click event is being swallowed.
+      const toggleNav = (src) => {
+        const now = Date.now();
+        if (now - lastToggle < 300) return;   // ignore duplicate fire (pointer + click)
+        lastToggle = now;
+        setEvt(src); _cwDbgBump('tap');
+        if (isOpen()) close(); else open();
       };
-      btn.addEventListener('click', onActivate);
+      window.__cwToggleNav = toggleNav;
+      btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleNav('click'); });
       bd.addEventListener('click', (e) => {
         e.preventDefault();
         setEvt('bd');
@@ -1230,7 +1234,7 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 // Temporary visible build stamp so we can confirm which deploy a device
 // is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = 'menu-debug-6';
+const CW_BUILD = 'menu-debug-7';
 // Global tap logger: records the element actually under the finger so we
 // can see what the user is pressing when the "menu" flickers. Temporary.
 function _cwInitTapLogger() {
@@ -1245,6 +1249,20 @@ function _cwInitTapLogger() {
       }
       try { localStorage.setItem('cw_dbg_hitel', desc); } catch (e2) {}
       _cwDbgBump('hit');
+      // Robust menu open: if the tap falls within the menu button's box
+      // (computed live), drive the toggle directly — bypasses any click
+      // swallowing / hit-test quirk. Generous padding makes it easy to hit.
+      try {
+        const b = document.getElementById('cw-mnav');
+        if (b && window.__cwToggleNav) {
+          const r = b.getBoundingClientRect();
+          const pad = 14;
+          if (e.clientX >= r.left - pad && e.clientX <= r.right + pad &&
+              e.clientY >= r.top - pad && e.clientY <= r.bottom + pad) {
+            window.__cwToggleNav('pd');
+          }
+        }
+      } catch (e3) {}
     }, true);
   } catch (e) {}
 }
@@ -1297,6 +1315,8 @@ document.addEventListener('DOMContentLoaded', () => {
   CW_ACCESS.injectButtonStyles();
   CW_ACCESS._initPWA();
   CW_ACCESS._initMobile();
+  _cwDbgRender();                       // reflect the now-created button
+  setTimeout(_cwDbgRender, 800);        // and again after late layout
   if (typeof PAGE_KEY !== 'undefined') {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);
