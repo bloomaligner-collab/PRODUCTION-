@@ -178,6 +178,9 @@ async function load(){
   all=sr.data||[]
   const items=ir.data||[]
   renderGrid(all,items)
+  // Deep link: #edit=<supplierId> opens that supplier straight away.
+  const m=location.hash.match(/edit=([0-9a-f-]+)/i)
+  if(m&&all.some(s=>s.id===m[1])){history.replaceState(null,'',location.pathname);window.editSupplier(m[1])}
 }
 
 function renderGrid(suppliers,items){

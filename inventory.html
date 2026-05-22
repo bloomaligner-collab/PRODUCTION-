@@ -699,12 +699,18 @@ async function loadPOs(){
 }
 async function rPOSetup(){
   const{data:sups}=await sb.from('suppliers').select('id,name,email,contact_email')
-  const supById={};(sups||[]).forEach(s=>supById[s.id]=s)
-  const noSupEmail=(sups||[]).filter(s=>!(s.email||s.contact_email)).map(s=>s.name)
-  const noItemSup=allItems.filter(it=>!(it.preferred_supplier_id||it.supplier_id)).map(it=>it.item_name||it.name||'?')
+  const noSupEmail=(sups||[]).filter(s=>!(s.email||s.contact_email))
+  const noItemSup=allItems.filter(it=>!(it.preferred_supplier_id||it.supplier_id))
+  const lnk='color:var(--blue);cursor:pointer;text-decoration:underline'
   const parts=[]
-  if(noItemSup.length)parts.push(`<div style="margin-bottom:8px"><strong style="color:var(--text)">${noItemSup.length} item(s) without a preferred supplier</strong> — these get skipped when generating POs:<div style="margin-top:4px;color:var(--dim)">${noItemSup.slice(0,20).join(', ')}${noItemSup.length>20?` … +${noItemSup.length-20} more`:''}</div></div>`)
-  if(noSupEmail.length)parts.push(`<div><strong style="color:var(--text)">${noSupEmail.length} supplier(s) without an email</strong> — their POs are recorded but can't be emailed:<div style="margin-top:4px;color:var(--dim)">${noSupEmail.slice(0,20).join(', ')}${noSupEmail.length>20?` … +${noSupEmail.length-20} more`:''}</div></div>`)
+  if(noItemSup.length){
+    const names=noItemSup.slice(0,20).map(it=>`<a style="${lnk}" onclick="doEditItem('${it.id}')">${it.item_name||it.name||'?'}</a>`).join(', ')
+    parts.push(`<div style="margin-bottom:8px"><strong style="color:var(--text)">${noItemSup.length} item(s) without a preferred supplier</strong> — click to assign one (these are skipped when generating POs):<div style="margin-top:4px">${names}${noItemSup.length>20?` <span style="color:var(--dim)">… +${noItemSup.length-20} more</span>`:''}</div></div>`)
+  }
+  if(noSupEmail.length){
+    const names=noSupEmail.slice(0,20).map(s=>`<a style="${lnk}" href="suppliers.html#edit=${s.id}">${s.name}</a>`).join(', ')
+    parts.push(`<div><strong style="color:var(--text)">${noSupEmail.length} supplier(s) without an email</strong> — click to add one (their POs are recorded but can't be emailed):<div style="margin-top:4px">${names}${noSupEmail.length>20?` <span style="color:var(--dim)">… +${noSupEmail.length-20} more</span>`:''}</div></div>`)
+  }
   $('poSetupCard').style.display=parts.length?'':'none'
   $('poSetup').innerHTML=parts.join('')
 }
