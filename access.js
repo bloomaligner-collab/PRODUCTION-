@@ -1220,7 +1220,24 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 };
 
 // ── Auto-run ──────────────────────────────────────────────────────
+// Temporary visible build stamp so we can confirm which deploy a device
+// is actually running while debugging the mobile menu. Remove once done.
+const CW_BUILD = '2026-05-22 · menu-fix-1';
+function _cwBuildStamp() {
+  try {
+    if (document.getElementById('cw-build')) return;
+    const s = document.createElement('div');
+    s.id = 'cw-build';
+    s.textContent = 'build ' + CW_BUILD;
+    s.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:2147483647;'
+      + 'background:#111;color:#0f0;font:700 11px/1.3 monospace;padding:3px 7px;'
+      + 'border-radius:6px;opacity:.85;pointer-events:none';
+    (document.body || document.documentElement).appendChild(s);
+  } catch (e) {}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  _cwBuildStamp();
   CW_ACCESS.injectButtonStyles();
   CW_ACCESS._initPWA();
   CW_ACCESS._initMobile();
