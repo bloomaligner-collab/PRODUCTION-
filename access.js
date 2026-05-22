@@ -560,28 +560,22 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       // the flicker. Ignore any close that arrives within this window of
       // an open so a single tap can only ever open it.
       let lockUntil = 0;
-      // TEMP DEBUG: live counters surfaced in the corner build stamp so we
-      // can see, from the device, exactly what a single tap does.
-      const dbg = { tap: 0, open: 0, close: 0, blk: 0, evt: '' };
-      const report = () => {
-        const el = document.getElementById('cw-build');
-        if (el) el.textContent = `tap${dbg.tap} op${dbg.open} cl${dbg.close} blk${dbg.blk} ${dbg.evt}`;
-      };
+      const setEvt = (t) => { try { localStorage.setItem('cw_dbg_evt', t); } catch (e) {} };
       const isOpen = () => document.body.classList.contains('cw-nav-open');
-      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; dbg.open++; report(); };
-      const close = () => { document.body.classList.remove('cw-nav-open'); dbg.close++; report(); };
+      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; _cwDbgBump('op'); };
+      const close = () => { document.body.classList.remove('cw-nav-open'); _cwDbgBump('cl'); };
       const onActivate = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dbg.tap++; dbg.evt = e.type;
-        if (isOpen()) { if (Date.now() >= lockUntil) close(); else { dbg.blk++; report(); } }
+        setEvt(e.type); _cwDbgBump('tap');
+        if (isOpen()) { if (Date.now() >= lockUntil) close(); else { _cwDbgBump('blk'); } }
         else open();
       };
       btn.addEventListener('click', onActivate);
       bd.addEventListener('click', (e) => {
         e.preventDefault();
-        dbg.evt = 'bd';
-        if (Date.now() < lockUntil) { dbg.blk++; report(); return; }   // ignore ghost-click passthrough
+        setEvt('bd');
+        if (Date.now() < lockUntil) { _cwDbgBump('blk'); return; }   // ignore ghost-click passthrough
         close();
       });
       const mount = () => {
@@ -1232,17 +1226,41 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 // Temporary visible build stamp so we can confirm which deploy a device
 // is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = 'menu-debug-2 · tap the menu';
+const CW_BUILD = 'menu-debug-3';
+// Persistent debug counters (survive reloads via localStorage) so we can
+// tell from the device whether tapping the menu reloads the page or
+// storms events. Temporary.
+function _cwDbgGet(k) { try { return parseInt(localStorage.getItem('cw_dbg_' + k) || '0', 10) || 0; } catch (e) { return 0; } }
+function _cwDbgSet(k, v) { try { localStorage.setItem('cw_dbg_' + k, String(v)); } catch (e) {} }
+function _cwDbgBump(k) { const v = _cwDbgGet(k) + 1; _cwDbgSet(k, v); _cwDbgRender(); return v; }
+function _cwDbgRender() {
+  try {
+    const el = document.getElementById('cw-build');
+    if (!el) return;
+    el.textContent = CW_BUILD
+      + ' | load' + _cwDbgGet('load')
+      + ' tap' + _cwDbgGet('tap')
+      + ' op' + _cwDbgGet('op')
+      + ' cl' + _cwDbgGet('cl')
+      + ' blk' + _cwDbgGet('blk')
+      + ' ' + (localStorage.getItem('cw_dbg_evt') || '');
+  } catch (e) {}
+}
 function _cwBuildStamp() {
   try {
     if (document.getElementById('cw-build')) return;
     const s = document.createElement('div');
     s.id = 'cw-build';
-    s.textContent = 'build ' + CW_BUILD;
-    s.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:2147483647;'
-      + 'background:#111;color:#0f0;font:700 11px/1.3 monospace;padding:3px 7px;'
-      + 'border-radius:6px;opacity:.85;pointer-events:none';
+    s.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;'
+      + 'background:#111;color:#0f0;font:700 13px/1.4 monospace;padding:6px 10px;'
+      + 'text-align:center;opacity:.95;pointer-events:none;white-space:nowrap;overflow:hidden';
     (document.body || document.documentElement).appendChild(s);
+    // New page load: bump the persistent load counter, zero the per-tap
+    // counters so a single tap reads cleanly. If tapping the menu secretly
+    // reloads the page, the "load" number will jump and tap/op reset.
+    _cwDbgSet('tap', 0); _cwDbgSet('op', 0); _cwDbgSet('cl', 0); _cwDbgSet('blk', 0);
+    try { localStorage.setItem('cw_dbg_evt', ''); } catch (e) {}
+    _cwDbgBump('load');   // increments + renders
   } catch (e) {}
 }
 
