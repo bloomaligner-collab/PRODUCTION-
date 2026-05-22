@@ -560,18 +560,28 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       // the flicker. Ignore any close that arrives within this window of
       // an open so a single tap can only ever open it.
       let lockUntil = 0;
+      // TEMP DEBUG: live counters surfaced in the corner build stamp so we
+      // can see, from the device, exactly what a single tap does.
+      const dbg = { tap: 0, open: 0, close: 0, blk: 0, evt: '' };
+      const report = () => {
+        const el = document.getElementById('cw-build');
+        if (el) el.textContent = `tap${dbg.tap} op${dbg.open} cl${dbg.close} blk${dbg.blk} ${dbg.evt}`;
+      };
       const isOpen = () => document.body.classList.contains('cw-nav-open');
-      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; };
-      const close = () => document.body.classList.remove('cw-nav-open');
-      btn.addEventListener('click', (e) => {
+      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; dbg.open++; report(); };
+      const close = () => { document.body.classList.remove('cw-nav-open'); dbg.close++; report(); };
+      const onActivate = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (isOpen()) { if (Date.now() >= lockUntil) close(); }
+        dbg.tap++; dbg.evt = e.type;
+        if (isOpen()) { if (Date.now() >= lockUntil) close(); else { dbg.blk++; report(); } }
         else open();
-      });
+      };
+      btn.addEventListener('click', onActivate);
       bd.addEventListener('click', (e) => {
         e.preventDefault();
-        if (Date.now() < lockUntil) return;   // ignore ghost-click passthrough
+        dbg.evt = 'bd';
+        if (Date.now() < lockUntil) { dbg.blk++; report(); return; }   // ignore ghost-click passthrough
         close();
       });
       const mount = () => {
@@ -1222,7 +1232,7 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 // ── Auto-run ──────────────────────────────────────────────────────
 // Temporary visible build stamp so we can confirm which deploy a device
 // is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = '2026-05-22 · menu-fix-1';
+const CW_BUILD = 'menu-debug-2 · tap the menu';
 function _cwBuildStamp() {
   try {
     if (document.getElementById('cw-build')) return;
