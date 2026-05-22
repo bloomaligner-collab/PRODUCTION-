@@ -362,11 +362,18 @@ window.saveSupplier=async()=>{
   if(editId){
     const{error}=await sb.from('suppliers').update(payload).eq('id',editId)
     if(error){alert('Save failed: '+error.message);return}
-  } else {
-    const{error}=await sb.from('suppliers').insert([payload])
-    if(error){alert('Save failed: '+error.message);return}
+    closeModal();load();return
   }
-  closeModal();load()
+  // New supplier: keep the modal open in edit mode so certificates and
+  // other documents can be attached straight away (they need the new id).
+  const{data:ins,error}=await sb.from('suppliers').insert([payload]).select('id').single()
+  if(error){alert('Save failed: '+error.message);return}
+  editId=ins.id
+  document.getElementById('moTitle').textContent='Edit Supplier'
+  document.getElementById('supDocSection').style.display='block'
+  loadSupDocs(ins.id)
+  load() // refresh grid behind the modal
+  alert('Supplier saved. You can now add certificates and documents below, or press Cancel to finish.')
 }
 
 window.deleteSupplier=async(id)=>{

@@ -70,8 +70,9 @@ export async function reorderPO(sb, poId, opts = {}){
   let emailStatus = 'no_email'
   if (src.supplier_email){
     const sup = { name: src.supplier_name, currency: src.currency }
+    const att = await poPdf(po, sup, lines, totalCost, src.currency)
     const r = await CW_Notify.sendEmail(src.supplier_email, src.supplier_name, `Purchase Order ${po.po_number}`,
-      poHtml(po, sup, lines, totalCost, src.currency), 'purchase_order')
+      poHtml(po, sup, lines, totalCost, src.currency), 'purchase_order', att)
     emailStatus = r.ok ? 'sent' : 'failed'
   }
   await sb.from('purchase_orders').update({
@@ -88,13 +89,51 @@ export async function resendPO(sb, poId){
   if (!email) return { ok:false, error:'no email on file for supplier' }
   const { data: lines } = await sb.from('purchase_order_lines').select('*').eq('po_id', poId)
   const sup = { name: po.supplier_name, currency: po.currency }
+  const att = await poPdf(po, sup, lines||[], po.total_cost, po.currency)
   const r = await CW_Notify.sendEmail(email, po.supplier_name, `Purchase Order ${po.po_number}`,
-    poHtml(po, sup, lines||[], po.total_cost, po.currency), 'purchase_order')
+    poHtml(po, sup, lines||[], po.total_cost, po.currency), 'purchase_order', att)
   await sb.from('purchase_orders').update({
     emailed_at: r.ok ? new Date().toISOString() : po.emailed_at,
     email_status: r.ok ? 'sent' : 'failed'
   }).eq('id', poId)
   return { ok: r.ok, error: r.error }
+}
+
+// Build a printable PDF for a PO and return a Brevo attachment array
+// ([{content:<base64>, name:<file>}]) — or null if generation fails.
+async function poPdf(po, supplier, lines, totalCost, currency){
+  try{
+    const { jsPDF } = await import('https://esm.sh/jspdf@2.5.1')
+    const doc = new jsPDF({ unit:'pt', format:'a4' })
+    const W = doc.internal.pageSize.getWidth()
+    doc.setFillColor(30,58,138); doc.rect(0,0,W,70,'F')
+    doc.setTextColor(255); doc.setFontSize(11); doc.text('PURCHASE ORDER', 40, 30)
+    doc.setFontSize(20); doc.setFont(undefined,'bold'); doc.text(String(po.po_number||''), 40, 54)
+    doc.setTextColor(20); doc.setFont(undefined,'normal'); doc.setFontSize(11)
+    let y = 100
+    doc.text(`Supplier: ${supplier.name||'—'}`, 40, y); y+=16
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 40, y); y+=24
+    // header row
+    doc.setFont(undefined,'bold'); doc.setFontSize(10)
+    doc.text('Item',40,y); doc.text('Qty',300,y,{align:'right'}); doc.text('Unit',330,y)
+    doc.text('Unit Cost',460,y,{align:'right'}); doc.text('Total',540,y,{align:'right'})
+    y+=6; doc.setDrawColor(200); doc.line(40,y,W-40,y); y+=16
+    doc.setFont(undefined,'normal')
+    for(const l of lines){
+      if(y>780){ doc.addPage(); y=60 }
+      doc.text(String(l.item_name||'').slice(0,40),40,y)
+      doc.text(num(l.quantity).toLocaleString(),300,y,{align:'right'})
+      doc.text(String(l.unit||''),330,y)
+      doc.text(num(l.unit_cost)?num(l.unit_cost).toLocaleString():'—',460,y,{align:'right'})
+      doc.text(num(l.line_total)?num(l.line_total).toLocaleString():'—',540,y,{align:'right'})
+      y+=18
+    }
+    y+=6; doc.line(40,y,W-40,y); y+=20
+    doc.setFont(undefined,'bold'); doc.setFontSize(12)
+    doc.text(`Estimated total: ${num(totalCost).toLocaleString()} ${currency||''}`, W-40, y, {align:'right'})
+    const b64 = doc.output('datauristring').split(',')[1]
+    return [{ content: b64, name: `${po.po_number||'purchase-order'}.pdf` }]
+  }catch(e){ console.warn('[PO] PDF generation failed:', e.message); return null }
 }
 
 export async function createAndEmailPOs(sb, items, opts = {}){
@@ -148,7 +187,8 @@ export async function createAndEmailPOs(sb, items, opts = {}){
 
     let emailStatus = 'no_email'
     if (email){
-      const r = await CW_Notify.sendEmail(email, sup.name, `Purchase Order ${po.po_number}`, poHtml(po, sup, lines, totalCost, sup.currency), 'purchase_order')
+      const att = await poPdf(po, sup, lines, totalCost, sup.currency)
+      const r = await CW_Notify.sendEmail(email, sup.name, `Purchase Order ${po.po_number}`, poHtml(po, sup, lines, totalCost, sup.currency), 'purchase_order', att)
       emailStatus = r.ok ? 'sent' : 'failed'
       if (r.ok) result.emailed++; else result.failed.push(`${sup.name}: email ${r.error || 'failed'}`)
     } else {

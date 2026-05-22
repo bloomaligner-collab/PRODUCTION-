@@ -12,14 +12,16 @@ async function _getSettings(){
 }
 
 export const CW_Notify={
-  async sendEmail(toEmail,toName,subject,htmlContent,type="system"){
+  async sendEmail(toEmail,toName,subject,htmlContent,type="system",attachments=null){
     const s=await _getSettings()
     if(!s.brevo_api_key||!s.brevo_sender_email)return{ok:false,error:"Brevo not configured"}
     try{
+      const payload={sender:{name:s.brevo_sender_name||"Cedarwings SAS",email:s.brevo_sender_email},to:[{email:toEmail,name:toName}],subject,htmlContent}
+      if(attachments&&attachments.length)payload.attachment=attachments
       const r=await fetch("https://api.brevo.com/v3/smtp/email",{
         method:"POST",
         headers:{"api-key":s.brevo_api_key,"content-type":"application/json","accept":"application/json"},
-        body:JSON.stringify({sender:{name:s.brevo_sender_name||"Cedarwings SAS",email:s.brevo_sender_email},to:[{email:toEmail,name:toName}],subject,htmlContent})
+        body:JSON.stringify(payload)
       })
       const d=await r.json()
       await _sb.from("notification_log").insert([{type,channel:"email",recipient:toEmail,subject,message:htmlContent.replace(/<[^>]+>/g,"").slice(0,200),status:r.ok?"sent":"failed",error_msg:r.ok?null:JSON.stringify(d)}])
