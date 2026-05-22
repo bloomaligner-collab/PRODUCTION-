@@ -251,7 +251,13 @@ window.openSupDoc=async(ev,el)=>{
 }
 
 window.addSupDoc=async()=>{
-  if(!editId){ alert('Save the supplier first, then re-open to add documents.'); return }
+  // If the supplier hasn't been created yet, save it first so the
+  // document has a supplier id to attach to — no "save first" round trip.
+  if(!editId){
+    const id=await persistSupplier()
+    if(!id)return
+    load()
+  }
   const row = {
     supplier_id: editId,
     kind: document.getElementById('sdKind').value,
@@ -296,8 +302,8 @@ window.openAdd=()=>{
   document.getElementById('sDefCur').value='EUR'
   document.getElementById('sDefDist').checked=false
   document.getElementById('invLinkSection').style.display='none'
-  document.getElementById('supDocSection').style.display='none'
-  document.getElementById('supDocList').innerHTML=''
+  document.getElementById('supDocSection').style.display='block'
+  document.getElementById('supDocList').innerHTML='<div style="font-size:12px;color:#94a3b8">Documents are saved with the supplier when you add them.</div>'
   const _f=document.getElementById('sdFile'); if(_f) _f.value=''
   const _fn=document.getElementById('sdFileName'); if(_fn) _fn.textContent='No file selected'
   _sdPicked=null
@@ -337,9 +343,12 @@ window.editSupplier=async(id)=>{
   document.getElementById('mSupplier').classList.add('on')
 }
 
-window.saveSupplier=async()=>{
+// Insert (or update) the supplier from the form. Returns its id, or null
+// on error. On a fresh insert it flips the modal into edit mode so the
+// documents section becomes usable. Shared by saveSupplier + addSupDoc.
+async function persistSupplier(){
   const name=document.getElementById('sName').value.trim()
-  if(!name){alert('Supplier name is required');return}
+  if(!name){alert('Supplier name is required');return null}
   const priceRaw=document.getElementById('sDefPrice').value.trim()
   const isDefault=document.getElementById('sDefDist').checked
   const payload={
@@ -361,19 +370,28 @@ window.saveSupplier=async()=>{
   }
   if(editId){
     const{error}=await sb.from('suppliers').update(payload).eq('id',editId)
-    if(error){alert('Save failed: '+error.message);return}
-    closeModal();load();return
+    if(error){alert('Save failed: '+error.message);return null}
+    return editId
   }
-  // New supplier: keep the modal open in edit mode so certificates and
-  // other documents can be attached straight away (they need the new id).
   const{data:ins,error}=await sb.from('suppliers').insert([payload]).select('id').single()
-  if(error){alert('Save failed: '+error.message);return}
+  if(error){alert('Save failed: '+error.message);return null}
   editId=ins.id
   document.getElementById('moTitle').textContent='Edit Supplier'
   document.getElementById('supDocSection').style.display='block'
-  loadSupDocs(ins.id)
+  return ins.id
+}
+
+window.saveSupplier=async()=>{
+  const wasNew=!editId
+  const id=await persistSupplier()
+  if(!id)return
   load() // refresh grid behind the modal
-  alert('Supplier saved. You can now add certificates and documents below, or press Cancel to finish.')
+  if(wasNew){
+    loadSupDocs(id)
+    alert('Supplier saved. You can now add certificates and documents below, or press Cancel to finish.')
+  } else {
+    closeModal()
+  }
 }
 
 window.deleteSupplier=async(id)=>{
