@@ -534,7 +534,7 @@ const CW_ACCESS = {
   input,select,textarea,.fi{font-size:16px!important}
   .kpi-row,.cards,.grid{grid-template-columns:1fr!important}
 }
-#cw-mnav{display:none;position:fixed;top:calc(env(safe-area-inset-top) + var(--cw-fb-h, 0px) + 88px);left:12px;
+#cw-mnav{display:none;position:fixed;top:calc(env(safe-area-inset-top) + var(--cw-fb-h, 0px) + 14px);left:12px;
   z-index:100001;width:52px;height:52px;align-items:center;justify-content:center;border-radius:14px;
   background:#fff;border:2.5px solid #3b5fe2;box-shadow:0 4px 16px rgba(15,23,42,.4);font-size:24px;cursor:pointer;
   font-family:inherit;color:#3b5fe2;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;
@@ -560,26 +560,23 @@ body.cw-nav-open #cw-mnav-bd{opacity:1;pointer-events:auto}
       // the flicker. Ignore any close that arrives within this window of
       // an open so a single tap can only ever open it.
       let lockUntil = 0, lastToggle = 0;
-      const setEvt = (t) => { try { localStorage.setItem('cw_dbg_evt', t); } catch (e) {} };
       const isOpen = () => document.body.classList.contains('cw-nav-open');
-      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; _cwDbgBump('op'); };
-      const close = () => { document.body.classList.remove('cw-nav-open'); _cwDbgBump('cl'); };
-      // Debounced toggle, exposed globally so the document-level tap logger
-      // (which fires reliably) can drive it by coordinates even when the
-      // button's own click event is being swallowed.
-      const toggleNav = (src) => {
+      const open  = () => { document.body.classList.add('cw-nav-open'); lockUntil = Date.now() + 450; };
+      const close = () => document.body.classList.remove('cw-nav-open');
+      // Debounced toggle, exposed globally so the document-level tap handler
+      // can drive it by coordinates: on this app some pages swallow the
+      // button's own click, so a coordinate hit-test is the reliable path.
+      const toggleNav = () => {
         const now = Date.now();
         if (now - lastToggle < 300) return;   // ignore duplicate fire (pointer + click)
         lastToggle = now;
-        setEvt(src); _cwDbgBump('tap');
         if (isOpen()) close(); else open();
       };
       window.__cwToggleNav = toggleNav;
-      btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleNav('click'); });
+      btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleNav(); });
       bd.addEventListener('click', (e) => {
         e.preventDefault();
-        setEvt('bd');
-        if (Date.now() < lockUntil) { _cwDbgBump('blk'); return; }   // ignore ghost-click passthrough
+        if (Date.now() < lockUntil) return;   // ignore ghost-click passthrough
         close();
       });
       const mount = () => {
@@ -1232,91 +1229,29 @@ CW_ACCESS.injectFeedbackBanner = async function () {
 };
 
 // ── Auto-run ──────────────────────────────────────────────────────
-// Temporary visible build stamp so we can confirm which deploy a device
-// is actually running while debugging the mobile menu. Remove once done.
-const CW_BUILD = 'menu-debug-7';
-// Global tap logger: records the element actually under the finger so we
-// can see what the user is pressing when the "menu" flickers. Temporary.
-function _cwInitTapLogger() {
+// Reliable menu open: some pages swallow the menu button's own click, so
+// we also drive the toggle from a document-level pointerdown by checking
+// whether the tap falls within the button's box (with padding).
+function _cwInitMenuTap() {
   try {
     document.addEventListener('pointerdown', (e) => {
-      const t = e.target;
-      let desc = '?';
-      if (t && t.tagName) {
-        desc = t.tagName.toLowerCase();
-        if (t.id) desc += '#' + t.id;
-        else if (typeof t.className === 'string' && t.className.trim()) desc += '.' + t.className.trim().split(/\s+/)[0];
-      }
-      try { localStorage.setItem('cw_dbg_hitel', desc); } catch (e2) {}
-      _cwDbgBump('hit');
-      // Robust menu open: if the tap falls within the menu button's box
-      // (computed live), drive the toggle directly — bypasses any click
-      // swallowing / hit-test quirk. Generous padding makes it easy to hit.
-      try {
-        const b = document.getElementById('cw-mnav');
-        if (b && window.__cwToggleNav) {
-          const r = b.getBoundingClientRect();
-          const pad = 14;
-          if (e.clientX >= r.left - pad && e.clientX <= r.right + pad &&
-              e.clientY >= r.top - pad && e.clientY <= r.bottom + pad) {
-            window.__cwToggleNav('pd');
-          }
-        }
-      } catch (e3) {}
-    }, true);
-  } catch (e) {}
-}
-// Persistent debug counters (survive reloads via localStorage) so we can
-// tell from the device whether tapping the menu reloads the page or
-// storms events. Temporary.
-function _cwDbgGet(k) { try { return parseInt(localStorage.getItem('cw_dbg_' + k) || '0', 10) || 0; } catch (e) { return 0; } }
-function _cwDbgSet(k, v) { try { localStorage.setItem('cw_dbg_' + k, String(v)); } catch (e) {} }
-function _cwDbgBump(k) { const v = _cwDbgGet(k) + 1; _cwDbgSet(k, v); _cwDbgRender(); return v; }
-function _cwDbgRender() {
-  try {
-    const el = document.getElementById('cw-build');
-    if (!el) return;
-    let mnav = 'MISSING';
-    const b = document.getElementById('cw-mnav');
-    if (b) {
-      const cs = getComputedStyle(b);
+      const b = document.getElementById('cw-mnav');
+      if (!b || !window.__cwToggleNav) return;
       const r = b.getBoundingClientRect();
-      mnav = cs.display + '@' + Math.round(r.left) + ',' + Math.round(r.top);
-    }
-    el.textContent = CW_BUILD
-      + ' | w' + window.innerWidth
-      + ' mnav:' + mnav
-      + ' | hit' + _cwDbgGet('hit')
-      + ' tap' + _cwDbgGet('tap')
-      + ' | ' + (localStorage.getItem('cw_dbg_hitel') || '?');
-  } catch (e) {}
-}
-function _cwBuildStamp() {
-  try {
-    if (document.getElementById('cw-build')) return;
-    const s = document.createElement('div');
-    s.id = 'cw-build';
-    s.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;'
-      + 'background:#111;color:#0f0;font:700 13px/1.4 monospace;padding:6px 10px;'
-      + 'text-align:center;opacity:.95;pointer-events:none;white-space:nowrap;overflow:hidden';
-    (document.body || document.documentElement).appendChild(s);
-    // New page load: bump the persistent load counter, zero the per-tap
-    // counters so a single tap reads cleanly. If tapping the menu secretly
-    // reloads the page, the "load" number will jump and tap/op reset.
-    _cwDbgSet('tap', 0); _cwDbgSet('op', 0); _cwDbgSet('cl', 0); _cwDbgSet('blk', 0); _cwDbgSet('hit', 0);
-    try { localStorage.setItem('cw_dbg_evt', ''); localStorage.setItem('cw_dbg_hitel', ''); } catch (e) {}
-    _cwDbgBump('load');   // increments + renders
+      const pad = 14;
+      if (e.clientX >= r.left - pad && e.clientX <= r.right + pad &&
+          e.clientY >= r.top - pad && e.clientY <= r.bottom + pad) {
+        window.__cwToggleNav();
+      }
+    }, true);
   } catch (e) {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  _cwBuildStamp();
-  _cwInitTapLogger();
+  _cwInitMenuTap();
   CW_ACCESS.injectButtonStyles();
   CW_ACCESS._initPWA();
   CW_ACCESS._initMobile();
-  _cwDbgRender();                       // reflect the now-created button
-  setTimeout(_cwDbgRender, 800);        // and again after late layout
   if (typeof PAGE_KEY !== 'undefined') {
     if (!CW_ACCESS.guard(PAGE_KEY)) return;
     CW_ACCESS.injectSidebar(PAGE_KEY);
