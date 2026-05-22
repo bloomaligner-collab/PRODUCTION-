@@ -76,7 +76,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh
 .btn-ghost{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}.btn-ghost:hover{color:var(--txt);border-color:var(--blue)}
 .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2e4fc7}
 /* PAGE BODY */
-.body{padding:20px 28px 80px}
+.body{padding:20px 28px 80px;margin-left:240px}
 /* KPI GRID */
 .kpi-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:14px;margin-bottom:22px}
 .kpi{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:20px 18px 16px;position:relative;overflow:hidden;transition:box-shadow .2s;cursor:default;cursor:pointer;transition:box-shadow .15s,transform .12s;text-decoration:none;display:block;color:inherit}
@@ -142,7 +142,7 @@ tbody tr:hover{background:#f8fafc}
 .req-name{font-size:13px;font-weight:700}
 .req-meta{font-size:11px;color:var(--mu);margin-top:3px}
 @media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.sidebar{display:none}.content{margin-left:0}}
+@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.sidebar{display:none}.content,.main,.body{margin-left:0}}
 @media(max-width:640px){.kpi-grid{grid-template-columns:1fr 1fr}.g2e{grid-template-columns:1fr}}
 
 .badge{display:inline-flex;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700}
@@ -158,8 +158,9 @@ tbody tr:hover{background:#f8fafc}
 .cb{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap;margin-top:1px;flex-shrink:0}
 .cnew{background:var(--g100);color:#15803d}
 .cfix{background:var(--a100);color:#92400e}
-.cimpr{background:var(--p100);color:#5b21b6}
+.cimpr,.cimprove{background:var(--p100);color:#5b21b6}
 .cnewf{background:var(--b100);color:#1e40af}
+.cdep{background:var(--r100);color:#991b1b}
 </style>
 <script>const PAGE_KEY='changelog'</script>
 <script src="access.js?v=20260422c"></script>
