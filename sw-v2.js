@@ -6,7 +6,7 @@
 // Static assets → stale-while-revalidate.
 // Same-origin only.
 
-const CACHE = 'cw-app-v6';
+const CACHE = 'cw-app-v7';
 const NAV_TIMEOUT = 4000;
 const PUSH_ACK_URL = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/push-ack';
 const PUSH_ACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cm1hZG16enVhbHF1a3h4bHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc3MDQsImV4cCI6MjA5MjAwMzcwNH0.KmVRMz17T4f_FKgWSjr9LTh0DIMsJVyOGuC0k-v1BQs';
@@ -48,7 +48,9 @@ self.addEventListener('fetch', (event) => {
   if (codeLike) {
     event.respondWith((async () => {
       try {
-        const net = fetch(req).then((r) => putCache(req, r));
+        // 'reload' bypasses the browser HTTP cache so a freshly deployed
+        // page/script can never be masked by a stale disk-cached copy.
+        const net = fetch(req, { cache: 'reload' }).then((r) => putCache(req, r));
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), NAV_TIMEOUT));
         return await Promise.race([net, timeout]);
       } catch (err) {

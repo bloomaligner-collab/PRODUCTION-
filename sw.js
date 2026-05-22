@@ -4,7 +4,7 @@
 // Static assets: stale-while-revalidate for instant loads.
 // Same-origin only — Supabase / esm.sh / fonts are never intercepted.
 
-const CACHE = 'cw-app-v5';
+const CACHE = 'cw-app-v7';
 const NAV_TIMEOUT = 4000;
 // Acknowledge notification opens for the delivery dashboard.
 const PUSH_ACK_URL = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/push-ack';
@@ -54,7 +54,9 @@ self.addEventListener('fetch', (event) => {
     // Network-first, but never wait longer than NAV_TIMEOUT.
     event.respondWith((async () => {
       try {
-        const net = fetch(req).then((r) => putCache(req, r));
+        // 'reload' bypasses the browser HTTP cache so a freshly deployed
+        // page/script can never be masked by a stale disk-cached copy.
+        const net = fetch(req, { cache: 'reload' }).then((r) => putCache(req, r));
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), NAV_TIMEOUT));
         return await Promise.race([net, timeout]);
       } catch (err) {
