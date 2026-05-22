@@ -102,6 +102,7 @@ label{display:block;font-size:11px;font-weight:700;color:var(--mu);text-transfor
         <div><label>Phone</label><input class="fi" id="sPhone" placeholder="+1 800 000 0000"/></div>
       </div>
       <div><label>Email</label><input class="fi" id="sEmail" type="email" placeholder="contact@supplier.com"/></div>
+      <div><label>Order email CC</label><input class="fi" id="sCc" placeholder="me@bloomaligner.fr, ops@bloomaligner.fr"/><div style="font-size:12px;color:#64748b;margin-top:3px">Auto-CC'd on every purchase order sent to this supplier. Separate several with commas.</div></div>
       <div><label>Address</label><input class="fi" id="sAddress" placeholder="Street, City"/></div>
       <div><label>Notes</label><textarea class="fi" id="sNotes" rows="2" placeholder="Any notes…" style="resize:vertical"></textarea></div>
 
@@ -298,7 +299,7 @@ window.deleteSupDoc=async(id,supId,attPath)=>{
 window.openAdd=()=>{
   editId=null
   document.getElementById('moTitle').textContent='Add Supplier'
-  ;['sName','sCountry','sContact','sPhone','sEmail','sAddress','sNotes','sDefPrice'].forEach(id=>document.getElementById(id).value='')
+  ;['sName','sCountry','sContact','sPhone','sEmail','sCc','sAddress','sNotes','sDefPrice'].forEach(id=>document.getElementById(id).value='')
   document.getElementById('sDefCur').value='EUR'
   document.getElementById('sDefDist').checked=false
   document.getElementById('invLinkSection').style.display='none'
@@ -319,6 +320,7 @@ window.editSupplier=async(id)=>{
   document.getElementById('sContact').value=s.contact_name||''
   document.getElementById('sPhone').value=s.phone||''
   document.getElementById('sEmail').value=s.email||''
+  document.getElementById('sCc').value=s.cc_emails||''
   document.getElementById('sAddress').value=s.address||''
   document.getElementById('sNotes').value=s.notes||''
   document.getElementById('sDefPrice').value=s.default_price_per_aligner??''
@@ -356,6 +358,7 @@ async function persistSupplier(){
     contact_name:document.getElementById('sContact').value.trim()||null,
     phone:document.getElementById('sPhone').value.trim()||null,
     email:document.getElementById('sEmail').value.trim()||null,
+    cc_emails:document.getElementById('sCc').value.trim()||null,
     address:document.getElementById('sAddress').value.trim()||null,
     notes:document.getElementById('sNotes').value.trim()||null,
     default_price_per_aligner: priceRaw===''?null:Number(priceRaw),

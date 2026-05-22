@@ -14,13 +14,28 @@ import { CW_Notify } from './brevo.js'
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
 
-// Default CC for every PO email, set in Settings (key: po_cc_email).
-// Supports several addresses separated by comma/semicolon.
-async function orderCc(sb){
+function parseEmails(raw){
+  return String(raw||'').split(/[,;]/).map(x=>x.trim()).filter(x=>x.includes('@'))
+}
+// Global CC applied to every PO email (Settings → key po_cc_email).
+async function globalCc(sb){
   const { data } = await sb.from('system_settings').select('value').eq('key','po_cc_email').maybeSingle()
-  const raw = (data && data.value) || ''
-  const list = raw.split(/[,;]/).map(x=>x.trim()).filter(x=>x.includes('@'))
-  return list.length ? list.map(email=>({email})) : null
+  return parseEmails(data && data.value)
+}
+// Merge the global CC with this supplier's own cc_emails, de-duplicated.
+function buildCc(globalList, supplierRaw){
+  const set = new Set([...(globalList||[]), ...parseEmails(supplierRaw)].map(e=>e.toLowerCase()))
+  return set.size ? [...set].map(email=>({email})) : null
+}
+// Convenience for the single-PO paths (resend / reorder).
+async function ccForSupplier(sb, supplierId){
+  const g = await globalCc(sb)
+  let raw = ''
+  if (supplierId){
+    const { data } = await sb.from('suppliers').select('cc_emails').eq('id', supplierId).maybeSingle()
+    raw = (data && data.cc_emails) || ''
+  }
+  return buildCc(g, raw)
 }
 
 function poHtml(po, supplier, lines, totalCost, currency){
@@ -81,7 +96,7 @@ export async function reorderPO(sb, poId, opts = {}){
     const sup = { name: src.supplier_name, currency: src.currency }
     const att = await poPdf(po, sup, lines, totalCost, src.currency)
     const r = await CW_Notify.sendEmail(src.supplier_email, src.supplier_name, `Purchase Order ${po.po_number}`,
-      poHtml(po, sup, lines, totalCost, src.currency), 'purchase_order', att, await orderCc(sb))
+      poHtml(po, sup, lines, totalCost, src.currency), 'purchase_order', att, await ccForSupplier(sb, src.supplier_id))
     emailStatus = r.ok ? 'sent' : 'failed'
   }
   await sb.from('purchase_orders').update({
@@ -100,7 +115,7 @@ export async function resendPO(sb, poId){
   const sup = { name: po.supplier_name, currency: po.currency }
   const att = await poPdf(po, sup, lines||[], po.total_cost, po.currency)
   const r = await CW_Notify.sendEmail(email, po.supplier_name, `Purchase Order ${po.po_number}`,
-    poHtml(po, sup, lines||[], po.total_cost, po.currency), 'purchase_order', att, await orderCc(sb))
+    poHtml(po, sup, lines||[], po.total_cost, po.currency), 'purchase_order', att, await ccForSupplier(sb, po.supplier_id))
   await sb.from('purchase_orders').update({
     emailed_at: r.ok ? new Date().toISOString() : po.emailed_at,
     email_status: r.ok ? 'sent' : 'failed'
@@ -158,9 +173,9 @@ export async function createAndEmailPOs(sb, items, opts = {}){
     const nm = (it.item_name || it.name || '').trim().toLowerCase()
     if (nm && !itemMap[nm]) itemMap[nm] = it
   })
-  const { data: suppliers } = await sb.from('suppliers').select('id,name,email,contact_email,currency')
+  const { data: suppliers } = await sb.from('suppliers').select('id,name,email,contact_email,currency,cc_emails')
   const supMap = {}; (suppliers||[]).forEach(s => { supMap[s.id] = s })
-  const cc = await orderCc(sb)
+  const gCc = await globalCc(sb)
 
   // Group by resolved supplier id.
   const groups = {}
@@ -198,7 +213,7 @@ export async function createAndEmailPOs(sb, items, opts = {}){
     let emailStatus = 'no_email'
     if (email){
       const att = await poPdf(po, sup, lines, totalCost, sup.currency)
-      const r = await CW_Notify.sendEmail(email, sup.name, `Purchase Order ${po.po_number}`, poHtml(po, sup, lines, totalCost, sup.currency), 'purchase_order', att, cc)
+      const r = await CW_Notify.sendEmail(email, sup.name, `Purchase Order ${po.po_number}`, poHtml(po, sup, lines, totalCost, sup.currency), 'purchase_order', att, buildCc(gCc, sup.cc_emails))
       emailStatus = r.ok ? 'sent' : 'failed'
       if (r.ok) result.emailed++; else result.failed.push(`${sup.name}: email ${r.error || 'failed'}`)
     } else {
