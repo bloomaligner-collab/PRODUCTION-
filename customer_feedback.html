@@ -1155,6 +1155,13 @@ async function populateCapaDropdown(){
 window.openNew=()=>{
   editId=null
   caseChatTeardown()  // blank new record has no case yet — hide the panel
+  // Hint that chat opens after the first save (no case id yet)
+  const slot=document.getElementById('caseChatSlotEdit')
+  if(slot){
+    slot.innerHTML=`<div style="margin:14px 0;padding:12px 14px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1px dashed #c4b5fd;border-radius:10px;color:#6d28d9;font-size:12.5px;display:flex;align-items:center;gap:8px">
+      💬 <span><strong>Chat will appear here after the first save</strong> — fill in the required fields and click 💾 Save Record. The form stays open and the chat activates immediately so you can start the discussion without closing the form.</span>
+    </div>`
+  }
   document.getElementById('mTitle').textContent='💬 Log Feedback'
   document.getElementById('fDate').value=new Date().toISOString().slice(0,10)
   ;['fCustomer','fDoctor','fCase','fDesc','fRoot','fAction','fClosed','fFollowDate','fFollowNote','fLotUdi','fInvStart','fInvRes','fVigId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
@@ -1507,6 +1514,15 @@ window.save=async()=>{
   }
   // Creator is stamped once, on creation, and never overwritten on edit.
   if(!editId) rec.received_by=currentUser||null
+  // Initialise ball-in-court: new cases start with the assignee in court (they
+  // owe the first response). If there's no assignee yet, leave null — the
+  // chat trigger will populate it once someone replies.
+  if(!editId) rec.next_action_by = newAssignee || null
+  // On reassignment, flip the ball to the new assignee unless they themselves
+  // are the one editing (in which case the ball is naturally with the other party).
+  if(editId && assigneeChanged && newAssignee && newAssignee !== currentUser){
+    rec.next_action_by = newAssignee
+  }
   // Case # is immutable after the first save.
   if(editId){ rec.case_id = prev?prev.case_id:null; rec.order_no = prev?prev.order_no:null }
   // Follow-up fields
@@ -1600,9 +1616,18 @@ window.save=async()=>{
       }
     }
   }
-  window.closeModal();await load()
-  // Open the freshly created case so the team can start chatting on it right away.
-  if(!editId && data && data.id && typeof viewRec==='function') viewRec(data.id)
+  const wasNew = !editId
+  await load()
+  // For new cases: keep the modal open, switch into edit mode for the freshly
+  // created record, and mount the chat panel right where the placeholder was.
+  // No need to close+reopen — discussion can start immediately.
+  if(wasNew && data && data.id){
+    editId = data.id
+    document.getElementById('mTitle').textContent='💬 Edit Feedback · Discussion'
+    caseChatMount(data.id,'edit')
+  } else {
+    window.closeModal()
+  }
 }
 
 ;['typeFilter','statusFilter','assignedFilter'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilter))
