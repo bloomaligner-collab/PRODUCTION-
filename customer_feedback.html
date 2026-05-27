@@ -611,14 +611,17 @@ function assignedToMe(v){
   return rn===userPrimaryRole || userExtraRoles.includes(rn)
 }
 // Ball-in-court chip. Renders nothing for closed/resolved cases.
+// Recognises role-based assignment: if next_action_by is "role:X" and the
+// current user holds role X, the chip lights up red ("⚽ you · role").
 function ballChip(r){
   if(!r || !r.next_action_by) return ''
   if(r.status==='resolved' || r.status==='closed') return ''
-  const mine = r.next_action_by===currentUser
+  const mine = assignedToMe(r.next_action_by)
+  const viaRole = mine && isRoleAssignee(r.next_action_by)
   const bg = mine?'#fee2e2':'#dcfce7'
   const fg = mine?'#b91c1c':'#15803d'
   const bd = mine?'#fca5a5':'#86efac'
-  const who = mine?'you':prettyAssignee(r.next_action_by)
+  const who = mine ? (viaRole ? 'you · '+r.next_action_by.slice(5) : 'you') : prettyAssignee(r.next_action_by)
   return ` <span title="Who must act next" style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:${bg};color:${fg};border:1px solid ${bd};font-size:10px;font-weight:700;white-space:nowrap">⚽ ${who}</span>`
 }
 function cwFullAccess(){
@@ -856,8 +859,11 @@ function applyFilter(){
     const today=new Date().toISOString().slice(0,10)
     const fuDueForMe = r.follow_up_date && !r.follow_up_done_at && r.follow_up_date<=today && (r.follow_up_assignee===currentUser || (isRoleAssignee(r.follow_up_assignee) && (r.follow_up_assignee.slice(5)===userPrimaryRole || userExtraRoles.includes(r.follow_up_assignee.slice(5)))))
     const fuOverdue = r.follow_up_date && !r.follow_up_done_at && r.follow_up_date<today
-    if(af==='__action_needed__' && !(r.next_action_by===currentUser && r.status!=='resolved' && r.status!=='closed'))return false
-    if(af==='__watching__' && !(assignedToMe(r.assigned_to) && r.next_action_by && r.next_action_by!==currentUser && r.status!=='resolved' && r.status!=='closed'))return false
+    // Ball-in-court filters honour role-based assignment via assignedToMe(),
+    // so cases routed to a role I belong to (e.g. role:Quality Manager) count
+    // as "ball in my court" too.
+    if(af==='__action_needed__' && !(assignedToMe(r.next_action_by) && r.status!=='resolved' && r.status!=='closed'))return false
+    if(af==='__watching__' && !(assignedToMe(r.assigned_to) && r.next_action_by && !assignedToMe(r.next_action_by) && r.status!=='resolved' && r.status!=='closed'))return false
     if(af==='__mine__' && !assignedToMe(r.assigned_to))return false
     if(af==='__unassigned__' && r.assigned_to)return false
     if(af==='__followup_mine__' && !fuDueForMe)return false
@@ -1324,8 +1330,8 @@ window.viewRec=async(id)=>{
   document.getElementById('vTitle').textContent='💬 '+(r.feedback_no||'Feedback')
   const case_ref=r.case_id||r.order_no||''
   const isOpen = !(r.status==='resolved' || r.status==='closed')
-  const ballMine = isOpen && r.next_action_by===currentUser
-  const ballAssignee = isOpen && r.next_action_by && r.next_action_by!==currentUser && assignedToMe(r.assigned_to)
+  const ballMine = isOpen && assignedToMe(r.next_action_by)
+  const ballAssignee = isOpen && r.next_action_by && !assignedToMe(r.next_action_by) && assignedToMe(r.assigned_to)
   const isCreator = r.received_by===currentUser
   const isAssignee = assignedToMe(r.assigned_to)
   document.getElementById('vBody').innerHTML=`
