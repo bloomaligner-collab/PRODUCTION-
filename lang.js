@@ -548,8 +548,9 @@ const CW_HELP = {
         ['Priority : High', 'Réponse client sous 24 h.'],
         ['Priority : Medium', 'Réponse client sous 3 jours ouvrés.'],
         ['Priority : Low', 'Traitement standard selon file d\'attente.'],
-        ['Statut : open', 'Nouveau dossier, aucune action encore prise.'],
-        ['Statut : in_progress', 'Enquête en cours ou action corrective appliquée.'],
+        ['Statut : open', 'Nouveau dossier — l\'assigné n\'a NI ouvert NI répondu. Tag visible tant que personne n\'a engagé l\'action.'],
+        ['Statut : in_progress', 'L\'assigné a engagé : il a ouvert le dossier au moins une fois OU a écrit un message dans le chat. Bascule automatique depuis « open », pas besoin de cliquer.'],
+        ['Assigné obligatoire', 'À la création, le champ Assignee est obligatoire — choisir une personne directement, ou choisir une Catégorie qui auto-route vers un rôle (Paramètres → Routage catégorie / rôle). Sans aucun des deux, la sauvegarde est bloquée.'],
         ['Statut : resolved', 'Solution validée avec le client — Resolution renseignée, date de résolution posée.'],
         ['Statut : closed', 'Dossier définitivement clos après résolution (CAPA terminé s\'il y en a eu).'],
       ]
@@ -600,8 +601,9 @@ const CW_HELP = {
         ['Priority: High', 'Customer response within 24 h.'],
         ['Priority: Medium', 'Customer response within 3 business days.'],
         ['Priority: Low', 'Standard queue handling.'],
-        ['Status: open', 'New record, no action yet.'],
-        ['Status: in_progress', 'Investigation running or corrective action applied.'],
+        ['Status: open', 'New record — the assignee has NOT opened or replied yet. Stays tagged this way until somebody actually engages.'],
+        ['Status: in_progress', 'Assignee has engaged: they have opened the case at least once OR sent a chat reply. Automatic transition from "open" — no manual click required.'],
+        ['Mandatory assignee', 'On creation, the Assignee field is mandatory — either pick a person directly, or pick a Category that auto-routes to a role (Settings → Category / Role routing). Save is blocked without one.'],
         ['Status: resolved', 'Customer-agreed fix in place — Resolution filled and Resolved Date set.'],
         ['Status: closed', 'Record formally closed after resolution (and CAPA, if any, completed).'],
       ]

@@ -43,13 +43,17 @@ open  →  in_progress  →  resolved  →  closed
                               └─ reopen ─┘
 ```
 
-| Status | When to use it | Who sets it |
+| Status | What it means | How it gets set |
 |---|---|---|
-| **open** | New case, no action yet | Auto on creation |
-| **in_progress** | Investigation underway | Assignee (Edit form) |
-| **resolved** | Assignee has done their part — awaiting creator confirmation | Assignee clicks **✅ Mark Resolved** |
-| **closed** | Confirmed resolved, archived | Creator (or Manager) clicks **🔒 Close Case** |
-| **reopen** (back to open) | Closed case needs more work | Anyone clicks **🔄 Reopen** |
+| **open** | New case — assignee has not opened or replied yet | Auto on creation |
+| **in_progress** | Assignee has acknowledged (opened the case OR sent a chat reply) | **Automatic** — set on first view or first chat reply by the assignee |
+| **resolved** | Assignee has finished their part — awaiting creator to confirm | Assignee clicks **✅ Mark Resolved** |
+| **closed** | Creator confirmed and archived | Creator (or Manager) clicks **🔒 Close Case** |
+| **reopen** (back to open) | Closed case needs more work | Anyone involved clicks **🔄 Reopen** |
+
+**Why this matters:** when you see a case still tagged `open`, it means the assignee literally has not engaged yet — the first thing they should do is open it. Once `in_progress`, you know somebody is on it.
+
+**Mandatory at creation:** every case MUST have an assignee — either picked directly, or routed via a category that has a routing rule (Settings → Category / Role routing). The form will block save until one is set.
 
 ---
 
