@@ -318,6 +318,7 @@ thead th.sortable.sort-desc::after{content:'▼';opacity:1;color:var(--blue)}
         </div>
         <div><div class="fi-lbl">Supplier</div><select class="fi" id="oSupplier"><option value="">All</option></select></div>
         <div><div class="fi-lbl">PO #</div><input class="fi" id="oPO" placeholder="PO-…"/></div>
+        <div><div class="fi-lbl">Invoice</div><select class="fi" id="oInv"><option value="">All</option></select></div>
         <div><div class="fi-lbl">From</div><input type="date" class="fi" id="oFrom"/></div>
         <div><div class="fi-lbl">To</div><input type="date" class="fi" id="oTo"/></div>
         <div style="flex:1"></div>
@@ -729,10 +730,21 @@ function pipelineXlHtml(o, today){
   }).join('')
 }
 
+// ── Filter by invoice — one-click drill-down from any invoice link ────
+window.filterByInvoice=(invNo)=>{
+  if(!invNo) return
+  switchTab('orders')
+  // Clear competing filters so the user instantly sees only that invoice's cases
+  ;['oLife','oPay','oSupplier','oPO'].forEach(id=>{if($(id))$(id).value=''})
+  $('oFrom').value=''; $('oTo').value=''
+  $('oInv').value=invNo
+  renderOrders()
+}
+
 // ── KPI filter helper ─────────────────────────────────────────────────
 window.kpiFilter=(which)=>{
   // Reset filters then apply
-  ;['oLife','oPay','oSupplier','oPO'].forEach(id=>{if($(id))$(id).value=''})
+  ;['oLife','oPay','oSupplier','oPO','oInv'].forEach(id=>{if($(id))$(id).value=''})
   $('oFrom').value=''; $('oTo').value=''
   const now=new Date()
   const ym=now.toISOString().slice(0,7)
@@ -842,7 +854,7 @@ function renderPOModal(){
       <td class="mono" style="font-weight:700">${o.aligners_total||0}</td>
       <td class="mono">${money(o.total_cost,o.currency)}</td>
       <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
-      <td class="mono">${o.invoice_no?`<a href="#" onclick="event.preventDefault();openInvoiceModal('${o.invoice_no}')" style="color:var(--purple);font-weight:700;text-decoration:underline" title="Show all cases on invoice ${o.invoice_no}">${o.invoice_no}</a>`:'—'}</td>
+      <td class="mono">${o.invoice_no?`<a href="#" onclick="event.preventDefault();closePOModal();filterByInvoice('${o.invoice_no}')" style="color:var(--purple);font-weight:700;text-decoration:underline" title="Show only cases on invoice ${o.invoice_no}">${o.invoice_no}</a>`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span></td>
       <td>${pipelineHtml(o, today)}</td>
       <td style="text-align:right;white-space:nowrap">
@@ -998,8 +1010,22 @@ function renderSelectionBar(){
 
 // ── Orders tab ────────────────────────────────────────────────────────
 function renderOrders(){
+  // Keep the Invoice filter dropdown populated with every distinct invoice_no on file
+  const invSel=$('oInv')
+  if(invSel){
+    const curInv=invSel.value
+    const invs=[...new Set(allOrders.map(o=>o.invoice_no).filter(Boolean))].sort()
+    const opts=['<option value="">All</option>','<option value="__none__">— No invoice yet</option>']
+    invs.forEach(no=>{
+      const n=allOrders.filter(o=>o.invoice_no===no).length
+      opts.push(`<option value="${no}">${no} (${n})</option>`)
+    })
+    invSel.innerHTML=opts.join('')
+    invSel.value=curInv
+  }
   const pay=$('oPay').value, sup=$('oSupplier').value, from=$('oFrom').value, to=$('oTo').value
   const life=$('oLife').value, po=($('oPO').value||'').trim().toLowerCase()
+  const inv=$('oInv')?$('oInv').value:''
   const today=new Date().toISOString().slice(0,10)
   const lifecycleOf = o => {
     if(o.payment_status==='paid') return 'paid'
@@ -1010,6 +1036,8 @@ function renderOrders(){
   const filtered=allOrders.filter(o=>{
     if(pay && o.payment_status!==pay) return false
     if(sup && o.supplier_id!==sup) return false
+    if(inv==='__none__' && o.invoice_no) return false
+    if(inv && inv!=='__none__' && o.invoice_no!==inv) return false
     if(from && o.outsource_date<from) return false
     if(to && o.outsource_date>to) return false
     if(po && !String(o.batch_ref||'').toLowerCase().includes(po)) return false
@@ -1048,7 +1076,7 @@ function renderOrders(){
       <td class="mono">${fdt(o.outsource_date)}</td>
       <td class="mono" style="${overdue?'color:var(--red);font-weight:700':''}">${fdt(o.expected_return_date)}</td>
       <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
-      <td class="mono">${o.invoice_no?`<a href="#" onclick="event.preventDefault();openInvoiceModal('${o.invoice_no}')" style="color:var(--purple);font-weight:700;text-decoration:underline" title="Show all cases on invoice ${o.invoice_no}">${o.invoice_no}</a>${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
+      <td class="mono">${o.invoice_no?`<a href="#" onclick="event.preventDefault();filterByInvoice('${o.invoice_no}')" style="color:var(--purple);font-weight:700;text-decoration:underline" title="Show only cases on invoice ${o.invoice_no}">${o.invoice_no}</a>${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
       <td>${pipelineHtml(o, today)}</td>
       <td style="text-align:right;white-space:nowrap">
@@ -1532,7 +1560,7 @@ mountSavedViews({
   applyFilter: () => renderCases(),
   currentUser: sessionStorage.getItem('cw_current_emp') || localStorage.getItem('cw_current_emp') || '',
 });
-;['oPay','oSupplier','oFrom','oTo','oLife','oPO'].forEach(id=>$(id)?.addEventListener('input',renderOrders))
+;['oPay','oSupplier','oFrom','oTo','oLife','oPO','oInv'].forEach(id=>$(id)?.addEventListener('input',renderOrders))
 
 loadAll()
 </script>
