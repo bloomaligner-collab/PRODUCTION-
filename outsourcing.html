@@ -326,6 +326,7 @@ thead th.sortable.sort-desc::after{content:'▼';opacity:1;color:var(--blue)}
         <div style="flex:1"></div>
         <button class="btn btn-g" onclick="exportOrdersCsv()">⬇ Export CSV</button>
       </div>
+      <div id="oInvSummary" style="display:none;margin-bottom:14px"></div>
       <div class="tw"><table data-tbl="orders">
         <thead><tr>
           <th class="sortable" data-k="batch_ref">PO #</th>
@@ -1024,6 +1025,63 @@ function renderOrders(){
     })
     invSel.innerHTML=opts.join('')
     invSel.value=curInv
+  }
+  // Invoice summary banner — analytics for the picked invoice
+  const sumDiv=$('oInvSummary')
+  const invPick=$('oInv')?$('oInv').value:''
+  if(sumDiv){
+    if(invPick && invPick!=='__none__'){
+      const invRows=allOrders.filter(o=>o.invoice_no===invPick)
+      const sup=invRows[0]?.supplier_name||'—'
+      const cur=invRows[0]?.currency||'EUR'
+      const nCases=invRows.length
+      const nAlig=invRows.reduce((a,o)=>a+(o.aligners_total||0),0)
+      const sumTot=invRows.reduce((a,o)=>a+Number(o.total_cost||0),0)
+      const nPaid=invRows.filter(o=>o.payment_status==='paid').length
+      const sumPaid=invRows.filter(o=>o.payment_status==='paid').reduce((a,o)=>a+Number(o.total_cost||0),0)
+      const nUnpaid=nCases-nPaid
+      const sumUnpaid=sumTot-sumPaid
+      const dates=invRows.map(o=>o.outsource_date).filter(Boolean).sort()
+      const dRange=dates.length?`${fdt(dates[0])} → ${fdt(dates[dates.length-1])}`:'—'
+      const allPaid=nPaid===nCases
+      const noneRecv=invRows.every(o=>!o.received_date)
+      const allRecv=invRows.every(o=>o.received_date)
+      const invDate=invRows.find(o=>o.invoice_date)?.invoice_date
+      const pos=allOrders.filter(o=>o.invoice_no===invPick).map(o=>o.batch_ref).filter(Boolean)
+      const poList=[...new Set(pos)]
+      sumDiv.style.display='block'
+      sumDiv.innerHTML=`
+        <div style="background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1.5px solid var(--p100);border-radius:14px;padding:14px 18px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-size:18px;font-weight:800;color:var(--purple)">🧾 Invoice ${invPick}</div>
+              <div style="font-size:12px;color:var(--mu);margin-top:4px">
+                Supplier <strong>${sup}</strong> · Outsourced ${dRange}${invDate?` · Invoice date ${fdt(invDate)}`:''}${poList.length?` · PO ${poList.join(', ')}`:''}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="po-pill"><span>📋</span> ${nCases} case${nCases>1?'s':''}</span>
+              <span class="po-pill"><span>🦷</span> ${nAlig} aligners</span>
+              <span class="po-pill" style="background:var(--a50);color:var(--amber);border-color:#fde68a"><span>💶</span> ${money(sumTot,cur)}</span>
+              ${allPaid
+                ?`<span class="po-pill" style="background:#dcfce7;color:#15803d;border-color:#86efac"><span>✅</span> Fully paid</span>`
+                :nPaid>0
+                  ?`<span class="po-pill" style="background:#fef3c7;color:#92400e;border-color:#fcd34d"><span>⏳</span> ${nPaid}/${nCases} paid (${money(sumUnpaid,cur)} unpaid)</span>`
+                  :`<span class="po-pill" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5"><span>💰</span> Unpaid · ${money(sumTot,cur)} due</span>`
+              }
+              ${allRecv
+                ?`<span class="po-pill" style="background:#dcfce7;color:#15803d;border-color:#86efac"><span>📦</span> All received</span>`
+                :noneRecv
+                  ?`<span class="po-pill" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5"><span>📦</span> None received</span>`
+                  :`<span class="po-pill"><span>📦</span> ${invRows.filter(o=>o.received_date).length}/${nCases} received</span>`
+              }
+            </div>
+          </div>
+        </div>`
+    } else {
+      sumDiv.style.display='none'
+      sumDiv.innerHTML=''
+    }
   }
   const pay=$('oPay').value, sup=$('oSupplier').value, from=$('oFrom').value, to=$('oTo').value
   const life=$('oLife').value, po=($('oPO').value||'').trim().toLowerCase()
