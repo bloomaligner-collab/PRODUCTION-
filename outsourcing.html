@@ -764,14 +764,21 @@ window.kpiFilter=(which)=>{
 // ── PO Detail Modal ───────────────────────────────────────────────────
 let currentPO=null
 let poInvFilter='all'
-window.openPOModal=(po)=>{
+window.openPOModal=(po, invFilter)=>{
   if(!po) return
   currentPO=po
-  poInvFilter='all'
+  poInvFilter=invFilter||'all'
   const rows=allOrders.filter(o=>o.batch_ref===po)
   if(!rows.length){ntf('No cases in this PO','err'); return}
   renderPOModal()
   $('mPO').classList.add('on')
+}
+window.openInvoiceModal=(invNo)=>{
+  if(!invNo) return
+  // Find which PO contains this invoice (typically just one)
+  const row=allOrders.find(o=>o.invoice_no===invNo && o.batch_ref)
+  if(!row){ntf(`No PO found for invoice ${invNo}`,'err'); return}
+  openPOModal(row.batch_ref, invNo)
 }
 window.closePOModal=()=>{currentPO=null; $('mPO').classList.remove('on')}
 window.poFilterChange=()=>{poInvFilter=$('poInvFilter').value; renderPOModal()}
@@ -835,7 +842,7 @@ function renderPOModal(){
       <td class="mono" style="font-weight:700">${o.aligners_total||0}</td>
       <td class="mono">${money(o.total_cost,o.currency)}</td>
       <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
-      <td class="mono">${o.invoice_no||'—'}</td>
+      <td class="mono">${o.invoice_no?`<a href="#" onclick="event.preventDefault();openInvoiceModal('${o.invoice_no}')" style="color:var(--purple);font-weight:700;text-decoration:underline" title="Show all cases on invoice ${o.invoice_no}">${o.invoice_no}</a>`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span></td>
       <td>${pipelineHtml(o, today)}</td>
       <td style="text-align:right;white-space:nowrap">
@@ -1041,7 +1048,7 @@ function renderOrders(){
       <td class="mono">${fdt(o.outsource_date)}</td>
       <td class="mono" style="${overdue?'color:var(--red);font-weight:700':''}">${fdt(o.expected_return_date)}</td>
       <td class="mono">${o.received_date?fdt(o.received_date):'<span style="color:var(--amber);font-weight:700">—</span>'}</td>
-      <td class="mono">${o.invoice_no?`${o.invoice_no}${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
+      <td class="mono">${o.invoice_no?`<a href="#" onclick="event.preventDefault();openInvoiceModal('${o.invoice_no}')" style="color:var(--purple);font-weight:700;text-decoration:underline" title="Show all cases on invoice ${o.invoice_no}">${o.invoice_no}</a>${o.invoice_date?`<br><span style="font-size:10px;color:var(--mu)">${fdt(o.invoice_date)}</span>`:''}`:'—'}</td>
       <td><span class="bdg ${payCls}">${o.payment_status}</span>${overdue?' <span class="bdg b-r">OVERDUE</span>':''}</td>
       <td>${pipelineHtml(o, today)}</td>
       <td style="text-align:right;white-space:nowrap">
