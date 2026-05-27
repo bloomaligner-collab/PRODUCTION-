@@ -317,8 +317,10 @@ thead th.sortable.sort-desc::after{content:'▼';opacity:1;color:var(--blue)}
           </select>
         </div>
         <div><div class="fi-lbl">Supplier</div><select class="fi" id="oSupplier"><option value="">All</option></select></div>
-        <div><div class="fi-lbl">PO #</div><input class="fi" id="oPO" placeholder="PO-…"/></div>
-        <div><div class="fi-lbl">Invoice</div><select class="fi" id="oInv"><option value="">All</option></select></div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div><div class="fi-lbl">PO #</div><input class="fi" id="oPO" placeholder="PO-…" style="min-width:120px"/></div>
+          <div><div class="fi-lbl">Invoice</div><select class="fi" id="oInv" style="min-width:130px"><option value="">All</option></select></div>
+        </div>
         <div><div class="fi-lbl">From</div><input type="date" class="fi" id="oFrom"/></div>
         <div><div class="fi-lbl">To</div><input type="date" class="fi" id="oTo"/></div>
         <div style="flex:1"></div>
