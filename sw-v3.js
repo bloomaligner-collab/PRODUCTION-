@@ -5,7 +5,7 @@
 // HTML / .js / .css → network-first with a 4-s fallback to cache.
 // Static assets → stale-while-revalidate. Same-origin only.
 
-const CACHE = 'cw-app-v12';
+const CACHE = 'cw-app-v13';
 const NAV_TIMEOUT = 4000;
 const PUSH_ACK_URL = 'https://cvrmadmzzualqukxxlro.supabase.co/functions/v1/push-ack';
 const PUSH_ACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cm1hZG16enVhbHF1a3h4bHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc3MDQsImV4cCI6MjA5MjAwMzcwNH0.KmVRMz17T4f_FKgWSjr9LTh0DIMsJVyOGuC0k-v1BQs';
