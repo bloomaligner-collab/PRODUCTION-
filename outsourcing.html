@@ -359,10 +359,12 @@ thead th.sortable.sort-desc::after{content:'▼';opacity:1;color:var(--blue)}
           </div>
         </div>
         <div class="pipe-xl" id="poDetailPipe"></div>
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <button class="btn btn-b" onclick="poBulkReceive()">📦 Mark All Received…</button>
-          <button class="btn btn-b" onclick="poBulkInvoice()">🧾 Record PO Invoice…</button>
-          <button class="btn btn-b" onclick="poBulkPay()">💰 Mark All Paid…</button>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <span class="lbl" style="margin:0">Show:</span>
+          <select class="fi" id="poInvFilter" onchange="poFilterChange()" style="width:auto;min-width:160px"></select>
+          <button class="btn btn-b" onclick="poBulkReceive()" id="poBtnRecv">📦 Mark Received…</button>
+          <button class="btn btn-b" onclick="poBulkInvoice()" id="poBtnInv">🧾 Record Invoice…</button>
+          <button class="btn btn-b" onclick="poBulkPay()" id="poBtnPay">💰 Mark Paid…</button>
         </div>
         <div class="tw"><table>
           <thead><tr><th>Case #</th><th>Patient</th><th>↑ U</th><th>↓ L</th><th>Total</th><th>Cost</th><th>Received</th><th>Invoice</th><th>Payment</th><th>Pipeline</th><th style="text-align:right">Action</th></tr></thead>
@@ -761,32 +763,66 @@ window.kpiFilter=(which)=>{
 
 // ── PO Detail Modal ───────────────────────────────────────────────────
 let currentPO=null
+let poInvFilter='all'
 window.openPOModal=(po)=>{
   if(!po) return
   currentPO=po
+  poInvFilter='all'
   const rows=allOrders.filter(o=>o.batch_ref===po)
   if(!rows.length){ntf('No cases in this PO','err'); return}
   renderPOModal()
   $('mPO').classList.add('on')
 }
 window.closePOModal=()=>{currentPO=null; $('mPO').classList.remove('on')}
+window.poFilterChange=()=>{poInvFilter=$('poInvFilter').value; renderPOModal()}
+function getPORowsForBulk(){
+  const rows=allOrders.filter(o=>o.batch_ref===currentPO)
+  if(poInvFilter==='all') return rows
+  if(poInvFilter==='uninvoiced') return rows.filter(o=>!o.invoice_no)
+  return rows.filter(o=>o.invoice_no===poInvFilter)
+}
 function renderPOModal(){
   if(!currentPO) return
-  const rows=allOrders.filter(o=>o.batch_ref===currentPO)
-  if(!rows.length){closePOModal(); return}
-  const sup=rows[0].supplier_name||'—'
-  const cur=rows[0].currency||'EUR'
+  const allRows=allOrders.filter(o=>o.batch_ref===currentPO)
+  if(!allRows.length){closePOModal(); return}
+  // Build invoice filter options from distinct invoice_no values in this PO
+  const invList=[...new Set(allRows.map(o=>o.invoice_no).filter(Boolean))].sort()
+  const uninvN=allRows.filter(o=>!o.invoice_no).length
+  const sel=$('poInvFilter')
+  const opts=[`<option value="all">All (${allRows.length})</option>`]
+  if(uninvN>0) opts.push(`<option value="uninvoiced">Uninvoiced (${uninvN})</option>`)
+  invList.forEach(no=>{
+    const n=allRows.filter(o=>o.invoice_no===no).length
+    opts.push(`<option value="${no}">Invoice ${no} (${n})</option>`)
+  })
+  sel.innerHTML=opts.join('')
+  sel.value=poInvFilter
+  // Filtered subset drives display + bulk actions
+  const rows=getPORowsForBulk()
+  const sup=allRows[0].supplier_name||'—'
+  const cur=allRows[0].currency||'EUR'
   const totAl=rows.reduce((a,o)=>a+(o.aligners_total||0),0)
   const totAmt=rows.reduce((a,o)=>a+Number(o.total_cost||0),0)
   $('poDetailNum').textContent=currentPO
-  $('poDetailSub').innerHTML=`Supplier <strong>${sup}</strong> · ${rows.length} case${rows.length>1?'s':''} · Outsourced ${fdt(rows[0].outsource_date)}${rows[0].expected_return_date?' · Expected '+fdt(rows[0].expected_return_date):''}`
+  const filtLabel = poInvFilter==='all' ? '' : poInvFilter==='uninvoiced' ? ' · filter: Uninvoiced' : ' · filter: Invoice '+poInvFilter
+  $('poDetailSub').innerHTML=`Supplier <strong>${sup}</strong> · ${rows.length} of ${allRows.length} case${allRows.length>1?'s':''} · Outsourced ${fdt(allRows[0].outsource_date)}${allRows[0].expected_return_date?' · Expected '+fdt(allRows[0].expected_return_date):''}${filtLabel}`
   $('poDetailAlig').textContent=totAl
   $('poDetailTot').textContent=money(totAmt,cur)
-  // Pipeline for the PO = min stage across cases (most pessimistic)
+  // Pipeline for the PO = min stage across filtered cases (most pessimistic)
   const today=new Date().toISOString().slice(0,10)
-  const minStage=Math.min(...rows.map(lifecycleStage))
-  const worstOrder={...rows[0], payment_status: minStage===3?'paid':rows[0].payment_status, invoice_no: minStage>=2?rows[0].invoice_no:null, received_date: minStage>=1?rows[0].received_date:null}
+  const minStage=rows.length?Math.min(...rows.map(lifecycleStage)):0
+  const worstOrder=rows.length?{...rows[0], payment_status: minStage===3?'paid':rows[0].payment_status, invoice_no: minStage>=2?rows[0].invoice_no:null, received_date: minStage>=1?rows[0].received_date:null}:allRows[0]
   $('poDetailPipe').innerHTML=pipelineXlHtml(worstOrder, today)
+  // Re-label bulk buttons based on filter context
+  const nRecv=rows.filter(o=>!o.received_date).length
+  const nUninv=rows.filter(o=>!o.invoice_no).length
+  const nUnpaid=rows.filter(o=>o.payment_status!=='paid').length
+  $('poBtnRecv').textContent=`📦 Mark ${nRecv} Received…`
+  $('poBtnRecv').disabled = nRecv===0
+  $('poBtnInv').textContent=`🧾 Record Invoice for ${nUninv}…`
+  $('poBtnInv').disabled = nUninv===0
+  $('poBtnPay').textContent=poInvFilter==='all'||poInvFilter==='uninvoiced'?`💰 Mark ${nUnpaid} Paid…`:`💰 Mark Invoice ${poInvFilter} Paid (${nUnpaid})…`
+  $('poBtnPay').disabled = nUnpaid===0
   // Per-case rows
   $('poDetailRows').innerHTML=rows.map(o=>{
     const c=allCases.find(x=>x.case_id===String(o.case_id))
@@ -810,10 +846,15 @@ function renderPOModal(){
     </tr>`
   }).join('')
 }
+function poFilterLabel(){
+  if(poInvFilter==='all') return currentPO
+  if(poInvFilter==='uninvoiced') return `${currentPO} (Uninvoiced)`
+  return `Invoice ${poInvFilter}`
+}
 window.poBulkReceive=async()=>{
-  const rows=allOrders.filter(o=>o.batch_ref===currentPO && !o.received_date)
-  if(!rows.length){ntf('All cases in this PO already received','err');return}
-  const d=prompt(`Received date for ${rows.length} case(s) in ${currentPO} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10))
+  const rows=getPORowsForBulk().filter(o=>!o.received_date)
+  if(!rows.length){ntf(`Nothing to receive in ${poFilterLabel()}`,'err');return}
+  const d=prompt(`Received date for ${rows.length} case(s) in ${poFilterLabel()} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10))
   if(!d) return
   if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ntf('Invalid date format','err');return}
   const invExp=prompt('Expected invoice date (optional, YYYY-MM-DD):', rows[0].invoice_due_date||'')
@@ -831,9 +872,9 @@ window.poBulkReceive=async()=>{
   await loadAll(); renderPOModal()
 }
 window.poBulkInvoice=async()=>{
-  const rows=allOrders.filter(o=>o.batch_ref===currentPO && !o.invoice_no)
-  if(!rows.length){ntf('All cases in this PO already invoiced','err');return}
-  const no=prompt(`Invoice # for ${rows.length} case(s) in ${currentPO}:`,'')
+  const rows=getPORowsForBulk().filter(o=>!o.invoice_no)
+  if(!rows.length){ntf(`Nothing to invoice in ${poFilterLabel()}`,'err');return}
+  const no=prompt(`Invoice # for ${rows.length} case(s) in ${poFilterLabel()}:`,'')
   if(!no) return
   const d=prompt('Invoice received date (YYYY-MM-DD):', new Date().toISOString().slice(0,10))
   if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d)){ntf('Invalid date','err');return}
@@ -844,12 +885,14 @@ window.poBulkInvoice=async()=>{
   ntf(`✅ Invoice ${no} recorded for ${rows.length} case(s)`); await loadAll(); renderPOModal()
 }
 window.poBulkPay=async()=>{
-  const rows=allOrders.filter(o=>o.batch_ref===currentPO && o.payment_status!=='paid')
-  if(!rows.length){ntf('Everything in this PO is already paid','err');return}
-  if(!confirm(`Mark ${rows.length} case(s) in ${currentPO} as paid?`)) return
-  const today=new Date().toISOString().slice(0,10)
+  const rows=getPORowsForBulk().filter(o=>o.payment_status!=='paid')
+  if(!rows.length){ntf(`Everything in ${poFilterLabel()} is already paid`,'err');return}
+  const d=prompt(`Paid date for ${rows.length} case(s) in ${poFilterLabel()} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10))
+  if(!d) return
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ntf('Invalid date format','err');return}
+  if(!confirm(`Mark ${rows.length} case(s) in ${poFilterLabel()} as paid on ${d}?`)) return
   const{error}=await sb.from('outsourced_orders').update({
-    payment_status:'paid', paid_date:today, updated_at:new Date().toISOString()
+    payment_status:'paid', paid_date:d, updated_at:new Date().toISOString()
   }).in('id',rows.map(r=>r.id))
   if(error){ntf('Error: '+error.message,'err');return}
   ntf(`✅ ${rows.length} case(s) paid`); await loadAll(); renderPOModal()
