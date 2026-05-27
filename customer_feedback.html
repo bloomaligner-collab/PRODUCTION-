@@ -1311,6 +1311,9 @@ window.viewRec=async(id)=>{
   if(assignedToMe(r.assigned_to) && !r.notification_seen_at){
     patch.notification_seen_at=nowIso
     patch.notification_seen_by=currentUser
+    // Assignee has acknowledged the case → auto-promote open → in_progress.
+    // open = "no one has started" / in_progress = "someone is handling it".
+    if(r.status==='open') patch.status='in_progress'
   }
   try{
     await sb.from('customer_feedback').update(patch).eq('id',id)
@@ -1498,6 +1501,13 @@ window.save=async()=>{
   if(!newAssignee && category && routingRules[category]){
     newAssignee = roleKeyFor(routingRules[category])
     autoRouted = true
+  }
+  // Assignee is mandatory: either picked directly, or routable through a
+  // category. Without one, no one would own the case.
+  if(!newAssignee){
+    ntf('Pick an Assignee — or a Category that auto-routes to a role.','err')
+    const el=document.getElementById('fAssigned'); if(el){ el.focus(); el.style.outline='2px solid var(--red)'; setTimeout(()=>{el.style.outline=''},2000) }
+    return
   }
   const assigneeChanged=prev?prev.assigned_to!==newAssignee:!!newAssignee
   const rec={
