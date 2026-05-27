@@ -801,11 +801,14 @@ async function loadDropdowns(){
       + (roleOpts?`<optgroup label="— Roles —">${roleOpts}</optgroup>`:'')
       + (empOpts?`<optgroup label="— Individuals —">${empOpts}</optgroup>`:'')
   }
-  // Assignee filter — roles + individuals
+  // Assignee filter — roles + individuals.
+  // Picking a name here means "show what THIS person needs to do" (ball in their
+  // court + follow-ups due), the same way "Ball in my court" works for the
+  // current user. The optgroup labels reflect this.
   const af=document.getElementById('assignedFilter')
   af.insertAdjacentHTML('beforeend',
-    (roleOpts?`<optgroup label="— Roles —">${roleOpts}</optgroup>`:'')
-    + (empOpts?`<optgroup label="— Individuals —">${empOpts}</optgroup>`:''))
+    (roleOpts?`<optgroup label="— Action needed BY ROLE —">${roleOpts}</optgroup>`:'')
+    + (empOpts?`<optgroup label="— Action needed BY PERSON —">${empOpts}</optgroup>`:''))
   // Bloom cases for datalist (paginated past 1000)
   try{
     const PAGEn=1000
@@ -860,7 +863,16 @@ function applyFilter(){
     if(af==='__followup_mine__' && !fuDueForMe)return false
     if(af==='__followup_overdue__' && !fuOverdue)return false
     if(af==='__open_unread__' && (r.notification_seen_at || r.status==='resolved' || r.status==='closed'))return false
-    if(af && !['__action_needed__','__watching__','__mine__','__unassigned__','__followup_mine__','__followup_overdue__','__open_unread__'].includes(af) && r.assigned_to!==af)return false
+    // Picking a specific person or role from the dropdown → show cases that
+    // require THEIR action: ball is in their court, OR they have a follow-up
+    // reminder due / overdue. Mirrors the "Ball in my court" filter but for
+    // anyone else (so a manager can pick "Bastien" and see his to-do list).
+    if(af && !['__action_needed__','__watching__','__mine__','__unassigned__','__followup_mine__','__followup_overdue__','__open_unread__'].includes(af)){
+      const isOpen = r.status!=='resolved' && r.status!=='closed'
+      const ballWithThem = isOpen && r.next_action_by===af
+      const fuDueForThem = r.follow_up_date && !r.follow_up_done_at && r.follow_up_date<=today && r.follow_up_assignee===af
+      if(!ballWithThem && !fuDueForThem) return false
+    }
     if(term){
       const hay=`${r.customer_name||''} ${r.description||''} ${r.case_id||''} ${r.order_no||''} ${r.doctor||''}`.toLowerCase()
       if(!hay.includes(term))return false
