@@ -610,6 +610,14 @@ function assignedToMe(v){
   const rn=v.slice(5)
   return rn===userPrimaryRole || userExtraRoles.includes(rn)
 }
+// Who may CLOSE a case: full-access tiers always, plus any role the user holds
+// (primary or extra) whose role template is flagged can_close_cases. Mirrors
+// the cw_can_close_case() DB rule so the UI matches what the trigger enforces.
+function canCloseCase(){
+  if(cwFullAccess()) return true
+  const mine=[userPrimaryRole, ...userExtraRoles].map(x=>String(x||'').toLowerCase()).filter(Boolean)
+  return roles.some(rt=>rt.can_close_cases===true && mine.includes(String(rt.name||'').toLowerCase()))
+}
 // Ball-in-court chip. Renders nothing for closed/resolved cases.
 // Recognises role-based assignment: if next_action_by is "role:X" and the
 // current user holds role X, the chip lights up red ("⚽ you · role").
@@ -773,7 +781,7 @@ async function loadDropdowns(){
   // Employees + roles — Assigned To dropdown will group them.
   const[eRes,rRes,csRes,meRes]=await Promise.all([
     sb.from('employees').select('name,custom_role,extra_roles').eq('is_active',true).order('name'),
-    sb.from('role_templates').select('name,label,icon,color').order('label',{ascending:true}),
+    sb.from('role_templates').select('name,label,icon,color,can_close_cases').order('label',{ascending:true}),
     sb.from('system_settings').select('value').eq('key','complaint_routing').maybeSingle(),
     currentUser
       ? sb.from('employees').select('custom_role,extra_roles,role').ilike('name',currentUser).maybeSingle()
@@ -1410,8 +1418,8 @@ function _renderCaseView(r){
           ${['open','in_progress','resolved','closed'].map(s=>`<option value="${s}"${r.status===s?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
         </select></label>` : ''}
       ${isOpen && isAssignee ? `<button class="btn btn-g" onclick="markResolved('${r.id}')" title="Mark as resolved from your side — creator confirms to close">✅ Mark Resolved</button>` : ''}
-      ${isOpen && (isCreator || cwFullAccess()) ? `<button class="btn btn-b" onclick="closeCase('${r.id}')" title="Close this case — no further action needed">🔒 Close Case</button>` : ''}
-      ${r.status==='resolved' && (isCreator || cwFullAccess()) ? `<button class="btn btn-g" onclick="closeCase('${r.id}')" title="Confirm resolution and close">🔒 Confirm & Close</button>` : ''}
+      ${isOpen && canCloseCase() ? `<button class="btn btn-b" onclick="closeCase('${r.id}')" title="Close this case — no further action needed">🔒 Close Case</button>` : ''}
+      ${r.status==='resolved' && canCloseCase() ? `<button class="btn btn-g" onclick="closeCase('${r.id}')" title="Confirm resolution and close">🔒 Confirm & Close</button>` : ''}
       ${(r.status==='resolved' || r.status==='closed') && (isAssignee || isCreator || cwFullAccess()) ? `<button class="btn btn-r" onclick="reopenCase('${r.id}')" title="Reopen this case">🔄 Reopen</button>` : ''}
     </div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
@@ -1492,6 +1500,7 @@ window.quickSetStatus=async(id,status)=>{
   const r=all.find(x=>String(x.id)===String(id)); if(!r) return
   if(status===r.status) return
   if(!cwFullAccess()){ ntf('Only full-access roles can set the status directly.','err'); return }
+  if(status==='closed' && !canCloseCase()){ ntf('You do not have permission to close cases.','err'); return }
   const nowIso=new Date().toISOString()
   const patch={status, updated_at:nowIso, last_edited_by:currentUser||null, last_edited_at:nowIso}
   // Keep the ball-in-court coherent with the new status, mirroring the
