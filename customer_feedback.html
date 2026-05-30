@@ -831,14 +831,42 @@ async function loadDropdowns(){
   }catch(e){console.warn('bloom load',e)}
 }
 
-async function load(){
-  const r=await sb.from('customer_feedback').select('*').order('received_date',{ascending:false})
-  all=r.data||[]
+function paintCaseKpis(){
   document.getElementById('kComplaints').textContent=all.filter(x=>x.type==='complaint').length
   document.getElementById('kOpen').textContent=all.filter(x=>x.status==='open'||x.status==='in_progress').length
   document.getElementById('kResolved').textContent=all.filter(x=>x.status==='resolved'||x.status==='closed').length
   document.getElementById('kFeedback').textContent=all.filter(x=>x.type==='feedback').length
   document.getElementById('kTotal').textContent=all.length
+}
+// Live case board: subscribe to customer_feedback row changes so the list,
+// KPI counts and the ⚽ ball-in-court chip update instantly — whether the
+// change came from this user, the chat flow, or a colleague on another
+// device. No more manual refresh to see the ball move or a case return to
+// sender. The table is already in the supabase_realtime publication with
+// REPLICA IDENTITY FULL (see April migrations).
+let _cfRowsRealtimeInit=false
+function initCaseRealtime(){
+  if(_cfRowsRealtimeInit) return
+  _cfRowsRealtimeInit=true
+  sb.channel('cf-rows-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'customer_feedback'},p=>{
+      if(p.eventType==='DELETE'){
+        const gone=p.old&&p.old.id
+        if(gone!=null) all=all.filter(x=>String(x.id)!==String(gone))
+      }else{
+        const row=p.new; if(!row||row.id==null) return
+        const i=all.findIndex(x=>String(x.id)===String(row.id))
+        if(i>=0) all[i]={...all[i],...row}
+        else all.unshift(row)
+      }
+      paintCaseKpis()
+      applyFilter()
+    }).subscribe()
+}
+async function load(){
+  const r=await sb.from('customer_feedback').select('*').order('received_date',{ascending:false})
+  all=r.data||[]
+  paintCaseKpis()
   // Unseen assignments for current user OR their role → toast
   if(currentUser){
     const unseen=all.filter(r=>assignedToMe(r.assigned_to) && !r.notification_seen_at && (r.status==='open'||r.status==='in_progress'))
@@ -847,6 +875,7 @@ async function load(){
     }
   }
   applyFilter()
+  initCaseRealtime()
 }
 function applyFilter(){
   const tf=document.getElementById('typeFilter').value
@@ -1487,6 +1516,41 @@ async function handleDuplicateCase(caseNo){
   })
 }
 
+// "Whose court next?" — on every edit-save, let the case owner decide
+// whether the action stays in their court or is passed back to the
+// sender/creator. Default is KEEP, so a case never leaves your court by
+// accident. Resolves to 'keep' | 'pass' | 'cancel'.
+function askBallTransfer(prev){
+  const passTo=(prev&&prev.received_by)||(prev&&prev.assigned_to)||null
+  const passName=passTo?prettyAssignee(passTo):'the sender'
+  const holderName=(prev&&prev.next_action_by)?prettyAssignee(prev.next_action_by):'no one yet'
+  return new Promise(resolve=>{
+    const bg=document.createElement('div')
+    bg.className='modal-bg on'; bg.style.zIndex='820'
+    bg.innerHTML=`<div class="modal" style="max-width:460px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:800">⚽ Whose court next?</div>
+        <button class="btn bgh" data-act="cancel" style="padding:5px 12px">✕</button>
+      </div>
+      <div style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.5">
+        Action required is currently with <strong>${_esc(holderName)}</strong>.<br>
+        After saving, keep this case as <strong>your</strong> action required, or pass it back to <strong>${_esc(passName)}</strong>?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn bb" data-act="keep" style="padding:10px 14px;font-weight:700">✋ Keep it in my court</button>
+        <button class="btn bgh" data-act="pass" style="padding:10px 14px">➡️ Pass to ${_esc(passName)}</button>
+      </div>
+    </div>`
+    document.body.appendChild(bg)
+    const done=v=>{ bg.remove(); resolve(v) }
+    bg.addEventListener('click',e=>{
+      if(e.target===bg) return done('cancel')
+      const b=e.target.closest('[data-act]'); if(!b) return
+      done(b.dataset.act)
+    })
+    const kb=bg.querySelector('[data-act="keep"]'); if(kb) kb.focus()
+  })
+}
 window.save=async()=>{
   const date=document.getElementById('fDate').value
   const cust=document.getElementById('fCustomer').value.trim()
@@ -1495,6 +1559,14 @@ window.save=async()=>{
   const rawCase=document.getElementById('fCase').value.trim()
   const prev=editId?all.find(x=>String(x.id)===String(editId)):null
   if(editId && !canEditRec(prev)){ ntf('Only the creator or the assignee can edit this complaint.','err'); return }
+  // Whose court does the case land in after this save? Existing cases only —
+  // new cases always start with the assignee. Default 'keep' leaves the ball
+  // with the person saving so it never moves silently. Cancel aborts the save.
+  let _ballChoice='keep'
+  if(editId){
+    _ballChoice=await askBallTransfer(prev)
+    if(_ballChoice==='cancel') return
+  }
   // Duplicate guard: a new complaint whose Case # already has a record.
   if(!editId && rawCase && await handleDuplicateCase(rawCase)) return
   const chosenAssignee=document.getElementById('fAssigned').value||null
@@ -1543,13 +1615,17 @@ window.save=async()=>{
   // Creator is stamped once, on creation, and never overwritten on edit.
   if(!editId) rec.received_by=currentUser||null
   // Initialise ball-in-court: new cases start with the assignee in court (they
-  // owe the first response). If there's no assignee yet, leave null — the
-  // chat trigger will populate it once someone replies.
+  // owe the first response). If there's no assignee yet, leave null.
   if(!editId) rec.next_action_by = newAssignee || null
-  // On reassignment, flip the ball to the new assignee unless they themselves
-  // are the one editing (in which case the ball is naturally with the other party).
-  if(editId && assigneeChanged && newAssignee && newAssignee !== currentUser){
-    rec.next_action_by = newAssignee
+  // Existing cases: the "Whose court next?" popup decides explicitly. Keep →
+  // ball stays with the person saving; Pass → ball returns to the sender/
+  // creator (falling back to the assignee if there's no creator on record).
+  // This replaces the old silent reassignment flip so the ball never moves
+  // without the owner's choice.
+  if(editId){
+    rec.next_action_by = (_ballChoice==='pass')
+      ? ((prev&&prev.received_by) || newAssignee || null)
+      : (currentUser || null)
   }
   // Case # is immutable after the first save.
   if(editId){ rec.case_id = prev?prev.case_id:null; rec.order_no = prev?prev.order_no:null }
