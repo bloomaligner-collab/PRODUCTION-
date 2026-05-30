@@ -1371,7 +1371,11 @@ window.viewRec=async(id)=>{
       <span class="pri-badge" data-p="${r.severity||'medium'}">${r.severity||'—'} priority</span>
       ${isOpen && r.next_action_by ? `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:${ballMine?'#fee2e2':'#dcfce7'};color:${ballMine?'#b91c1c':'#15803d'};border:1px solid ${ballMine?'#fca5a5':'#86efac'};font-size:11px;font-weight:700">⚽ Ball with ${ballMine?'you':prettyAssignee(r.next_action_by)}</span>` : ''}
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      ${cwFullAccess() ? `<label style="font-size:11px;color:var(--mu);font-weight:700;display:inline-flex;align-items:center;gap:6px" title="Full access: set the status directly. The change is logged against your account.">Set status
+        <select onchange="quickSetStatus('${r.id}', this.value)" style="padding:6px 10px;font-size:12px;border:1px solid var(--bdr);border-radius:8px;background:var(--card);font-family:var(--f);font-weight:600;color:var(--txt)">
+          ${['open','in_progress','resolved','closed'].map(s=>`<option value="${s}"${r.status===s?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+        </select></label>` : ''}
       ${isOpen && isAssignee ? `<button class="btn btn-g" onclick="markResolved('${r.id}')" title="Mark as resolved from your side — creator confirms to close">✅ Mark Resolved</button>` : ''}
       ${isOpen && (isCreator || cwFullAccess()) ? `<button class="btn btn-b" onclick="closeCase('${r.id}')" title="Close this case — no further action needed">🔒 Close Case</button>` : ''}
       ${r.status==='resolved' && (isCreator || cwFullAccess()) ? `<button class="btn btn-g" onclick="closeCase('${r.id}')" title="Confirm resolution and close">🔒 Confirm & Close</button>` : ''}
@@ -1426,8 +1430,10 @@ window.viewRec=async(id)=>{
       ${r.last_viewed_at ? `<div>👁 <strong style="color:var(--txt)">Last viewed</strong> · ${prettyAssignee(r.last_viewed_by)||'—'} on ${fdt(r.last_viewed_at)}</div>` : ''}
       ${r.last_edited_at ? `<div>✏️ <strong style="color:var(--txt)">Last edited</strong> · ${prettyAssignee(r.last_edited_by)||'—'} on ${fdt(r.last_edited_at)}</div>` : ''}
       <div style="color:var(--dim)">📝 Created ${fdt(r.created_at)}${r.received_by?' by '+prettyAssignee(r.received_by):''}</div>
-    </div>`
+    </div>
+    <div id="vActivityLog" style="margin-top:14px"></div>`
   document.getElementById('viewModal').classList.add('on')
+  loadCaseActivity(r.id)
   // Wire the Edit buttons in the view modal to open the edit modal for this record
   const openEditFromView = () => { closeView(); editRec(r.id) }
   const _canEdit = canEditRec(r)
@@ -1445,6 +1451,93 @@ window.markFollowUpDone=async(id)=>{
   ntf('Follow-up marked done','ok')
   closeView()
   await load()
+}
+
+// Full-access status override from the case view. The change is written to
+// customer_feedback (so the audit_log trigger stamps WHO + their role), then
+// the realtime subscription repaints the list and we re-render the view.
+window.quickSetStatus=async(id,status)=>{
+  const r=all.find(x=>String(x.id)===String(id)); if(!r) return
+  if(status===r.status) return
+  if(!cwFullAccess()){ ntf('Only full-access roles can set the status directly.','err'); return }
+  const nowIso=new Date().toISOString()
+  const patch={status, updated_at:nowIso, last_edited_by:currentUser||null, last_edited_at:nowIso}
+  if(status==='resolved' && !r.resolved_at) patch.resolved_at=nowIso
+  if(status==='open' || status==='in_progress') patch.resolved_at=null
+  const{error}=await sb.from('customer_feedback').update(patch).eq('id',id)
+  if(error){ ntf('Status change failed: '+error.message,'err'); return }
+  ntf(`Status set to “${status.replace(/_/g,' ')}”.`,'ok')
+  Object.assign(r,patch)
+  viewRec(id)
+}
+
+// ── Case activity log — rendered from the append-only audit_log ──────────
+// Every change to a case already writes an audit_log row (who, role, when,
+// before/after). We turn that into a human-readable timeline. RLS decides
+// who can read it (full-access roles + the case's assignee/creator); if the
+// reader has no access the query returns nothing and we hide the section.
+let _empEmailMap=null
+async function _auditActorName(email){
+  if(_empEmailMap===null){
+    _empEmailMap=new Map()
+    try{
+      const{data}=await sb.from('employees').select('name,email')
+      for(const e of (data||[])) if(e&&e.email) _empEmailMap.set(String(e.email).toLowerCase(), e.name)
+    }catch{}
+  }
+  if(!email) return 'Someone'
+  return _empEmailMap.get(String(email).toLowerCase()) || String(email).split('@')[0]
+}
+function _auditWho(v){ return v?(prettyAssignee(v)||v):'no one' }
+function describeAuditRow(row){
+  const o=row.old_data||{}, n=row.new_data||{}
+  if(row.op==='INSERT') return ['🟢 created the case']
+  if(row.op==='DELETE') return ['🗑️ deleted the case']
+  const changed=k=>JSON.stringify(o[k])!==JSON.stringify(n[k])
+  const out=[]
+  if(changed('status'))         out.push(`🔄 changed status: <strong>${_esc((o.status||'—').replace(/_/g,' '))}</strong> → <strong>${_esc((n.status||'—').replace(/_/g,' '))}</strong>`)
+  if(changed('assigned_to'))    out.push(`👤 reassigned: ${_esc(_auditWho(o.assigned_to))} → <strong>${_esc(_auditWho(n.assigned_to))}</strong>`)
+  if(changed('next_action_by')) out.push(n.next_action_by?`⚽ passed the ball to <strong>${_esc(_auditWho(n.next_action_by))}</strong>`:'⚽ cleared the ball')
+  if(changed('severity'))       out.push(`🚩 changed priority: ${_esc(o.severity||'—')} → <strong>${_esc(n.severity||'—')}</strong>`)
+  if(changed('resolution'))     out.push('📝 updated the resolution')
+  if(changed('notes')||changed('root_cause')) out.push('📝 updated the notes / root cause')
+  if(changed('description'))    out.push('✏️ edited the description')
+  if(changed('category'))       out.push('🏷️ changed the category')
+  if(changed('follow_up_date')) out.push(n.follow_up_date?`⏰ set a follow-up for ${_esc(fdt(n.follow_up_date))}`:'⏰ cleared the follow-up')
+  if(changed('follow_up_done_at') && n.follow_up_done_at) out.push('✅ marked the follow-up done')
+  // Rows whose only changes were view/edit tracking (last_viewed_at, etc.)
+  // produce no lines and are dropped from the timeline as noise.
+  return out
+}
+async function loadCaseActivity(caseId){
+  const box=document.getElementById('vActivityLog'); if(!box) return
+  box.innerHTML='<div style="font-size:11px;color:var(--dim)">⏳ Loading history…</div>'
+  let rows=[]
+  try{
+    const{data,error}=await sb.from('audit_log')
+      .select('at,actor_email,actor_role,op,old_data,new_data')
+      .eq('table_name','customer_feedback').eq('record_pk',String(caseId))
+      .order('at',{ascending:true}).limit(500)
+    if(error) throw error
+    rows=data||[]
+  }catch(e){ box.innerHTML=''; return }   // no read access (RLS) → hide silently
+  const entries=[]
+  for(const row of rows){
+    const parts=describeAuditRow(row)
+    if(parts.length) entries.push({at:row.at, email:row.actor_email, role:row.actor_role, parts})
+  }
+  if(!entries.length){ box.innerHTML=''; return }
+  const names=await Promise.all(entries.map(e=>_auditActorName(e.email)))
+  const roleLbl=r=>{ const m=(window.CW_ACCESS&&CW_ACCESS.roleLabel)?CW_ACCESS.roleLabel(r):null; return m||r||'' }
+  const html=entries.map((e,i)=>{
+    const rl=e.role?` <span style="font-size:10px;color:#fff;background:var(--mu);padding:1px 6px;border-radius:999px">${_esc(roleLbl(e.role))}</span>`:''
+    const lines=e.parts.map(p=>`<div style="margin-left:18px;color:var(--mu)">${p}</div>`).join('')
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:12px"><strong style="color:var(--txt)">${_esc(names[i])}</strong>${rl} <span style="color:var(--dim)">· ${_esc(fdt(e.at))}</span></div>
+      ${lines}
+    </div>`
+  }).join('')
+  box.innerHTML=`<div style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;color:var(--dim);font-size:11px">📜 Case history</div>${html}`
 }
 
 // When a NEW complaint is logged with a Case # that already has a
