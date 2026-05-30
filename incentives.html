@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings SAS — KPI & Incentive Center</title>
+<script type="module" src="auth_guard.js?v=20260422c"></script>
+<!-- Managers/admins only — auth_guard handles logout; this bounces any
+     authenticated non-admin to their home page (same as CW_ACCESS.guard()). -->
+<script src="access.js?v=20260422c"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      if (!sessionStorage.getItem('cw_name')) { window.location.replace('index.html'); return; }
+      if (!CW_ACCESS.isAdmin()) { window.location.replace(CW_ACCESS.homePage()); }
+    } catch (e) {}
+  });
+</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
+  --blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;
+  --green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;
+  --amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;
+  --red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;
+  --purple:#7c3aed;--p50:#f5f3ff;--p100:#ede9fe;
+  --teal:#0d9488;--t50:#f0fdfa;--t100:#ccfbf1;
+  --f:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);
+  --sh2:0 6px 24px rgba(0,0,0,.09),0 0 0 1px rgba(0,0,0,.04)
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--card);border-right:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-top{display:flex;align-items:center;gap:12px;padding:20px 18px 16px;border-bottom:1px solid var(--bdr)}
+.sb-logo{width:40px;height:40px;background:linear-gradient(135deg,#3b5fe2,#6366f1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(59,95,226,.3)}
+.sb-name{font-weight:800;font-size:14px;letter-spacing:-.2px}
+.sb-badge{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;margin-top:3px;background:var(--b50);color:var(--blue)}
+.sb-nav{flex:1;padding:10px}
+.sb-s{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:14px 8px 6px}
+.nl{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:500;color:var(--mu);text-decoration:none;transition:all .12s}
+.nl:hover{background:var(--bg);color:var(--txt)}
+.nl.on{background:var(--b50);color:var(--blue);font-weight:700}
+.nl .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:12px 10px;border-top:1px solid var(--bdr)}
+.content{margin-left:240px;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.top-left .page-title{font-size:20px;font-weight:800;letter-spacing:-.4px}
+.top-left .page-date{font-size:12px;color:var(--mu);margin-top:2px}
+.top-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.range-tabs{display:flex;background:var(--bg);border:1px solid var(--bdr);border-radius:9px;padding:3px;gap:2px}
+.rt{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:transparent;color:var(--mu);border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.rt.active{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:700}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border:none;border-radius:9px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.btn-ghost{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}.btn-ghost:hover{color:var(--txt);border-color:var(--blue)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2e4fc7}
+.fi{padding:7px 10px;font-size:13px;border:1px solid var(--bdr);border-radius:8px;font-family:var(--f);background:var(--card);color:var(--txt)}
+.wrap{padding:24px 28px 60px}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:18px 16px 14px;position:relative;overflow:hidden}
+.kpi-stripe{position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px}
+.kpi-val{font-size:26px;font-weight:800;font-family:var(--mono);letter-spacing:-1px;line-height:1;color:var(--txt)}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+.kpi-sub{font-size:11px;color:var(--dim);margin-top:4px;min-height:15px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.panel{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:18px 20px;margin-bottom:16px}
+.panel h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--mu)}
+.panel .ph-sub{font-size:11px;color:var(--dim);margin:4px 0 14px}
+table.tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.tbl th{text-align:left;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:10px;padding:8px 10px;border-bottom:2px solid var(--bdr);white-space:nowrap}
+table.tbl td{padding:8px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+table.tbl tr:hover td{background:var(--bg)}
+.num{font-family:var(--mono);text-align:right}
+.badge{display:inline-flex;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.b-r{background:var(--r50);color:var(--red)}.b-g{background:var(--g50);color:var(--green)}
+.b-a{background:var(--a50);color:var(--amber)}.b-b{background:var(--b50);color:var(--blue)}
+.b-gray{background:#f1f5f9;color:var(--mu)}.b-p{background:var(--p50);color:var(--purple)}
+.tier{font-weight:800;padding:2px 10px;border-radius:999px;font-size:11px}
+.t-gold{background:#fef9c3;color:#a16207}.t-silver{background:#e2e8f0;color:#475569}.t-bronze{background:#fee2c7;color:#b45309}.t-none{background:#f1f5f9;color:#94a3b8}
+.empty{text-align:center;color:var(--dim);padding:40px;font-size:13px}
+.cfg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.cfg-grid label{display:block;font-size:11px;font-weight:700;color:var(--mu);margin-bottom:4px}
+.cfg-grid .fi{width:100%}
+details.cfg{margin-bottom:16px}
+details.cfg>summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--blue);list-style:none;padding:10px 14px;background:var(--card);border-radius:12px;box-shadow:var(--sh)}
+details.cfg>summary::-webkit-details-marker{display:none}
+.scorebar{position:relative;height:8px;background:#eef2ff;border-radius:99px;overflow:hidden;min-width:60px}
+.scorebar>span{position:absolute;inset:0;border-radius:99px}
+@media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.cfg-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+@media(max-width:900px){.sidebar{display:none}.content{margin-left:0}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media print{.sidebar{display:none}.content{margin-left:0}.topbar{position:static}.top-right,details.cfg{display:none}.panel,.kpi{break-inside:avoid}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sb-top">
+    <div class="sb-logo">🏆</div>
+    <div><div class="sb-name">Cedarwings SAS</div><div class="sb-badge" id="sb-role-lbl">Incentives</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-s">Operations</div>
+    <a href="manager.html" class="nl"><span class="ic">📊</span>Dashboard</a>
+    <a href="production.html" class="nl"><span class="ic">🏭</span>Production</a>
+    <a href="production_materials.html" class="nl"><span class="ic">🧪</span>Materials & Lots</a>
+    <div class="sb-s">Team</div>
+    <a href="employees.html" class="nl"><span class="ic">👥</span>Employees</a>
+    <a href="time_report.html" class="nl"><span class="ic">📈</span>Time Report</a>
+    <a href="incentives.html" class="nl on"><span class="ic">🏆</span>KPI & Incentives</a>
+    <div class="sb-s">Quality</div>
+    <a href="qualite.html" class="nl"><span class="ic">✅</span>Quality Control</a>
+    <a href="non_conformity.html" class="nl"><span class="ic">⚠️</span>Non-Conformity</a>
+    <a href="customer_feedback.html" class="nl"><span class="ic">💬</span>Customer Feedback</a>
+    <a href="feedback_analytics.html" class="nl"><span class="ic">📊</span>Feedback Analytics</a>
+    <a href="internal_audit.html" class="nl"><span class="ic">🔍</span>Internal Audits</a>
+    <div class="sb-s">System</div>
+    <a href="settings.html" class="nl"><span class="ic">⚙</span>Settings</a>
+    <a href="roles.html" class="nl"><span class="ic">🔑</span>Roles</a>
+  </nav>
+  <div class="sb-foot">
+    <a href="index.html" class="nl"><span class="ic">←</span>Switch Role</a>
+  </div>
+</aside>
+
+<div class="content">
+  <div class="topbar">
+    <div class="top-left">
+      <div class="page-title">🏆 KPI & Incentive Center</div>
+      <div class="page-date" id="pageDate">—</div>
+    </div>
+    <div class="top-right">
+      <div class="range-tabs" id="rangeTabs">
+        <button class="rt" data-d="30">This month</button>
+        <button class="rt active" data-d="90">Quarter</button>
+        <button class="rt" data-d="365">Year</button>
+        <button class="rt" data-d="0">All</button>
+      </div>
+      <button class="btn btn-ghost" onclick="window.print()">🖨️ PDF</button>
+      <button class="btn btn-ghost" id="csvBtn">⬇️ CSV</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="root">
+    <div class="empty">⏳ Loading KPIs…</div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SUPABASE_CONFIG } from './config.js'
+const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+
+const $=id=>document.getElementById(id)
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const norm=s=>String(s==null?'':s).trim().toLowerCase()
+const CAT_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',traceability:'Traceability',billing:'Billing',other:'Other'}
+// Which production step "owns" a complaint of each category — used to trace a
+// complaint back to the operator responsible, so penalties land on the right
+// person. Steps are matched case-insensitively against order_step_tracking.step.
+const CAT_TO_STEPS={
+  product_quality:['thermoforming','printing','line cut','laser marking'],
+  fitting:['printing','thermoforming'],
+  packaging:['packaging'],
+  delivery:['packaging'],
+  documentation:['laser marking','packaging'],
+  traceability:['laser marking']
+}
+
+// ── Incentive configuration (defaults; overridable via system_settings) ──────
+const DEFAULT_CFG={
+  currency:'€',
+  point_value:0.50,          // bonus currency per net point
+  sla_days:3,                // resolve a case within N days for the SLA bonus
+  // production points
+  pts_per_aligner:1,
+  pts_per_step:0.5,
+  pts_per_qc_pass:4,
+  // efficiency: pts = (efficiency% - eff_floor) * pts_per_eff_point, floored at 0
+  eff_floor:60,
+  pts_per_eff_point:0.4,
+  // case-handler points
+  pts_per_case_resolved:5,
+  pts_per_sla_case:3,
+  // penalties (subtracted from points)
+  penalty_per_complaint:10,  // a complaint traced back to the operator
+  penalty_per_qc_fail:8,
+  penalty_per_reopen:6,
+  penalty_per_overdue_followup:3,
+  // tiers by final score (0-100)
+  tier_gold:80, tier_silver:60, tier_bronze:40,
+  bonus_cap:0                // 0 = no cap; otherwise max bonus per person
+}
+let CFG={...DEFAULT_CFG}
+
+let DATA={}, rangeDays=90
+
+function rangeStart(){ if(!rangeDays) return null; const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-rangeDays); return d }
+function inRange(ts){ if(!rangeDays) return true; if(!ts) return false; const d=new Date(ts); return !isNaN(d) && d>=rangeStart() }
+function daysBetween(a,b){ const ms=new Date(b)-new Date(a); return ms>=0?ms/86400000:null }
+function minutes(v){ const n=Number(v); return isFinite(n)&&n>0?n:0 }
+
+async function loadCfg(){
+  try{
+    const {data}=await sb.from('system_settings').select('value').eq('key','incentive_config').maybeSingle()
+    if(data&&data.value){ const v=typeof data.value==='string'?JSON.parse(data.value):data.value; CFG={...DEFAULT_CFG,...v} }
+  }catch(e){ console.warn('cfg load',e) }
+}
+async function saveCfg(){
+  try{
+    await sb.from('system_settings').upsert({key:'incentive_config',value:JSON.stringify(CFG),updated_at:new Date().toISOString()},{onConflict:'key'})
+    return true
+  }catch(e){ alert('Could not save config: '+e.message); return false }
+}
+
+async function loadData(){
+  const [emp,fb,ost,ts,pcl,qc,oo] = await Promise.all([
+    sb.from('employees').select('name,role,custom_role,is_active,department,position').limit(2000),
+    sb.from('customer_feedback').select('feedback_no,category,type,severity,assigned_to,received_by,resolved_by,resolved_at,received_date,created_at,status,order_no,case_id,lot_udi,follow_up_date,follow_up_done_at,follow_up_assignee').limit(20000),
+    sb.from('order_step_tracking').select('order_no,case_id,step,status,assigned_to,completed_by,started_at,completed_at,aligners_produced,aligners_planned,lot_number,created_at').limit(20000),
+    sb.from('time_sessions').select('employee_name,work_type,waste_category,session_type,duration_minutes,overtime_minutes,break_minutes,started_at,session_date,step,step_name').limit(20000),
+    sb.from('production_completion_log').select('employee_name,aligners_produced,created_at,case_id').limit(20000),
+    sb.from('quality_controls').select('performed_by,overall_result,result,score,performed_at,created_at,order_no,case_id,lot_number,packaging_ok,label_ok,documentation_ok,qty_ok').limit(20000),
+    sb.from('outsourced_orders').select('supplier_name,outsource_date,expected_return_date,received_date,aligners_total,cost_per_aligner,total_cost,currency').limit(20000)
+  ])
+  DATA={
+    employees:(emp.data||[]),
+    feedback:(fb.data||[]),
+    steps:(ost.data||[]),
+    sessions:(ts.data||[]),
+    completions:(pcl.data||[]),
+    qc:(qc.data||[]),
+    outsourced:(oo.data||[])
+  }
+}
+
+function qcPassed(q){ return ['pass','passed','ok','conforme','conform','accepted'].includes(norm(q.overall_result||q.result)) }
+function qcFailed(q){ const r=norm(q.overall_result||q.result); return r && ['fail','failed','reject','rejected','nc','non-conform','nonconforming','ko'].includes(r) }
+
+// Build a map order_no/case_id -> [operator names] from production steps, so a
+// complaint can be attributed to whoever performed the category's step.
+function buildStepIndex(){
+  const byOrder={}, byCase={}
+  for(const s of DATA.steps){
+    const who=s.completed_by||s.assigned_to; if(!who) continue
+    const stepN=norm(s.step)
+    const rec={who, step:stepN}
+    if(s.order_no){ (byOrder[norm(s.order_no)] ||= []).push(rec) }
+    if(s.case_id){ (byCase[norm(s.case_id)] ||= []).push(rec) }
+  }
+  return {byOrder,byCase}
+}
+
+function compute(){
+  const cfg=CFG
+  // employee skeletons (active only, plus anyone who appears in the data)
+  const people={}
+  const ensure=name=>{ const k=norm(name); if(!k) return null; if(!people[k]) people[k]={name:name,key:k,
+      aligners:0, steps:0, qcPass:0, qcFail:0, prodMin:0, wasteMin:0, breakMin:0, overtimeMin:0, cycleSum:0, cycleN:0,
+      resolved:0, slaCases:0, overdueFu:0, complaints:0, reopens:0, role:'' }; return people[k] }
+  for(const e of DATA.employees){ if(e.is_active!==false){ const p=ensure(e.name); if(p) p.role=e.custom_role||e.role||'' } }
+
+  // ── Production: steps completed, aligners, cycle time ──
+  for(const s of DATA.steps){
+    const who=s.completed_by; if(!who) continue
+    const done=norm(s.status)==='complete'||norm(s.status)==='completed'||!!s.completed_at
+    if(!done || !inRange(s.completed_at||s.created_at)) continue
+    const p=ensure(who); if(!p) continue
+    p.steps++
+    p.aligners += Number(s.aligners_produced)||0
+    if(s.started_at && s.completed_at){ const d=daysBetween(s.started_at,s.completed_at); if(d!=null){ p.cycleSum+=d*24; p.cycleN++ } }
+  }
+  // completions log (fallback / extra productivity signal — not double counted
+  // into 'steps', only used if step rows lacked aligner counts)
+  const aligFromSteps={}
+  for(const s of DATA.steps){ if(s.completed_by) aligFromSteps[norm(s.completed_by)]=(aligFromSteps[norm(s.completed_by)]||0)+(Number(s.aligners_produced)||0) }
+  for(const c of DATA.completions){
+    if(!inRange(c.created_at)) continue
+    const p=ensure(c.employee_name); if(!p) continue
+    if(!aligFromSteps[p.key]){ p.aligners += Number(c.aligners_produced)||0 }
+  }
+  // ── Time sessions: efficiency ──
+  for(const t of DATA.sessions){
+    if(!inRange(t.started_at||t.session_date)) continue
+    const p=ensure(t.employee_name); if(!p) continue
+    const mins=minutes(t.duration_minutes)
+    const st=norm(t.session_type), wt=norm(t.work_type)
+    if(t.waste_category || wt==='waste' || st==='waste'){ p.wasteMin+=mins }
+    else if(st==='break' || wt==='break'){ p.breakMin+=mins }
+    else { p.prodMin+=mins }
+    p.overtimeMin += minutes(t.overtime_minutes)
+    p.breakMin += minutes(t.break_minutes)
+  }
+  // ── QC: who performed it (the checker earns QC points) ──
+  for(const q of DATA.qc){
+    if(!inRange(q.performed_at||q.created_at)) continue
+    const p=ensure(q.performed_by); if(!p) continue
+    if(qcPassed(q)) p.qcPass++
+    else if(qcFailed(q)) p.qcFail++
+  }
+  // ── Customer feedback: case-handler resolution + SLA + overdue follow-ups ──
+  for(const f of DATA.feedback){
+    // resolution credit
+    if(f.resolved_by && f.resolved_at && inRange(f.resolved_at)){
+      const p=ensure(f.resolved_by)
+      if(p){ p.resolved++; const d=daysBetween(f.received_date||f.created_at, f.resolved_at); if(d!=null && d<=cfg.sla_days) p.slaCases++ }
+    }
+    // overdue follow-up penalty (assignee)
+    if(f.follow_up_date && !f.follow_up_done_at){
+      const due=new Date(f.follow_up_date); const today=new Date(); today.setHours(0,0,0,0)
+      if(due<today){ const p=ensure(f.follow_up_assignee||f.assigned_to); if(p) p.overdueFu++ }
+    }
+  }
+  // ── Attribute complaints back to the operator(s) of the responsible step ──
+  const idx=buildStepIndex()
+  const catBreakdown={}   // category -> {total, byPerson:{name:count}}
+  for(const f of DATA.feedback){
+    if(norm(f.type)!=='complaint') continue
+    if(!inRange(f.received_date||f.created_at)) continue
+    const cat=norm(f.category)||'other'
+    catBreakdown[cat] ||= {total:0, byPerson:{}}
+    catBreakdown[cat].total++
+    const wantSteps=CAT_TO_STEPS[cat]||null
+    const ops = (idx.byOrder[norm(f.order_no)]||idx.byCase[norm(f.case_id)]||[])
+    const matched = ops.filter(o=>!wantSteps || wantSteps.some(w=>o.step.includes(w)))
+    const targets = (matched.length?matched:ops)
+    const uniq=[...new Set(targets.map(o=>o.who))]
+    for(const who of uniq){ const p=ensure(who); if(p){ p.complaints++; catBreakdown[cat].byPerson[who]=(catBreakdown[cat].byPerson[who]||0)+1 } }
+  }
+
+  // ── Score, points, bonus ──
+  const rows=Object.values(people).map(p=>{
+    const totalMin=p.prodMin+p.wasteMin+p.breakMin
+    const efficiency = totalMin>0 ? Math.round(100*p.prodMin/totalMin) : null
+    const avgCycle = p.cycleN ? p.cycleSum/p.cycleN : null
+    // positive points
+    let pts = 0
+    pts += p.aligners*cfg.pts_per_aligner
+    pts += p.steps*cfg.pts_per_step
+    pts += p.qcPass*cfg.pts_per_qc_pass
+    pts += p.resolved*cfg.pts_per_case_resolved
+    pts += p.slaCases*cfg.pts_per_sla_case
+    if(efficiency!=null) pts += Math.max(0,(efficiency-cfg.eff_floor))*cfg.pts_per_eff_point
+    const positive=pts
+    // penalties
+    let pen=0
+    pen += p.complaints*cfg.penalty_per_complaint
+    pen += p.qcFail*cfg.penalty_per_qc_fail
+    pen += p.reopens*cfg.penalty_per_reopen
+    pen += p.overdueFu*cfg.penalty_per_overdue_followup
+    const net = positive-pen
+    let bonus = Math.max(0,net)*cfg.point_value
+    if(cfg.bonus_cap>0) bonus=Math.min(bonus,cfg.bonus_cap)
+    return {...p, efficiency, avgCycle, positive:Math.round(positive), penalty:Math.round(pen), points:Math.round(net), bonus, totalMin}
+  }).filter(p=> p.positive>0 || p.penalty>0 || p.resolved>0 || p.steps>0 || p.totalMin>0 )
+
+  // score 0-100: scale net points within the cohort (relative leaderboard),
+  // but keep an absolute feel — use max positive as the 100 anchor.
+  const maxNet=Math.max(1,...rows.map(r=>r.points))
+  rows.forEach(r=>{ r.score = Math.max(0,Math.min(100, Math.round(100*r.points/maxNet))) ; r.tier=tierOf(r.score) })
+  rows.sort((a,b)=>b.points-a.points)
+  return {rows, catBreakdown}
+}
+function tierOf(s){ if(s>=CFG.tier_gold) return 'gold'; if(s>=CFG.tier_silver) return 'silver'; if(s>=CFG.tier_bronze) return 'bronze'; return 'none' }
+const TIER_LABEL={gold:'🥇 Gold',silver:'🥈 Silver',bronze:'🥉 Bronze',none:'—'}
+const money=v=>CFG.currency+(Math.round(v*100)/100).toLocaleString()
+
+function render(){
+  const {rows,catBreakdown}=compute()
+  const prod=rows.filter(r=>r.steps>0||r.totalMin>0||r.aligners>0||r.qcPass>0||r.qcFail>0)
+  const handlers=rows.filter(r=>r.resolved>0||r.overdueFu>0)
+  const totalBonus=rows.reduce((a,r)=>a+r.bonus,0)
+  const totalPoints=rows.reduce((a,r)=>a+r.points,0)
+  const totalAligners=rows.reduce((a,r)=>a+r.aligners,0)
+  const totalComplaints=rows.reduce((a,r)=>a+r.complaints,0)
+  const qcAll=DATA.qc.filter(q=>inRange(q.performed_at||q.created_at))
+  const qcPassN=qcAll.filter(qcPassed).length
+  const qcPassPct=qcAll.length?Math.round(100*qcPassN/qcAll.length):null
+  const top=rows[0]
+
+  const kpis=[
+    {ic:'💶',c:'green',v:money(totalBonus),l:'Bonus pool',s:'period total'},
+    {ic:'⭐',c:'blue',v:totalPoints.toLocaleString(),l:'Net points',s:'all employees'},
+    {ic:'🦷',c:'teal',v:totalAligners.toLocaleString(),l:'Aligners produced',s:'attributed'},
+    {ic:'🏅',c:'amber',v:top?esc(top.name):'—',l:'Top performer',s:top?(top.points+' pts · '+TIER_LABEL[top.tier]):''},
+    {ic:'✅',c:'purple',v:qcPassPct==null?'—':qcPassPct+'%',l:'QC pass rate',s:qcAll.length+' checks'},
+    {ic:'⚠️',c:'red',v:totalComplaints.toLocaleString(),l:'Complaints attributed',s:'penalised'}
+  ]
+  const stripe={green:'var(--green)',blue:'var(--blue)',teal:'var(--teal)',amber:'var(--amber)',purple:'var(--purple)',red:'var(--red)'}
+  const ico={green:['var(--g50)','var(--green)'],blue:['var(--b50)','var(--blue)'],teal:['var(--t50)','var(--teal)'],amber:['var(--a50)','var(--amber)'],purple:['var(--p50)','var(--purple)'],red:['var(--r50)','var(--red)']}
+  const kpiHtml=`<div class="kpi-grid">${kpis.map(k=>`<div class="kpi"><div class="kpi-stripe" style="background:${stripe[k.c]}"></div><div class="kpi-ico" style="background:${ico[k.c][0]};color:${ico[k.c][1]}">${k.ic}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div class="kpi-sub">${k.s}</div></div>`).join('')}</div>`
+
+  // Production leaderboard
+  const prodRows = prod.map(r=>`<tr>
+    <td><strong>${esc(r.name)}</strong><div style="font-size:10px;color:var(--dim)">${esc(r.role||'')}</div></td>
+    <td><span class="tier t-${r.tier}">${TIER_LABEL[r.tier]}</span></td>
+    <td style="min-width:90px"><div class="scorebar"><span style="width:${r.score}%;background:${r.score>=CFG.tier_gold?'var(--green)':r.score>=CFG.tier_silver?'var(--blue)':'var(--amber)'}"></span></div><div style="font-size:10px;color:var(--mu);margin-top:2px">${r.score}/100</div></td>
+    <td class="num">${r.aligners.toLocaleString()}</td>
+    <td class="num">${r.steps}</td>
+    <td class="num">${r.efficiency==null?'—':r.efficiency+'%'}</td>
+    <td class="num">${r.avgCycle==null?'—':(Math.round(r.avgCycle*10)/10)+'h'}</td>
+    <td class="num"><span class="badge b-g">${r.qcPass}</span> ${r.qcFail?`<span class="badge b-r">${r.qcFail}</span>`:''}</td>
+    <td class="num">${r.complaints?`<span class="badge b-r">${r.complaints}</span>`:'0'}</td>
+    <td class="num" style="color:var(--green);font-weight:700">+${r.positive}</td>
+    <td class="num" style="color:var(--red)">−${r.penalty}</td>
+    <td class="num"><strong>${r.points}</strong></td>
+    <td class="num"><strong style="color:var(--green)">${money(r.bonus)}</strong></td>
+  </tr>`).join('')||`<tr><td colspan="13" class="empty">No production activity in range.</td></tr>`
+
+  const prodPanel=`<div class="panel"><h3>🏭 Production — efficiency, productivity & incentive</h3>
+    <div class="ph-sub">Points = aligners×${CFG.pts_per_aligner} + steps×${CFG.pts_per_step} + QC pass×${CFG.pts_per_qc_pass} + efficiency above ${CFG.eff_floor}% − penalties. Bonus = net points × ${money(CFG.point_value)}.</div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr>
+      <th>Employee</th><th>Tier</th><th>Score</th><th>Aligners</th><th>Steps</th><th>Effic.</th><th>Avg cycle</th><th>QC ✓/✗</th><th>Complaints</th><th>Earned</th><th>Penalty</th><th>Net pts</th><th>Bonus</th>
+    </tr></thead><tbody>${prodRows}</tbody></table></div></div>`
+
+  // Case handlers
+  const hRows=handlers.map(r=>`<tr>
+    <td><strong>${esc(r.name)}</strong><div style="font-size:10px;color:var(--dim)">${esc(r.role||'')}</div></td>
+    <td class="num">${r.resolved}</td>
+    <td class="num">${r.slaCases}</td>
+    <td class="num">${r.resolved?Math.round(100*r.slaCases/r.resolved)+'%':'—'}</td>
+    <td class="num">${r.overdueFu?`<span class="badge b-a">${r.overdueFu}</span>`:'0'}</td>
+    <td class="num"><strong>${r.points}</strong></td>
+    <td class="num"><strong style="color:var(--green)">${money(r.bonus)}</strong></td>
+  </tr>`).join('')||`<tr><td colspan="7" class="empty">No resolved cases in range.</td></tr>`
+  const handlerPanel=`<div class="panel"><h3>💬 Case handlers — customer feedback resolution</h3>
+    <div class="ph-sub">SLA target: resolve within ${CFG.sla_days} days. Points = resolved×${CFG.pts_per_case_resolved} + within-SLA×${CFG.pts_per_sla_case} − overdue follow-ups×${CFG.penalty_per_overdue_followup}.</div>
+    <table class="tbl"><thead><tr><th>Employee</th><th>Resolved</th><th>Within SLA</th><th>SLA %</th><th>Overdue follow-ups</th><th>Net pts</th><th>Bonus</th></tr></thead><tbody>${hRows}</tbody></table></div>`
+
+  // Complaint category → responsible person
+  const cats=Object.entries(catBreakdown).sort((a,b)=>b[1].total-a[1].total)
+  const catRows=cats.map(([cat,info])=>{
+    const top=Object.entries(info.byPerson).sort((a,b)=>b[1]-a[1])
+    const who=top.length?top.map(([n,c])=>`${esc(n)} (${c})`).join(', '):'<span style="color:var(--dim)">— not traceable to a step</span>'
+    return `<tr><td><strong>${esc(CAT_LABELS[cat]||cat)}</strong></td><td class="num"><span class="badge b-r">${info.total}</span></td><td>${who}</td></tr>`
+  }).join('')||`<tr><td colspan="3" class="empty">No complaints in range.</td></tr>`
+  const catPanel=`<div class="panel"><h3>🎯 Complaint categories → responsible step/operator</h3>
+    <div class="ph-sub">Complaints traced via shared order/case keys to the operator of the category's production step (e.g. packaging complaints → Packaging operator).</div>
+    <table class="tbl"><thead><tr><th>Category</th><th>Complaints</th><th>Attributed to (count)</th></tr></thead><tbody>${catRows}</tbody></table></div>`
+
+  // Outsourcing suppliers
+  const oo=DATA.outsourced.filter(o=>inRange(o.outsource_date||o.created_at))
+  const sup={}
+  for(const o of oo){ const k=o.supplier_name||'—'; sup[k] ||= {orders:0,aligners:0,cost:0,onTime:0,returned:0}
+    sup[k].orders++; sup[k].aligners+=Number(o.aligners_total)||0; sup[k].cost+=Number(o.total_cost)||0
+    if(o.received_date){ sup[k].returned++; if(!o.expected_return_date || new Date(o.received_date)<=new Date(o.expected_return_date)) sup[k].onTime++ } }
+  const supRows=Object.entries(sup).map(([n,s])=>`<tr><td><strong>${esc(n)}</strong></td><td class="num">${s.orders}</td><td class="num">${s.aligners.toLocaleString()}</td><td class="num">${s.returned?Math.round(100*s.onTime/s.returned)+'%':'—'}</td><td class="num">${money(s.cost)}</td></tr>`).join('')||`<tr><td colspan="5" class="empty">No outsourced orders in range.</td></tr>`
+  const supPanel=`<div class="panel"><h3>🚚 Outsourcing — supplier performance</h3><div class="ph-sub">On-time = returned on/before expected date.</div>
+    <table class="tbl"><thead><tr><th>Supplier</th><th>Orders</th><th>Aligners</th><th>On-time %</th><th>Cost</th></tr></thead><tbody>${supRows}</tbody></table></div>`
+
+  // QC not-cleared list (gate visibility)
+  const notCleared=qcAll.filter(q=>!qcPassed(q))
+  const ncRows=notCleared.slice(0,50).map(q=>`<tr><td>${esc(q.lot_number||q.order_no||q.case_id||'—')}</td><td>${esc(q.performed_by||'—')}</td><td><span class="badge ${qcFailed(q)?'b-r':'b-a'}">${esc(q.overall_result||q.result||'pending')}</span></td><td style="font-size:11px">${[!q.packaging_ok&&'packaging',!q.label_ok&&'label',!q.documentation_ok&&'docs',!q.qty_ok&&'qty'].filter(Boolean).join(', ')||'—'}</td></tr>`).join('')||`<tr><td colspan="4" class="empty">All QC checks in range passed. ✅</td></tr>`
+  const qcPanel=`<div class="panel"><h3>🚦 QC — not cleared for delivery</h3><div class="ph-sub">Lots without a passing QC across aligner quality, treatment-plan match, packaging & shipping. These are blocked by the delivery gate.</div>
+    <table class="tbl"><thead><tr><th>Lot / Order</th><th>Checked by</th><th>Result</th><th>Failing checks</th></tr></thead><tbody>${ncRows}</tbody></table></div>`
+
+  // Config panel
+  const cfgFields=[
+    ['currency','Currency','text'],['point_value','€ per point','num'],['sla_days','SLA days','num'],['bonus_cap','Bonus cap (0=none)','num'],
+    ['pts_per_aligner','Pts / aligner','num'],['pts_per_step','Pts / step','num'],['pts_per_qc_pass','Pts / QC pass','num'],['pts_per_case_resolved','Pts / case resolved','num'],
+    ['pts_per_sla_case','Pts / SLA case','num'],['eff_floor','Efficiency floor %','num'],['pts_per_eff_point','Pts / effic. point','num'],['pts_per_sla_case','—','skip'],
+    ['penalty_per_complaint','Penalty / complaint','num'],['penalty_per_qc_fail','Penalty / QC fail','num'],['penalty_per_reopen','Penalty / reopen','num'],['penalty_per_overdue_followup','Penalty / overdue f-up','num'],
+    ['tier_gold','Gold ≥','num'],['tier_silver','Silver ≥','num'],['tier_bronze','Bronze ≥','num']
+  ].filter(f=>f[2]!=='skip')
+  const cfgPanel=`<details class="cfg"><summary>⚙️ Incentive configuration (weights, targets & bonus value)</summary>
+    <div class="panel"><div class="cfg-grid">
+      ${cfgFields.map(([k,l,t])=>`<div><label>${l}</label><input class="fi" data-cfg="${k}" type="${t==='num'?'number':'text'}" step="any" value="${esc(CFG[k])}"/></div>`).join('')}
+    </div><div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-blue" id="cfgSave">💾 Save & recompute</button><button class="btn btn-ghost" id="cfgReset">↺ Reset defaults</button></div></div></details>`
+
+  $('root').innerHTML = kpiHtml + cfgPanel + prodPanel +
+    `<div class="grid2">${handlerPanel}${catPanel}</div>` +
+    `<div class="grid2">${supPanel}${qcPanel}</div>`
+
+  // wire config
+  $('cfgSave').onclick=async()=>{
+    document.querySelectorAll('[data-cfg]').forEach(i=>{ const k=i.dataset.cfg; CFG[k]= i.type==='number'?Number(i.value): i.value })
+    if(await saveCfg()) render()
+  }
+  $('cfgReset').onclick=async()=>{ CFG={...DEFAULT_CFG}; if(await saveCfg()) render() }
+  window.__rows=rows  // for CSV
+}
+
+$('csvBtn').onclick=()=>{
+  const rows=window.__rows||[]
+  const head=['Employee','Role','Tier','Score','Aligners','Steps','Efficiency%','QC pass','QC fail','Resolved','SLA cases','Complaints','Earned pts','Penalty pts','Net points','Bonus']
+  const lines=[head.join(',')].concat(rows.map(r=>[r.name,r.role,r.tier,r.score,r.aligners,r.steps,r.efficiency??'',r.qcPass,r.qcFail,r.resolved,r.slaCases,r.complaints,r.positive,r.penalty,r.points,Math.round(r.bonus*100)/100].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')))
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a')
+  a.href=URL.createObjectURL(blob); a.download=`incentives_${new Date().toISOString().slice(0,10)}.csv`; a.click()
+}
+
+document.querySelectorAll('#rangeTabs .rt').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#rangeTabs .rt').forEach(x=>x.classList.remove('active'))
+  b.classList.add('active'); rangeDays=Number(b.dataset.d); render()
+})
+
+;(async()=>{
+  $('pageDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+  await loadCfg()
+  await loadData()
+  render()
+})().catch(e=>{ $('root').innerHTML=`<div class="empty">Error: ${esc(e.message)}</div>`; console.error(e) })
+</script>
+</body>
+</html>
