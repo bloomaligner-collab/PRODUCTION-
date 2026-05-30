@@ -191,6 +191,9 @@ const DEFAULT_CFG={
   // tiers by final score (0-100)
   tier_gold:80, tier_silver:60, tier_bronze:40,
   bonus_cap:0,               // 0 = no cap; otherwise max bonus per person
+  // Per-employee guaranteed base / minimum pay, keyed by lowercased name.
+  // Final payout = max(base, performance bonus) — base is a floor, not stacked.
+  bases:{},
   // Complaint category -> production step(s) that "own" it, for tracing a
   // complaint back to the responsible operator. Editable in the config panel.
   cat_steps:{
@@ -278,8 +281,10 @@ function compute(){
   const people={}
   const ensure=name=>{ const k=norm(name); if(!k) return null; if(!people[k]) people[k]={name:name,key:k,
       aligners:0, steps:0, qcPass:0, qcFail:0, prodMin:0, wasteMin:0, breakMin:0, overtimeMin:0, cycleSum:0, cycleN:0,
-      resolved:0, slaCases:0, overdueFu:0, complaints:0, reopens:0, role:'' }; return people[k] }
-  for(const e of DATA.employees){ if(e.is_active!==false){ const p=ensure(e.name); if(p) p.role=e.custom_role||e.role||'' } }
+      resolved:0, slaCases:0, overdueFu:0, complaints:0, reopens:0, role:'', isEmp:false }; return people[k] }
+  // Seed every active employee so ALL users are incentivised, even with no
+  // recorded activity yet (they still receive their base / minimum pay).
+  for(const e of DATA.employees){ if(e.is_active!==false){ const p=ensure(e.name); if(p){ p.role=e.custom_role||e.role||''; p.isEmp=true } } }
 
   // ── Production: steps completed, aligners, cycle time ──
   for(const s of DATA.steps){
@@ -372,8 +377,11 @@ function compute(){
     const net = positive-pen
     let bonus = Math.max(0,net)*cfg.point_value
     if(cfg.bonus_cap>0) bonus=Math.min(bonus,cfg.bonus_cap)
-    return {...p, efficiency, avgCycle, positive:Math.round(positive), penalty:Math.round(pen), points:Math.round(net), bonus, totalMin}
-  }).filter(p=> p.positive>0 || p.penalty>0 || p.resolved>0 || p.steps>0 || p.totalMin>0 )
+    // Per-employee base / minimum; final payout is the higher of base or bonus.
+    const base = Number((cfg.bases&&cfg.bases[p.key])||0) || 0
+    const payout = Math.max(base, bonus)
+    return {...p, efficiency, avgCycle, positive:Math.round(positive), penalty:Math.round(pen), points:Math.round(net), bonus, base, payout, totalMin}
+  }).filter(p=> p.isEmp || p.base>0 || p.positive>0 || p.penalty>0 || p.resolved>0 || p.steps>0 || p.totalMin>0 )
 
   // score 0-100: scale net points within the cohort (relative leaderboard),
   // but keep an absolute feel — use max positive as the 100 anchor.
@@ -388,9 +396,10 @@ const money=v=>CFG.currency+(Math.round(v*100)/100).toLocaleString()
 
 function render(){
   const {rows,catBreakdown}=compute()
-  const prod=rows.filter(r=>r.steps>0||r.totalMin>0||r.aligners>0||r.qcPass>0||r.qcFail>0)
+  const prod=rows  // master scorecard — every active employee, so all are incentivised
   const handlers=rows.filter(r=>r.resolved>0||r.overdueFu>0)
-  const totalBonus=rows.reduce((a,r)=>a+r.bonus,0)
+  const totalPayout=rows.reduce((a,r)=>a+r.payout,0)
+  const totalBase=rows.reduce((a,r)=>a+r.base,0)
   const totalPoints=rows.reduce((a,r)=>a+r.points,0)
   const totalAligners=rows.reduce((a,r)=>a+r.aligners,0)
   const totalComplaints=rows.reduce((a,r)=>a+r.complaints,0)
@@ -400,7 +409,7 @@ function render(){
   const top=rows[0]
 
   const kpis=[
-    {ic:'💶',c:'green',v:money(totalBonus),l:'Bonus pool',s:'period total'},
+    {ic:'💶',c:'green',v:money(totalPayout),l:'Payout pool',s:'incl. base '+money(totalBase)},
     {ic:'⭐',c:'blue',v:totalPoints.toLocaleString(),l:'Net points',s:'all employees'},
     {ic:'🦷',c:'teal',v:totalAligners.toLocaleString(),l:'Aligners produced',s:'attributed'},
     {ic:'🏅',c:'amber',v:top?esc(top.name):'—',l:'Top performer',s:top?(top.points+' pts · '+TIER_LABEL[top.tier]):''},
@@ -425,13 +434,15 @@ function render(){
     <td class="num" style="color:var(--green);font-weight:700">+${r.positive}</td>
     <td class="num" style="color:var(--red)">−${r.penalty}</td>
     <td class="num"><strong>${r.points}</strong></td>
-    <td class="num"><strong style="color:var(--green)">${money(r.bonus)}</strong></td>
-  </tr>`).join('')||`<tr><td colspan="13" class="empty">No production activity in range.</td></tr>`
+    <td class="num">${money(r.bonus)}</td>
+    <td class="num" style="color:var(--mu)">${money(r.base)}</td>
+    <td class="num"><strong style="color:var(--green)">${money(r.payout)}</strong>${r.payout>r.bonus+0.001?'<div style="font-size:9px;color:var(--dim)">base floor</div>':''}</td>
+  </tr>`).join('')||`<tr><td colspan="15" class="empty">No employees.</td></tr>`
 
-  const prodPanel=`<div class="panel"><h3>🏭 Production — efficiency, productivity & incentive</h3>
-    <div class="ph-sub">Points = aligners×${CFG.pts_per_aligner} + steps×${CFG.pts_per_step} + QC pass×${CFG.pts_per_qc_pass} + efficiency above ${CFG.eff_floor}% − penalties. Bonus = net points × ${money(CFG.point_value)}.</div>
+  const prodPanel=`<div class="panel"><h3>🏆 Employee scorecard & incentive</h3>
+    <div class="ph-sub">Every active employee. Points = aligners×${CFG.pts_per_aligner} + steps×${CFG.pts_per_step} + QC pass×${CFG.pts_per_qc_pass} + efficiency above ${CFG.eff_floor}% + cases − penalties. Bonus = net points × ${money(CFG.point_value)}. <strong>Total pay = the higher of base or bonus.</strong></div>
     <div style="overflow-x:auto"><table class="tbl"><thead><tr>
-      <th>Employee</th><th>Tier</th><th>Score</th><th>Aligners</th><th>Steps</th><th>Effic.</th><th>Avg cycle</th><th>QC ✓/✗</th><th>Complaints</th><th>Earned</th><th>Penalty</th><th>Net pts</th><th>Bonus</th>
+      <th>Employee</th><th>Tier</th><th>Score</th><th>Aligners</th><th>Steps</th><th>Effic.</th><th>Avg cycle</th><th>QC ✓/✗</th><th>Complaints</th><th>Earned</th><th>Penalty</th><th>Net pts</th><th>Bonus</th><th>Base</th><th>Total pay</th>
     </tr></thead><tbody>${prodRows}</tbody></table></div></div>`
 
   // Case handlers
@@ -442,11 +453,12 @@ function render(){
     <td class="num">${r.resolved?Math.round(100*r.slaCases/r.resolved)+'%':'—'}</td>
     <td class="num">${r.overdueFu?`<span class="badge b-a">${r.overdueFu}</span>`:'0'}</td>
     <td class="num"><strong>${r.points}</strong></td>
-    <td class="num"><strong style="color:var(--green)">${money(r.bonus)}</strong></td>
-  </tr>`).join('')||`<tr><td colspan="7" class="empty">No resolved cases in range.</td></tr>`
+    <td class="num" style="color:var(--mu)">${money(r.base)}</td>
+    <td class="num"><strong style="color:var(--green)">${money(r.payout)}</strong></td>
+  </tr>`).join('')||`<tr><td colspan="8" class="empty">No resolved cases in range.</td></tr>`
   const handlerPanel=`<div class="panel"><h3>💬 Case handlers — customer feedback resolution</h3>
-    <div class="ph-sub">SLA target: resolve within ${CFG.sla_days} days. Points = resolved×${CFG.pts_per_case_resolved} + within-SLA×${CFG.pts_per_sla_case} − overdue follow-ups×${CFG.penalty_per_overdue_followup}.</div>
-    <table class="tbl"><thead><tr><th>Employee</th><th>Resolved</th><th>Within SLA</th><th>SLA %</th><th>Overdue follow-ups</th><th>Net pts</th><th>Bonus</th></tr></thead><tbody>${hRows}</tbody></table></div>`
+    <div class="ph-sub">SLA target: resolve within ${CFG.sla_days} days. Points = resolved×${CFG.pts_per_case_resolved} + within-SLA×${CFG.pts_per_sla_case} − overdue follow-ups×${CFG.penalty_per_overdue_followup}. Total pay = higher of base or bonus.</div>
+    <table class="tbl"><thead><tr><th>Employee</th><th>Resolved</th><th>Within SLA</th><th>SLA %</th><th>Overdue follow-ups</th><th>Net pts</th><th>Base</th><th>Total pay</th></tr></thead><tbody>${hRows}</tbody></table></div>`
 
   // Complaint category → responsible person
   const cats=Object.entries(catBreakdown).sort((a,b)=>b[1].total-a[1].total)
@@ -500,6 +512,13 @@ function render(){
         ${Object.keys(CAT_LABELS).map(cat=>`<div><label>${esc(CAT_LABELS[cat])}</label><input class="fi" data-catstep="${cat}" type="text" value="${esc(((CFG.cat_steps&&CFG.cat_steps[cat])||[]).join(', '))}" placeholder="e.g. packaging, line cut"/></div>`).join('')}
         </div>
       </div>
+      <div style="margin-top:18px;border-top:1px solid var(--bdr);padding-top:14px">
+        <label style="font-size:12px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">💶 Base / minimum pay per employee (${CFG.currency})</label>
+        <div style="font-size:11px;color:var(--dim);margin:4px 0 12px">Each employee is guaranteed this amount. Final pay = the higher of base or their performance bonus. Leave 0 for no minimum.</div>
+        <div class="cfg-grid">
+        ${DATA.employees.filter(e=>e.is_active!==false).sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(e=>{const k=norm(e.name);return `<div><label>${esc(e.name)}</label><input class="fi" data-base="${esc(k)}" type="number" step="any" min="0" value="${esc((CFG.bases&&CFG.bases[k])||0)}"/></div>`}).join('')}
+        </div>
+      </div>
     <div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-blue" id="cfgSave">💾 Save & recompute</button><button class="btn btn-ghost" id="cfgReset">↺ Reset defaults</button></div></div></details>`
 
   $('root').innerHTML = kpiHtml + cfgPanel + prodPanel +
@@ -514,6 +533,8 @@ function render(){
       if(steps.length) cs[i.dataset.catstep]=steps
     })
     CFG.cat_steps=cs
+    const bs={}; document.querySelectorAll('[data-base]').forEach(i=>{ const v=Number(i.value)||0; if(v>0) bs[i.dataset.base]=v })
+    CFG.bases=bs
     if(await saveCfg()) render()
   }
   $('cfgReset').onclick=async()=>{ CFG={...DEFAULT_CFG}; if(await saveCfg()) render() }
@@ -527,8 +548,8 @@ function render(){
 
 $('csvBtn').onclick=()=>{
   const rows=window.__rows||[]
-  const head=['Employee','Role','Tier','Score','Aligners','Steps','Efficiency%','QC pass','QC fail','Resolved','SLA cases','Complaints','Earned pts','Penalty pts','Net points','Bonus']
-  const lines=[head.join(',')].concat(rows.map(r=>[r.name,r.role,r.tier,r.score,r.aligners,r.steps,r.efficiency??'',r.qcPass,r.qcFail,r.resolved,r.slaCases,r.complaints,r.positive,r.penalty,r.points,Math.round(r.bonus*100)/100].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')))
+  const head=['Employee','Role','Tier','Score','Aligners','Steps','Efficiency%','QC pass','QC fail','Resolved','SLA cases','Complaints','Earned pts','Penalty pts','Net points','Bonus','Base','Total pay']
+  const lines=[head.join(',')].concat(rows.map(r=>[r.name,r.role,r.tier,r.score,r.aligners,r.steps,r.efficiency??'',r.qcPass,r.qcFail,r.resolved,r.slaCases,r.complaints,r.positive,r.penalty,r.points,Math.round(r.bonus*100)/100,Math.round(r.base*100)/100,Math.round(r.payout*100)/100].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')))
   const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a')
   a.href=URL.createObjectURL(blob); a.download=`incentives_${new Date().toISOString().slice(0,10)}.csv`; a.click()
 }
@@ -542,6 +563,7 @@ const HELP_HTML=`
   <li><strong>Penalties</strong> subtract points for problems traced to the person (complaints, QC failures, reopened cases, overdue follow-ups).</li>
   <li><strong>Net points</strong> = earned − penalties. <strong>Bonus</strong> = net points × the point-value you set (e.g. €0.50/point), with an optional cap.</li>
   <li>A <strong>score /100</strong> ranks everyone and assigns a <strong>tier</strong> — 🥇 Gold / 🥈 Silver / 🥉 Bronze.</li>
+  <li><strong>Base / minimum pay</strong> (set per employee): every employee is guaranteed their base. <strong>Total pay = the higher of base or bonus</strong> — so a strong month pays the bonus, a quiet month still pays the base. Every active employee appears, so all are incentivised.</li>
 </ul>
 <h4 style="margin:16px 0 6px">🏭 Production employees</h4>
 <ul style="margin:0 0 8px 18px">
