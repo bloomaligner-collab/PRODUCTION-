@@ -269,12 +269,26 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         <input type="color" class="fi" id="fColor" value="#3b5fe2" style="width:100%;height:38px;padding:4px"/>
       </div>
       <div style="grid-column:1/-1">
-        <label class="form-label">Case Permissions</label>
-        <label class="page-check" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px">
-          <input type="checkbox" id="fCanClose"/>
-          <span style="font-size:13px">🔒 <strong>Can close customer-feedback cases</strong><br>
-          <span style="font-size:11px;color:var(--mu)">Members of this role may archive (Close) a case. Full-access tiers (manager/admin/super admin) can always close.</span></span>
-        </label>
+        <label class="form-label">Case Permissions <span style="font-weight:400;color:var(--mu)">— customer-feedback actions this role may perform</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanResolve"/>
+            <span style="font-size:13px">✅ <strong>Resolve cases</strong></span>
+          </label>
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanClose"/>
+            <span style="font-size:13px">🔒 <strong>Close cases</strong></span>
+          </label>
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanReopen"/>
+            <span style="font-size:13px">🔄 <strong>Reopen cases</strong></span>
+          </label>
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanDelete"/>
+            <span style="font-size:13px">🗑️ <strong>Delete cases</strong></span>
+          </label>
+        </div>
+        <div style="font-size:11px;color:var(--mu);margin-top:6px">Full-access tiers (manager / admin / super admin) can always do all of these. Resolve & reopen are additive (granted on top of the assignee/creator). Close is restricted to flagged roles + full-access.</div>
       </div>
     </div>
     <div style="margin-bottom:6px">
@@ -463,7 +477,10 @@ window.openNew=()=>{
   ['fName','fLabel','fDesc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fIcon').value='👤';
   document.getElementById('fColor').value='#3b5fe2';
+  document.getElementById('fCanResolve').checked=false;
   document.getElementById('fCanClose').checked=false;
+  document.getElementById('fCanReopen').checked=false;
+  document.getElementById('fCanDelete').checked=false;
   buildPageGrid([]);
   document.getElementById('roleModal').classList.add('on');
 };
@@ -477,7 +494,10 @@ window.editRole=(id)=>{
   document.getElementById('fDesc').value=r.description||'';
   document.getElementById('fIcon').value=r.icon||'👤';
   document.getElementById('fColor').value=r.color||'#3b5fe2';
+  document.getElementById('fCanResolve').checked=r.can_resolve_cases===true;
   document.getElementById('fCanClose').checked=r.can_close_cases===true;
+  document.getElementById('fCanReopen').checked=r.can_reopen_cases===true;
+  document.getElementById('fCanDelete').checked=r.can_delete_cases===true;
   buildPageGrid(Array.isArray(r.page_access)?r.page_access:[]);
   document.getElementById('roleModal').classList.add('on');
 };
@@ -492,7 +512,10 @@ window.saveRole=async()=>{
   if(!checked.length){ntf('Select at least one page','err');return;}
   const rec={name,label,description:document.getElementById('fDesc').value.trim()||null,
     page_access:checked,icon:document.getElementById('fIcon').value,color:document.getElementById('fColor').value,
-    can_close_cases:document.getElementById('fCanClose').checked};
+    can_resolve_cases:document.getElementById('fCanResolve').checked,
+    can_close_cases:document.getElementById('fCanClose').checked,
+    can_reopen_cases:document.getElementById('fCanReopen').checked,
+    can_delete_cases:document.getElementById('fCanDelete').checked};
   const{error}=editId
     ?await sb.from('role_templates').update(rec).eq('id',editId)
     :await sb.from('role_templates').insert([rec]);
