@@ -1277,21 +1277,20 @@ window.closeView=()=>{document.getElementById('viewModal').classList.remove('on'
 window.markResolved=async(id)=>{
   const note=prompt('Resolution note (what did you do?):','')
   if(note===null) return
+  const r=all.find(x=>String(x.id)===String(id))
+  // On resolve, the ball goes to the OTHER party to confirm/close (creator <->
+  // assignee, relative to whoever resolved it). Falls back to the creator.
+  const ball=caseOtherParty(r) || (r&&r.received_by) || null
   const patch={
     status:'resolved',
     resolved_at:new Date().toISOString(),
     resolved_by:currentUser||null,
-    next_action_by:null,
+    next_action_by:ball,
     updated_at:new Date().toISOString()
   }
   if(note.trim()) patch.resolution=note.trim()
   const {error}=await sb.from('customer_feedback').update(patch).eq('id',id)
   if(error){alert('Error: '+error.message);return}
-  // Flip the ball to creator so they can confirm/close
-  const {data:r}=await sb.from('customer_feedback').select('received_by').eq('id',id).maybeSingle()
-  if(r && r.received_by){
-    await sb.from('customer_feedback').update({next_action_by:r.received_by}).eq('id',id)
-  }
   closeView(); await load()
 }
 window.closeCase=async(id)=>{
