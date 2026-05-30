@@ -1265,10 +1265,23 @@ window.markResolved=async(id)=>{
   closeView(); await load()
 }
 window.closeCase=async(id)=>{
-  if(!confirm('Close this case? It will be archived. You can reopen later if needed.')) return
+  const r=all.find(x=>String(x.id)===String(id))
+  // Same protocol as Save: let the closer record where the action required
+  // lands. The case is archived either way — 'pass' stamps the ball on the
+  // chosen party (useful for the audit history / a later reopen), 'keep'
+  // leaves it with you. Closing the ✕ cancels.
+  const choice = await askBallTransfer(r, {
+    verb:'closing',
+    keepLabel:'🔒 Close · keep on me',
+    passLabel:'🔒 Close · pass to '+(((r&&r.received_by)||(r&&r.assigned_to))?prettyAssignee((r&&r.received_by)||(r&&r.assigned_to)):'the sender')
+  })
+  if(choice==='cancel') return
+  const ball = choice==='pass'
+    ? ((r&&r.received_by)||(r&&r.assigned_to)||null)
+    : (currentUser||null)
   const {error}=await sb.from('customer_feedback').update({
     status:'closed',
-    next_action_by:null,
+    next_action_by:ball,
     updated_at:new Date().toISOString()
   }).eq('id',id)
   if(error){alert('Error: '+error.message);return}
@@ -1641,10 +1654,14 @@ async function handleDuplicateCase(caseNo){
 // whether the action stays in their court or is passed back to the
 // sender/creator. Default is KEEP, so a case never leaves your court by
 // accident. Resolves to 'keep' | 'pass' | 'cancel'.
-function askBallTransfer(prev){
+function askBallTransfer(prev, ctx){
+  ctx = ctx || {}
+  const verb = ctx.verb || 'saving'           // wording: "After <verb>, …"
   const passTo=(prev&&prev.received_by)||(prev&&prev.assigned_to)||null
   const passName=passTo?prettyAssignee(passTo):'the sender'
   const holderName=(prev&&prev.next_action_by)?prettyAssignee(prev.next_action_by):'no one yet'
+  const keepLabel = ctx.keepLabel || '✋ Keep it in my court'
+  const passLabel = ctx.passLabel || ('➡️ Pass to '+passName)
   return new Promise(resolve=>{
     const bg=document.createElement('div')
     bg.className='modal-bg on'; bg.style.zIndex='820'
@@ -1655,11 +1672,11 @@ function askBallTransfer(prev){
       </div>
       <div style="font-size:13px;color:var(--mu);margin-bottom:16px;line-height:1.5">
         Action required is currently with <strong>${_esc(holderName)}</strong>.<br>
-        After saving, keep this case as <strong>your</strong> action required, or pass it back to <strong>${_esc(passName)}</strong>?
+        After ${_esc(verb)}, keep this case as <strong>your</strong> action required, or pass it to <strong>${_esc(passName)}</strong>?
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn bb" data-act="keep" style="padding:10px 14px;font-weight:700">✋ Keep it in my court</button>
-        <button class="btn bgh" data-act="pass" style="padding:10px 14px">➡️ Pass to ${_esc(passName)}</button>
+        <button class="btn bb" data-act="keep" style="padding:10px 14px;font-weight:700">${keepLabel}</button>
+        <button class="btn bgh" data-act="pass" style="padding:10px 14px">${passLabel}</button>
       </div>
     </div>`
     document.body.appendChild(bg)
@@ -2186,6 +2203,32 @@ async function _ccSend(){
   }
   if(_ccCaseId===targetCase && !_ccMsgs.some(x=>x.id===data.id)){_ccMsgs.push(data);_ccRender()}
   inp.focus()
+  // Same "whose court?" protocol as Save — but only when this reply would
+  // actually move the ball: the case is open and the ball is currently in
+  // your court, so the DB chat-trigger is about to flip it to the other
+  // party. Offer to keep it with you instead. (If the ball isn't yours, the
+  // trigger doesn't move it, so we stay silent.)
+  const rec=all.find(x=>String(x.id)===String(targetCase))
+  const isOpen = rec && rec.status!=='resolved' && rec.status!=='closed'
+  if(isOpen && rec && assignedToMe(rec.next_action_by)){
+    const ballBefore = rec.next_action_by
+    const choice = await askBallTransfer(rec, {
+      verb:'this reply',
+      keepLabel:'✋ Keep it in my court',
+      passLabel:'➡️ Hand over to '+(((rec.received_by)||(rec.assigned_to))?prettyAssignee((rec.received_by)||(rec.assigned_to)):'the other party')
+    })
+    // 'keep' (or dismissing) → undo the trigger's flip so the ball stays put.
+    // 'pass' → let the trigger's flip stand. We re-read first so we only
+    // override the trigger's own change, never a concurrent edit.
+    if(choice!=='pass'){
+      try{
+        const {data:fresh}=await sb.from('customer_feedback').select('next_action_by').eq('id',targetCase).maybeSingle()
+        if(fresh && fresh.next_action_by!==ballBefore){
+          await sb.from('customer_feedback').update({next_action_by:ballBefore,updated_at:new Date().toISOString()}).eq('id',targetCase)
+        }
+      }catch{}
+    }
+  }
 }
 ;(function _ccWire(){
   const s=document.getElementById('ccSend'), i=document.getElementById('ccInput')
