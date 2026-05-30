@@ -845,6 +845,7 @@ function paintCaseKpis(){
 // sender. The table is already in the supabase_realtime publication with
 // REPLICA IDENTITY FULL (see April migrations).
 let _cfRowsRealtimeInit=false
+let _viewOpenId=null   // id of the case currently open in the read-only view
 function initCaseRealtime(){
   if(_cfRowsRealtimeInit) return
   _cfRowsRealtimeInit=true
@@ -861,6 +862,17 @@ function initCaseRealtime(){
       }
       paintCaseKpis()
       applyFilter()
+      // If the changed case is the one open in the read-only view, refresh it
+      // in place (no DB write) so it never goes stale while you're looking at it.
+      const viewOn=document.getElementById('viewModal').classList.contains('on')
+      if(viewOn && _viewOpenId!=null){
+        if(p.eventType==='DELETE'){
+          if(p.old && String(p.old.id)===String(_viewOpenId)) closeView()
+        }else if(p.new && String(p.new.id)===String(_viewOpenId)){
+          const fresh=all.find(x=>String(x.id)===String(_viewOpenId))
+          if(fresh) _renderCaseView(fresh)
+        }
+      }
     }).subscribe()
 }
 async function load(){
@@ -1229,7 +1241,7 @@ window.openNew=()=>{
   document.getElementById('modal').classList.add('on')
 }
 window.closeModal=()=>{document.getElementById('modal').classList.remove('on');editId=null;caseChatTeardown()}
-window.closeView=()=>{document.getElementById('viewModal').classList.remove('on');caseChatTeardown()}
+window.closeView=()=>{document.getElementById('viewModal').classList.remove('on');_viewOpenId=null;caseChatTeardown()}
 
 // ── Ball-in-court actions ──────────────────────────────────────────────
 window.markResolved=async(id)=>{
@@ -1354,6 +1366,14 @@ window.viewRec=async(id)=>{
     await sb.from('customer_feedback').update(patch).eq('id',id)
     Object.assign(r, patch)
   }catch{}
+  _viewOpenId=id
+  _renderCaseView(r)
+  caseChatMount(r.id,'view')
+}
+// Renders (or re-renders) the read-only case view from the given row with NO
+// DB writes — safe to call on realtime updates so an open case refreshes in
+// place when someone else changes it. Chat is mounted separately by viewRec.
+function _renderCaseView(r){
   const tc=r.type==='complaint'?'b-r':r.type==='feedback'?'b-g':'b-b'
   const sc=r.status==='open'?'b-r':r.status==='in_progress'?'b-a':r.status==='resolved'?'b-g':'b-gray'
   document.getElementById('vTitle').textContent='💬 '+(r.feedback_no||'Feedback')
@@ -1441,7 +1461,6 @@ window.viewRec=async(id)=>{
   if (eb1) { eb1.onclick = openEditFromView; eb1.style.display = _canEdit ? '' : 'none' }
   const eb2 = document.getElementById('vEditBtnBottom')
   if (eb2) { eb2.onclick = openEditFromView; eb2.style.display = _canEdit ? '' : 'none' }
-  caseChatMount(r.id,'view')
 }
 
 window.markFollowUpDone=async(id)=>{
