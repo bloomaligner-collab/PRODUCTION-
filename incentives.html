@@ -156,18 +156,6 @@ const $=id=>document.getElementById(id)
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 const norm=s=>String(s==null?'':s).trim().toLowerCase()
 const CAT_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',traceability:'Traceability',billing:'Billing',other:'Other'}
-// Which production step "owns" a complaint of each category — used to trace a
-// complaint back to the operator responsible, so penalties land on the right
-// person. Steps are matched case-insensitively against order_step_tracking.step.
-const CAT_TO_STEPS={
-  product_quality:['thermoforming','printing','line cut','laser marking'],
-  fitting:['printing','thermoforming'],
-  packaging:['packaging'],
-  delivery:['packaging'],
-  documentation:['laser marking','packaging'],
-  traceability:['laser marking']
-}
-
 // ── Incentive configuration (defaults; overridable via system_settings) ──────
 const DEFAULT_CFG={
   currency:'€',
@@ -190,7 +178,17 @@ const DEFAULT_CFG={
   penalty_per_overdue_followup:3,
   // tiers by final score (0-100)
   tier_gold:80, tier_silver:60, tier_bronze:40,
-  bonus_cap:0                // 0 = no cap; otherwise max bonus per person
+  bonus_cap:0,               // 0 = no cap; otherwise max bonus per person
+  // Complaint category -> production step(s) that "own" it, for tracing a
+  // complaint back to the responsible operator. Editable in the config panel.
+  cat_steps:{
+    product_quality:['thermoforming','printing','line cut','laser marking'],
+    fitting:['printing','thermoforming'],
+    packaging:['packaging'],
+    delivery:['packaging'],
+    documentation:['laser marking','packaging'],
+    traceability:['laser marking']
+  }
 }
 let CFG={...DEFAULT_CFG}
 let GATE_ON=true   // QC-before-delivery hard gate (system_settings.qc_gate_enabled)
@@ -331,7 +329,7 @@ function compute(){
     const cat=norm(f.category)||'other'
     catBreakdown[cat] ||= {total:0, byPerson:{}}
     catBreakdown[cat].total++
-    const wantSteps=CAT_TO_STEPS[cat]||null
+    const wantSteps=(CFG.cat_steps&&CFG.cat_steps[cat])||null
     const ops = (idx.byOrder[norm(f.order_no)]||idx.byCase[norm(f.case_id)]||[])
     const matched = ops.filter(o=>!wantSteps || wantSteps.some(w=>o.step.includes(w)))
     const targets = (matched.length?matched:ops)
@@ -482,7 +480,15 @@ function render(){
       </div>
       <div class="cfg-grid">
       ${cfgFields.map(([k,l,t])=>`<div><label>${l}</label><input class="fi" data-cfg="${k}" type="${t==='num'?'number':'text'}" step="any" value="${esc(CFG[k])}"/></div>`).join('')}
-    </div><div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-blue" id="cfgSave">💾 Save & recompute</button><button class="btn btn-ghost" id="cfgReset">↺ Reset defaults</button></div></div></details>`
+    </div>
+      <div style="margin-top:18px;border-top:1px solid var(--bdr);padding-top:14px">
+        <label style="font-size:12px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.4px">🎯 Complaint → responsible step(s)</label>
+        <div style="font-size:11px;color:var(--dim);margin:4px 0 12px">Which production step(s) own each complaint category — used to trace a complaint back to the operator. Comma-separated, matched against step names (case-insensitive). Blank = attribute to any operator on the order.</div>
+        <div class="cfg-grid">
+        ${Object.keys(CAT_LABELS).map(cat=>`<div><label>${esc(CAT_LABELS[cat])}</label><input class="fi" data-catstep="${cat}" type="text" value="${esc(((CFG.cat_steps&&CFG.cat_steps[cat])||[]).join(', '))}" placeholder="e.g. packaging, line cut"/></div>`).join('')}
+        </div>
+      </div>
+    <div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-blue" id="cfgSave">💾 Save & recompute</button><button class="btn btn-ghost" id="cfgReset">↺ Reset defaults</button></div></div></details>`
 
   $('root').innerHTML = kpiHtml + cfgPanel + prodPanel +
     `<div class="grid2">${handlerPanel}${catPanel}</div>` +
@@ -491,6 +497,11 @@ function render(){
   // wire config
   $('cfgSave').onclick=async()=>{
     document.querySelectorAll('[data-cfg]').forEach(i=>{ const k=i.dataset.cfg; CFG[k]= i.type==='number'?Number(i.value): i.value })
+    const cs={}; document.querySelectorAll('[data-catstep]').forEach(i=>{
+      const steps=i.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)
+      if(steps.length) cs[i.dataset.catstep]=steps
+    })
+    CFG.cat_steps=cs
     if(await saveCfg()) render()
   }
   $('cfgReset').onclick=async()=>{ CFG={...DEFAULT_CFG}; if(await saveCfg()) render() }
