@@ -610,14 +610,18 @@ function assignedToMe(v){
   const rn=v.slice(5)
   return rn===userPrimaryRole || userExtraRoles.includes(rn)
 }
-// Who may CLOSE a case: full-access tiers always, plus any role the user holds
-// (primary or extra) whose role template is flagged can_close_cases. Mirrors
-// the cw_can_close_case() DB rule so the UI matches what the trigger enforces.
-function canCloseCase(){
+// Per-role case action permissions. Full-access tiers always pass; otherwise
+// the user must hold a role (primary or extra) flagged for that action.
+// Mirrors the cw_user_has_case_perm() DB rule so the UI matches enforcement.
+function caseRolePerm(flag){
   if(cwFullAccess()) return true
   const mine=[userPrimaryRole, ...userExtraRoles].map(x=>String(x||'').toLowerCase()).filter(Boolean)
-  return roles.some(rt=>rt.can_close_cases===true && mine.includes(String(rt.name||'').toLowerCase()))
+  return roles.some(rt=>rt[flag]===true && mine.includes(String(rt.name||'').toLowerCase()))
 }
+function canCloseCase(){   return caseRolePerm('can_close_cases') }
+function canResolveCase(){ return caseRolePerm('can_resolve_cases') }
+function canReopenCase(){  return caseRolePerm('can_reopen_cases') }
+function canDeleteCase(){  return caseRolePerm('can_delete_cases') }
 // Ball-in-court chip. Renders nothing for closed/resolved cases.
 // Recognises role-based assignment: if next_action_by is "role:X" and the
 // current user holds role X, the chip lights up red ("⚽ you · role").
@@ -781,7 +785,7 @@ async function loadDropdowns(){
   // Employees + roles — Assigned To dropdown will group them.
   const[eRes,rRes,csRes,meRes]=await Promise.all([
     sb.from('employees').select('name,custom_role,extra_roles').eq('is_active',true).order('name'),
-    sb.from('role_templates').select('name,label,icon,color,can_close_cases').order('label',{ascending:true}),
+    sb.from('role_templates').select('name,label,icon,color,can_close_cases,can_resolve_cases,can_reopen_cases,can_delete_cases').order('label',{ascending:true}),
     sb.from('system_settings').select('value').eq('key','complaint_routing').maybeSingle(),
     currentUser
       ? sb.from('employees').select('custom_role,extra_roles,role').ilike('name',currentUser).maybeSingle()
@@ -1417,10 +1421,10 @@ function _renderCaseView(r){
         <select onchange="quickSetStatus('${r.id}', this.value)" style="padding:6px 10px;font-size:12px;border:1px solid var(--bdr);border-radius:8px;background:var(--card);font-family:var(--f);font-weight:600;color:var(--txt)">
           ${['open','in_progress','resolved','closed'].map(s=>`<option value="${s}"${r.status===s?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
         </select></label>` : ''}
-      ${isOpen && isAssignee ? `<button class="btn btn-g" onclick="markResolved('${r.id}')" title="Mark as resolved from your side — creator confirms to close">✅ Mark Resolved</button>` : ''}
+      ${isOpen && (isAssignee || canResolveCase()) ? `<button class="btn btn-g" onclick="markResolved('${r.id}')" title="Mark as resolved from your side — creator confirms to close">✅ Mark Resolved</button>` : ''}
       ${isOpen && canCloseCase() ? `<button class="btn btn-b" onclick="closeCase('${r.id}')" title="Close this case — no further action needed">🔒 Close Case</button>` : ''}
       ${r.status==='resolved' && canCloseCase() ? `<button class="btn btn-g" onclick="closeCase('${r.id}')" title="Confirm resolution and close">🔒 Confirm & Close</button>` : ''}
-      ${(r.status==='resolved' || r.status==='closed') && (isAssignee || isCreator || cwFullAccess()) ? `<button class="btn btn-r" onclick="reopenCase('${r.id}')" title="Reopen this case">🔄 Reopen</button>` : ''}
+      ${(r.status==='resolved' || r.status==='closed') && (isAssignee || isCreator || cwFullAccess() || canReopenCase()) ? `<button class="btn btn-r" onclick="reopenCase('${r.id}')" title="Reopen this case">🔄 Reopen</button>` : ''}
     </div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:14px">
     ${[['Date',fdt(r.received_date)],['Subject',r.customer_name],['Doctor',r.doctor],['Case #',case_ref?`<a class="case-link" data-case="${_esc(case_ref)}" title="Open this case's Bloom view (patient, orders, history)" onclick="openBloomCase(event,this)">${_esc(case_ref)}</a>`:'—'],['Assigned To',prettyAssignee(r.assigned_to)]]
@@ -2034,7 +2038,10 @@ mountBulkActions({
           },
         }
       } },
-    { label:'🗑️ Delete', danger:true, delete:true },
+    // Delete is shown to full-access tiers (resolved immediately from the
+    // session) and roles flagged can_delete_cases. The cf_delete RLS policy is
+    // the hard backstop — it rejects deletes from anyone without permission.
+    ...(canDeleteCase() ? [{ label:'🗑️ Delete', danger:true, delete:true }] : []),
   ],
 })
 window.onBulkCbChange = () => {}  // legacy no-op — inline onclick still fires
