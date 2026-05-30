@@ -193,6 +193,7 @@ const DEFAULT_CFG={
   bonus_cap:0                // 0 = no cap; otherwise max bonus per person
 }
 let CFG={...DEFAULT_CFG}
+let GATE_ON=true   // QC-before-delivery hard gate (system_settings.qc_gate_enabled)
 
 let DATA={}, rangeDays=90
 
@@ -203,9 +204,16 @@ function minutes(v){ const n=Number(v); return isFinite(n)&&n>0?n:0 }
 
 async function loadCfg(){
   try{
-    const {data}=await sb.from('system_settings').select('value').eq('key','incentive_config').maybeSingle()
-    if(data&&data.value){ const v=typeof data.value==='string'?JSON.parse(data.value):data.value; CFG={...DEFAULT_CFG,...v} }
+    const {data}=await sb.from('system_settings').select('key,value').in('key',['incentive_config','qc_gate_enabled'])
+    for(const row of (data||[])){
+      if(row.key==='incentive_config' && row.value){ const v=typeof row.value==='string'?JSON.parse(row.value):row.value; CFG={...DEFAULT_CFG,...v} }
+      if(row.key==='qc_gate_enabled'){ GATE_ON=['true','1','yes','on'].includes(String(row.value||'true').toLowerCase()) }
+    }
   }catch(e){ console.warn('cfg load',e) }
+}
+async function saveGate(on){
+  try{ await sb.from('system_settings').upsert({key:'qc_gate_enabled',value:on?'true':'false',updated_at:new Date().toISOString()},{onConflict:'key'}); GATE_ON=on; return true }
+  catch(e){ alert('Could not change the QC gate: '+e.message); return false }
 }
 async function saveCfg(){
   try{
@@ -235,8 +243,10 @@ async function loadData(){
   }
 }
 
-function qcPassed(q){ return ['pass','passed','ok','conforme','conform','accepted'].includes(norm(q.overall_result||q.result)) }
-function qcFailed(q){ const r=norm(q.overall_result||q.result); return r && ['fail','failed','reject','rejected','nc','non-conform','nonconforming','ko'].includes(r) }
+// QC results: the Quality Control page (qualite.html) writes overall_result as
+// 'approved' / 'rejected' / 'pending'. Accept the common synonyms too.
+function qcPassed(q){ return ['approved','pass','passed','ok','conforme','conform','accepted'].includes(norm(q.overall_result||q.result)) }
+function qcFailed(q){ const r=norm(q.overall_result||q.result); return r && ['rejected','fail','failed','reject','nc','non-conform','nonconforming','ko'].includes(r) }
 
 // Build a map order_no/case_id -> [operator names] from production steps, so a
 // complaint can be attributed to whoever performed the category's step.
@@ -463,8 +473,14 @@ function render(){
     ['penalty_per_complaint','Penalty / complaint','num'],['penalty_per_qc_fail','Penalty / QC fail','num'],['penalty_per_reopen','Penalty / reopen','num'],['penalty_per_overdue_followup','Penalty / overdue f-up','num'],
     ['tier_gold','Gold ≥','num'],['tier_silver','Silver ≥','num'],['tier_bronze','Bronze ≥','num']
   ].filter(f=>f[2]!=='skip')
-  const cfgPanel=`<details class="cfg"><summary>⚙️ Incentive configuration (weights, targets & bonus value)</summary>
-    <div class="panel"><div class="cfg-grid">
+  const cfgPanel=`<details class="cfg"><summary>⚙️ Incentive configuration & QC delivery gate</summary>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--r50);border:1px solid var(--r100);border-radius:10px;margin-bottom:16px">
+        <input type="checkbox" id="qcGate" ${GATE_ON?'checked':''} style="width:18px;height:18px;cursor:pointer"/>
+        <label for="qcGate" style="font-size:13px;font-weight:700;cursor:pointer">🚦 Hard QC-before-delivery gate ${GATE_ON?'<span class="badge b-r">ON</span>':'<span class="badge b-gray">OFF</span>'}</label>
+        <span style="font-size:11px;color:var(--mu)">Blocks marking a case ready for delivery unless its QC is approved. Kill-switch for emergencies.</span>
+      </div>
+      <div class="cfg-grid">
       ${cfgFields.map(([k,l,t])=>`<div><label>${l}</label><input class="fi" data-cfg="${k}" type="${t==='num'?'number':'text'}" step="any" value="${esc(CFG[k])}"/></div>`).join('')}
     </div><div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-blue" id="cfgSave">💾 Save & recompute</button><button class="btn btn-ghost" id="cfgReset">↺ Reset defaults</button></div></div></details>`
 
@@ -478,6 +494,11 @@ function render(){
     if(await saveCfg()) render()
   }
   $('cfgReset').onclick=async()=>{ CFG={...DEFAULT_CFG}; if(await saveCfg()) render() }
+  const gateCb=$('qcGate'); if(gateCb) gateCb.onchange=async()=>{
+    const want=gateCb.checked
+    if(want===false && !confirm('Disable the hard QC-before-delivery gate?\n\nCases will be markable as delivered WITHOUT an approved QC. Use only in an emergency.')){ gateCb.checked=true; return }
+    if(await saveGate(want)) render()
+  }
   window.__rows=rows  // for CSV
 }
 
