@@ -1984,7 +1984,9 @@ mountBulkActions({
   actions: [
     { label:'✅ Mark resolved', pastTense:'marked resolved',
       confirm: n => `Mark ${n} record${n===1?'':'s'} as resolved? Resolved Date will be stamped to today.`,
-      patch: { status:'resolved', resolved_at: () => new Date().toISOString() } },
+      // Clear the ball when resolving so a closed-out case carries no stale
+      // next_action_by (matches the single-record Mark Resolved button).
+      patch: { status:'resolved', resolved_at: () => new Date().toISOString(), next_action_by: null } },
     { label:'👤 Reassign…',
       reassign: () => {
         const src = document.getElementById('fAssigned')
