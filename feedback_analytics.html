@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cedarwings SAS — Customer Feedback Analytics</title>
+<script type="module" src="auth_guard.js?v=20260422c"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mu:#64748b;--dim:#94a3b8;
+  --blue:#3b5fe2;--b50:#eef2ff;--b100:#e0e7ff;
+  --green:#16a34a;--g50:#f0fdf4;--g100:#dcfce7;
+  --amber:#d97706;--a50:#fffbeb;--a100:#fef3c7;
+  --red:#dc2626;--r50:#fef2f2;--r100:#fee2e2;
+  --purple:#7c3aed;--p50:#f5f3ff;--p100:#ede9fe;
+  --teal:#0d9488;--t50:#f0fdfa;--t100:#ccfbf1;
+  --f:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);
+  --sh2:0 6px 24px rgba(0,0,0,.09),0 0 0 1px rgba(0,0,0,.04)
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--card);border-right:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-top{display:flex;align-items:center;gap:12px;padding:20px 18px 16px;border-bottom:1px solid var(--bdr)}
+.sb-logo{width:40px;height:40px;background:linear-gradient(135deg,#3b5fe2,#6366f1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(59,95,226,.3)}
+.sb-name{font-weight:800;font-size:14px;letter-spacing:-.2px}
+.sb-badge{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;margin-top:3px;background:var(--b50);color:var(--blue)}
+.sb-nav{flex:1;padding:10px}
+.sb-s{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:14px 8px 6px}
+.nl{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:500;color:var(--mu);text-decoration:none;transition:all .12s}
+.nl:hover{background:var(--bg);color:var(--txt)}
+.nl.on{background:var(--b50);color:var(--blue);font-weight:700}
+.nl .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:12px 10px;border-top:1px solid var(--bdr)}
+.content{margin-left:240px;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--bdr);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.top-left .page-title{font-size:20px;font-weight:800;letter-spacing:-.4px}
+.top-left .page-date{font-size:12px;color:var(--mu);margin-top:2px}
+.top-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.range-tabs{display:flex;background:var(--bg);border:1px solid var(--bdr);border-radius:9px;padding:3px;gap:2px}
+.rt{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:transparent;color:var(--mu);border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.rt.active{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:700}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border:none;border-radius:9px;cursor:pointer;font-family:var(--f);transition:all .12s}
+.btn-ghost{background:var(--card);border:1px solid var(--bdr);color:var(--mu)}.btn-ghost:hover{color:var(--txt);border-color:var(--blue)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2e4fc7}
+.fi{padding:7px 10px;font-size:13px;border:1px solid var(--bdr);border-radius:8px;font-family:var(--f);background:var(--card);color:var(--txt)}
+.wrap{padding:24px 28px 60px}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:18px 16px 14px;position:relative;overflow:hidden}
+.kpi-stripe{position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px}
+.kpi-val{font-size:28px;font-weight:800;font-family:var(--mono);letter-spacing:-1.2px;line-height:1;color:var(--txt)}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+.kpi-sub{font-size:11px;color:var(--dim);margin-top:4px;min-height:15px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.panel{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:18px 20px}
+.panel h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);margin-bottom:4px}
+.panel .ph-sub{font-size:11px;color:var(--dim);margin-bottom:14px}
+.chart-box{position:relative;height:260px}
+.chart-box.tall{height:320px}
+table.tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.tbl th{text-align:left;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:10px;padding:8px 10px;border-bottom:2px solid var(--bdr)}
+table.tbl td{padding:8px 10px;border-bottom:1px solid var(--bdr)}
+table.tbl tr:hover td{background:var(--bg)}
+.bar-cell{position:relative;background:var(--b50);border-radius:6px;height:18px;min-width:30px}
+.bar-fill{position:absolute;inset:0;background:var(--blue);border-radius:6px;opacity:.85}
+.badge{display:inline-flex;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.b-r{background:var(--r50);color:var(--red)}.b-g{background:var(--g50);color:var(--green)}
+.b-a{background:var(--a50);color:var(--amber)}.b-b{background:var(--b50);color:var(--blue)}
+.b-gray{background:#f1f5f9;color:var(--mu)}.b-p{background:var(--p50);color:var(--purple)}
+.empty{text-align:center;color:var(--dim);padding:40px;font-size:13px}
+@media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.grid3{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+@media(max-width:900px){.sidebar{display:none}.content{margin-left:0}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media print{.sidebar{display:none}.content{margin-left:0}.topbar{position:static}.top-right{display:none}.panel,.kpi{break-inside:avoid}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sb-top">
+    <div class="sb-logo">⚙</div>
+    <div><div class="sb-name">Cedarwings SAS</div><div class="sb-badge" id="sb-role-lbl">Analytics</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-s">Operations</div>
+    <a href="manager.html" class="nl"><span class="ic">📊</span>Dashboard</a>
+    <a href="production.html" class="nl"><span class="ic">🏭</span>Production</a>
+    <a href="production_materials.html" class="nl"><span class="ic">🧪</span>Materials & Lots</a>
+    <a href="machines.html" class="nl"><span class="ic">⚙</span>Machines</a>
+    <a href="maintenance_history.html" class="nl"><span class="ic">🔧</span>Maintenance History</a>
+    <div class="sb-s">Team</div>
+    <a href="employees.html" class="nl"><span class="ic">👥</span>Employees</a>
+    <a href="employee_profile.html" class="nl"><span class="ic">👤</span>Employee Profile</a>
+    <a href="time_report.html" class="nl"><span class="ic">📈</span>Time Report</a>
+    <div class="sb-s">Quality</div>
+    <a href="tracabilite.html" class="nl"><span class="ic">🔖</span>Traceability</a>
+    <a href="qualite.html" class="nl"><span class="ic">✅</span>Quality Control</a>
+    <a href="non_conformity.html" class="nl"><span class="ic">⚠️</span>Non-Conformity</a>
+    <a href="capa.html" class="nl"><span class="ic">🛠</span>CAPAs</a>
+    <a href="suppliers.html" class="nl"><span class="ic">🏭</span>Suppliers</a>
+    <a href="customer_feedback.html" class="nl"><span class="ic">💬</span>Customer Feedback</a>
+    <a href="feedback_analytics.html" class="nl on"><span class="ic">📊</span>Feedback Analytics</a>
+    <a href="internal_audit.html" class="nl"><span class="ic">🔍</span>Internal Audits</a>
+    <div class="sb-s">Resources</div>
+    <a href="inventory.html" class="nl"><span class="ic">📦</span>Inventory</a>
+    <div class="sb-s">System</div>
+    <a href="iso_compliance.html" class="nl"><span class="ic">✅</span>ISO 13485 Compliance</a>
+    <a href="settings.html" class="nl"><span class="ic">⚙</span>Settings</a>
+    <a href="roles.html" class="nl"><span class="ic">🔑</span>Roles</a>
+  </nav>
+  <div class="sb-foot">
+    <a href="index.html" class="nl"><span class="ic">←</span>Switch Role</a>
+  </div>
+</aside>
+
+<div class="content">
+  <div class="topbar">
+    <div class="top-left">
+      <div class="page-title">📊 Customer Feedback Analytics</div>
+      <div class="page-date" id="pageDate">—</div>
+    </div>
+    <div class="top-right">
+      <select class="fi" id="typeFilter"><option value="">All types</option></select>
+      <select class="fi" id="catFilter"><option value="">All categories</option></select>
+      <div class="range-tabs" id="rangeTabs">
+        <button class="rt" data-d="7">7d</button>
+        <button class="rt" data-d="30">30d</button>
+        <button class="rt active" data-d="90">90d</button>
+        <button class="rt" data-d="365">1y</button>
+        <button class="rt" data-d="0">All</button>
+      </div>
+      <button class="btn btn-ghost" onclick="window.print()">🖨️ Export PDF</button>
+      <button class="btn btn-ghost" id="csvBtn">⬇️ CSV</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="root">
+    <div class="empty">⏳ Loading analytics…</div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SUPABASE_CONFIG } from './config.js'
+const sb = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+
+const TYPE_LABELS={complaint:'🚫 Complaint',feedback:'👍 Feedback',suggestion:'💡 Suggestion',warranty:'🛡️ Warranty',inquiry:'❓ Inquiry',return:'📦 Return',service_request:'🛠️ Service'}
+const CAT_LABELS={product_quality:'Product Quality',delivery:'Delivery',fitting:'Fitting',packaging:'Packaging',communication:'Communication',documentation:'Documentation',traceability:'Traceability',billing:'Billing',other:'Other'}
+const SEV_ORDER=['critical','high','medium','low']
+const SEV_COLOR={critical:'#dc2626',high:'#d97706',medium:'#3b5fe2',low:'#94a3b8'}
+const STATUS_COLOR={open:'#dc2626',in_progress:'#d97706',resolved:'#16a34a',closed:'#64748b'}
+const PALETTE=['#3b5fe2','#7c3aed','#0d9488','#d97706','#dc2626','#16a34a','#db2777','#0891b2','#65a30d','#9333ea']
+
+let ALL=[], roles=[], _charts=[], rangeDays=90
+
+const $=id=>document.getElementById(id)
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+function prettyAssignee(v){
+  if(!v) return 'Unassigned'
+  if(typeof v==='string' && v.startsWith('role:')){ const n=v.slice(5); const r=roles.find(x=>x.name===n); return (r?.icon||'👥')+' '+(r?.label||n) }
+  return v
+}
+const startOf=d=>{ const x=new Date(d); x.setHours(0,0,0,0); return x }
+function caseDate(r){ return r.received_date ? new Date(r.received_date) : (r.created_at?new Date(r.created_at):null) }
+function resolutionDays(r){
+  if(!r.resolved_at) return null
+  const start=caseDate(r); if(!start) return null
+  const ms=new Date(r.resolved_at)-start
+  return ms>=0 ? ms/86400000 : null
+}
+function fmtDays(d){
+  if(d==null) return '—'
+  if(d<1) return Math.round(d*24)+'h'
+  return (Math.round(d*10)/10)+'d'
+}
+function median(arr){ if(!arr.length) return null; const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2 }
+
+async function loadData(){
+  const [fbRes, rRes] = await Promise.all([
+    sb.from('customer_feedback').select('*').order('received_date',{ascending:false}),
+    sb.from('role_templates').select('name,label,icon').order('label')
+  ])
+  ALL = fbRes.data||[]
+  roles = rRes.data||[]
+  // Populate filter dropdowns from real data.
+  const types=[...new Set(ALL.map(r=>r.type).filter(Boolean))]
+  $('typeFilter').insertAdjacentHTML('beforeend', types.map(t=>`<option value="${esc(t)}">${esc(TYPE_LABELS[t]||t)}</option>`).join(''))
+  const cats=[...new Set(ALL.map(r=>r.category).filter(Boolean))]
+  $('catFilter').insertAdjacentHTML('beforeend', cats.map(c=>`<option value="${esc(c)}">${esc(CAT_LABELS[c]||c)}</option>`).join(''))
+  $('pageDate').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+}
+
+function filtered(){
+  const tf=$('typeFilter').value, cf=$('catFilter').value
+  let rows=ALL.slice()
+  if(tf) rows=rows.filter(r=>r.type===tf)
+  if(cf) rows=rows.filter(r=>r.category===cf)
+  if(rangeDays>0){
+    const cutoff=startOf(Date.now()-rangeDays*86400000)
+    rows=rows.filter(r=>{ const d=caseDate(r); return d && d>=cutoff })
+  }
+  return rows
+}
+
+// ── Aggregations ────────────────────────────────────────────────
+function countBy(rows, keyFn){ const m=new Map(); for(const r of rows){ const k=keyFn(r); m.set(k,(m.get(k)||0)+1) } return m }
+function isOpen(r){ return r.status==='open'||r.status==='in_progress' }
+function isDone(r){ return r.status==='resolved'||r.status==='closed' }
+
+function newChart(ctx, cfg){ const c=new Chart(ctx, cfg); _charts.push(c); return c }
+function clearCharts(){ _charts.forEach(c=>c.destroy()); _charts=[] }
+
+const baseLegend={labels:{font:{family:"'DM Sans',sans-serif",size:11},color:'#64748b',boxWidth:12,padding:12}}
+
+function render(){
+  clearCharts()
+  const rows=filtered()
+  const root=$('root')
+  if(!rows.length){ root.innerHTML='<div class="empty">No cases match the current filters.</div>'; return }
+
+  // ---- KPI math ----
+  const total=rows.length
+  const open=rows.filter(isOpen).length
+  const done=rows.filter(isDone).length
+  const complaints=rows.filter(r=>r.type==='complaint').length
+  const critHigh=rows.filter(r=>r.severity==='critical'||r.severity==='high').length
+  const unassigned=rows.filter(r=>!r.assigned_to).length
+  const resRate= total? Math.round(done/total*100):0
+  const resDaysArr=rows.map(resolutionDays).filter(v=>v!=null)
+  const avgRes=resDaysArr.length? resDaysArr.reduce((a,b)=>a+b,0)/resDaysArr.length : null
+  const medRes=median(resDaysArr)
+  // Engagement: of cases assigned to someone, how many were acknowledged (seen)?
+  const assigned=rows.filter(r=>r.assigned_to)
+  const ack=assigned.filter(r=>r.notification_seen_at).length
+  const engageRate=assigned.length? Math.round(ack/assigned.length*100):0
+  // Avg time-to-acknowledge
+  const ackArr=assigned.filter(r=>r.notification_seen_at).map(r=>{ const s=caseDate(r); return s? (new Date(r.notification_seen_at)-s)/86400000 : null }).filter(v=>v!=null && v>=0)
+  const avgAck=ackArr.length? ackArr.reduce((a,b)=>a+b,0)/ackArr.length:null
+  const today=new Date().toISOString().slice(0,10)
+  const fuOverdue=rows.filter(r=>r.follow_up_date && !r.follow_up_done_at && r.follow_up_date<today).length
+  const capaReq=rows.filter(r=>r.capa_required===true).length
+  const vigil=rows.filter(r=>r.vigilance_reportable===true).length
+
+  const kpi=(stripe,icoBg,ico,val,lbl,sub)=>`<div class="kpi"><div class="kpi-stripe" style="background:${stripe}"></div>
+    <div class="kpi-ico" style="background:${icoBg}">${ico}</div>
+    <div class="kpi-val">${val}</div><div class="kpi-lbl">${lbl}</div><div class="kpi-sub">${sub||''}</div></div>`
+
+  root.innerHTML=`
+    <div class="kpi-grid">
+      ${kpi('var(--blue)','var(--b50)','📋',total,'Total Cases',`${complaints} complaints`)}
+      ${kpi('var(--red)','var(--r50)','📂',open,'Open / In-Progress',`${unassigned} unassigned`)}
+      ${kpi('var(--green)','var(--g50)','✅',resRate+'%','Resolution Rate',`${done} resolved / closed`)}
+      ${kpi('var(--amber)','var(--a50)','⏱️',fmtDays(avgRes),'Avg Resolution',`median ${fmtDays(medRes)}`)}
+      ${kpi('var(--purple)','var(--p50)','👀',engageRate+'%','Engagement Rate',`ack in ${fmtDays(avgAck)} avg`)}
+      ${kpi('var(--red)','var(--r50)','🚨',critHigh,'Critical / High',`${fuOverdue} follow-ups overdue`)}
+    </div>
+
+    <div class="grid3">
+      <div class="panel"><h3>By Category</h3><div class="ph-sub">Where complaints concentrate</div><div class="chart-box"><canvas id="cCat"></canvas></div></div>
+      <div class="panel"><h3>By Type</h3><div class="ph-sub">Complaint vs feedback vs other</div><div class="chart-box"><canvas id="cType"></canvas></div></div>
+      <div class="panel"><h3>By Severity</h3><div class="ph-sub">Risk profile</div><div class="chart-box"><canvas id="cSev"></canvas></div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel"><h3>Volume Trend</h3><div class="ph-sub">Logged vs resolved over time</div><div class="chart-box tall"><canvas id="cTrend"></canvas></div></div>
+      <div class="panel"><h3>Status Breakdown</h3><div class="ph-sub">Current pipeline</div><div class="chart-box tall"><canvas id="cStatus"></canvas></div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel"><h3>Resolution Time Distribution</h3><div class="ph-sub">How fast cases close</div><div class="chart-box"><canvas id="cResDist"></canvas></div></div>
+      <div class="panel"><h3>Ball-in-Court</h3><div class="ph-sub">Who owes the next action (open cases)</div><div class="chart-box"><canvas id="cBall"></canvas></div></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <h3>Workload & Performance by Assignee</h3><div class="ph-sub">Open vs resolved load, engagement and average resolution per owner</div>
+      <div style="overflow-x:auto"><table class="tbl" id="assigneeTbl"></table></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel"><h3>Avg Resolution by Category</h3><div class="ph-sub">Which categories take longest</div><div class="chart-box"><canvas id="cCatTime"></canvas></div></div>
+      <div class="panel"><h3>Compliance Signals</h3><div class="ph-sub">Regulatory follow-through</div>
+        <div style="overflow-x:auto"><table class="tbl" id="compTbl"></table></div>
+      </div>
+    </div>
+  `
+
+  // ---- By Category (horizontal bar) ----
+  const catM=countBy(rows.filter(r=>r.category), r=>r.category)
+  const catEntries=[...catM.entries()].sort((a,b)=>b[1]-a[1])
+  newChart($('cCat'), {type:'bar', data:{labels:catEntries.map(e=>CAT_LABELS[e[0]]||e[0]),
+    datasets:[{data:catEntries.map(e=>e[1]),backgroundColor:catEntries.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:6}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{precision:0,color:'#64748b'},grid:{color:'#f1f5f9'}},y:{ticks:{color:'#64748b',font:{size:11}},grid:{display:false}}}}})
+
+  // ---- By Type (donut) ----
+  const typeM=countBy(rows, r=>r.type||'—')
+  const typeEntries=[...typeM.entries()].sort((a,b)=>b[1]-a[1])
+  newChart($('cType'), {type:'doughnut', data:{labels:typeEntries.map(e=>TYPE_LABELS[e[0]]||e[0]),
+    datasets:[{data:typeEntries.map(e=>e[1]),backgroundColor:typeEntries.map((_,i)=>PALETTE[i%PALETTE.length]),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',...baseLegend}}}})
+
+  // ---- By Severity (bar, fixed order/colors) ----
+  const sevM=countBy(rows, r=>r.severity||'medium')
+  const sevLabels=SEV_ORDER.filter(s=>sevM.has(s))
+  newChart($('cSev'), {type:'bar', data:{labels:sevLabels.map(s=>s[0].toUpperCase()+s.slice(1)),
+    datasets:[{data:sevLabels.map(s=>sevM.get(s)),backgroundColor:sevLabels.map(s=>SEV_COLOR[s]),borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{precision:0,color:'#64748b'},grid:{color:'#f1f5f9'}},x:{ticks:{color:'#64748b'},grid:{display:false}}}}})
+
+  // ---- Volume trend (monthly logged vs resolved) ----
+  const monthKey=d=>d? d.toISOString().slice(0,7):null
+  const monthsSet=new Set()
+  rows.forEach(r=>{ const d=caseDate(r); if(d) monthsSet.add(monthKey(d)); if(r.resolved_at) monthsSet.add(monthKey(new Date(r.resolved_at))) })
+  const months=[...monthsSet].filter(Boolean).sort()
+  const loggedByM=Object.fromEntries(months.map(m=>[m,0]))
+  const resByM=Object.fromEntries(months.map(m=>[m,0]))
+  rows.forEach(r=>{ const d=caseDate(r); if(d) loggedByM[monthKey(d)]++; if(r.resolved_at){ const k=monthKey(new Date(r.resolved_at)); if(k in resByM) resByM[k]++ } })
+  const mLabel=m=>{ const [y,mo]=m.split('-'); return new Date(y,mo-1,1).toLocaleDateString('en-GB',{month:'short',year:'2-digit'}) }
+  newChart($('cTrend'), {type:'line', data:{labels:months.map(mLabel),
+    datasets:[
+      {label:'Logged',data:months.map(m=>loggedByM[m]),borderColor:'#3b5fe2',backgroundColor:'rgba(59,95,226,.12)',fill:true,tension:.3,borderWidth:2,pointRadius:3},
+      {label:'Resolved',data:months.map(m=>resByM[m]),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.10)',fill:true,tension:.3,borderWidth:2,pointRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',...baseLegend}},scales:{y:{ticks:{precision:0,color:'#64748b'},grid:{color:'#f1f5f9'}},x:{ticks:{color:'#64748b'},grid:{display:false}}}}})
+
+  // ---- Status donut ----
+  const statM=countBy(rows, r=>r.status||'open')
+  const statKeys=['open','in_progress','resolved','closed'].filter(s=>statM.has(s))
+  newChart($('cStatus'), {type:'doughnut', data:{labels:statKeys.map(s=>s.replace('_',' ')),
+    datasets:[{data:statKeys.map(s=>statM.get(s)),backgroundColor:statKeys.map(s=>STATUS_COLOR[s]),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',...baseLegend}}}})
+
+  // ---- Resolution time distribution (buckets) ----
+  const buckets=[['< 1 day',d=>d<1],['1–3 days',d=>d>=1&&d<3],['3–7 days',d=>d>=3&&d<7],['1–2 weeks',d=>d>=7&&d<14],['> 2 weeks',d=>d>=14]]
+  const bucketVals=buckets.map(([,fn])=>resDaysArr.filter(fn).length)
+  newChart($('cResDist'), {type:'bar', data:{labels:buckets.map(b=>b[0]),
+    datasets:[{data:bucketVals,backgroundColor:['#16a34a','#65a30d','#3b5fe2','#d97706','#dc2626'],borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{precision:0,color:'#64748b'},grid:{color:'#f1f5f9'}},x:{ticks:{color:'#64748b'},grid:{display:false}}}}})
+
+  // ---- Ball-in-court (open cases, by who owes next action) ----
+  const openRows=rows.filter(isOpen)
+  const ballM=countBy(openRows, r=> r.next_action_by ? prettyAssignee(r.next_action_by) : 'No owner set')
+  const ballEntries=[...ballM.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10)
+  if(ballEntries.length){
+    newChart($('cBall'), {type:'bar', data:{labels:ballEntries.map(e=>e[0]),
+      datasets:[{data:ballEntries.map(e=>e[1]),backgroundColor:'#7c3aed',borderRadius:6}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{precision:0,color:'#64748b'},grid:{color:'#f1f5f9'}},y:{ticks:{color:'#64748b',font:{size:11}},grid:{display:false}}}}})
+  } else { $('cBall').parentElement.innerHTML='<div class="empty">No open cases — nothing in anyone\'s court 🎉</div>' }
+
+  // ---- Assignee performance table ----
+  const byA=new Map()
+  for(const r of rows){
+    const k=r.assigned_to||'__unassigned__'
+    if(!byA.has(k)) byA.set(k,{open:0,done:0,total:0,ack:0,assigned:0,resDays:[]})
+    const o=byA.get(k); o.total++
+    if(isOpen(r)) o.open++; if(isDone(r)) o.done++
+    if(r.assigned_to){ o.assigned++; if(r.notification_seen_at) o.ack++ }
+    const rd=resolutionDays(r); if(rd!=null) o.resDays.push(rd)
+  }
+  const aRows=[...byA.entries()].sort((a,b)=>b[1].total-a[1].total)
+  const maxTotal=Math.max(...aRows.map(e=>e[1].total),1)
+  $('assigneeTbl').innerHTML=`
+    <thead><tr><th>Assignee</th><th>Total</th><th>Load</th><th>Open</th><th>Resolved</th><th>Resolution %</th><th>Avg Time</th><th>Engagement</th></tr></thead>
+    <tbody>${aRows.map(([k,o])=>{
+      const name=k==='__unassigned__'?'<span style="color:var(--dim)">Unassigned</span>':esc(prettyAssignee(k))
+      const rr=o.total?Math.round(o.done/o.total*100):0
+      const eng=o.assigned?Math.round(o.ack/o.assigned*100):null
+      const avg=o.resDays.length? o.resDays.reduce((a,b)=>a+b,0)/o.resDays.length : null
+      return `<tr>
+        <td style="font-weight:600">${name}</td>
+        <td style="font-family:var(--mono);font-weight:700">${o.total}</td>
+        <td style="width:120px"><div class="bar-cell"><div class="bar-fill" style="width:${Math.round(o.total/maxTotal*100)}%"></div></div></td>
+        <td><span class="badge ${o.open?'b-a':'b-gray'}">${o.open}</span></td>
+        <td><span class="badge b-g">${o.done}</span></td>
+        <td style="font-weight:600">${rr}%</td>
+        <td>${fmtDays(avg)}</td>
+        <td>${eng==null?'—':`<span class="badge ${eng>=70?'b-g':eng>=40?'b-a':'b-r'}">${eng}%</span>`}</td>
+      </tr>`
+    }).join('')}</tbody>`
+
+  // ---- Avg resolution by category ----
+  const catTime=new Map()
+  for(const r of rows){ if(!r.category) continue; const rd=resolutionDays(r); if(rd==null) continue; if(!catTime.has(r.category)) catTime.set(r.category,[]); catTime.get(r.category).push(rd) }
+  const ctEntries=[...catTime.entries()].map(([c,arr])=>[c,arr.reduce((a,b)=>a+b,0)/arr.length]).sort((a,b)=>b[1]-a[1])
+  if(ctEntries.length){
+    newChart($('cCatTime'), {type:'bar', data:{labels:ctEntries.map(e=>CAT_LABELS[e[0]]||e[0]),
+      datasets:[{label:'Avg days',data:ctEntries.map(e=>Math.round(e[1]*10)/10),backgroundColor:'#0d9488',borderRadius:6}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'},title:{display:true,text:'days',color:'#94a3b8'}},y:{ticks:{color:'#64748b',font:{size:11}},grid:{display:false}}}}})
+  } else { $('cCatTime').parentElement.innerHTML='<div class="empty">No resolved cases with a category yet.</div>' }
+
+  // ---- Compliance table ----
+  $('compTbl').innerHTML=`
+    <thead><tr><th>Signal</th><th>Count</th><th>% of total</th></tr></thead>
+    <tbody>
+      <tr><td>🛠 CAPA required</td><td style="font-family:var(--mono);font-weight:700">${capaReq}</td><td>${total?Math.round(capaReq/total*100):0}%</td></tr>
+      <tr><td>📋 Vigilance reportable</td><td style="font-family:var(--mono);font-weight:700">${vigil}</td><td>${total?Math.round(vigil/total*100):0}%</td></tr>
+      <tr><td>🚫 Complaints</td><td style="font-family:var(--mono);font-weight:700">${complaints}</td><td>${total?Math.round(complaints/total*100):0}%</td></tr>
+      <tr><td>🚨 Critical / High severity</td><td style="font-family:var(--mono);font-weight:700">${critHigh}</td><td>${total?Math.round(critHigh/total*100):0}%</td></tr>
+      <tr><td>⏰ Follow-ups overdue</td><td style="font-family:var(--mono);font-weight:700">${fuOverdue}</td><td>${total?Math.round(fuOverdue/total*100):0}%</td></tr>
+      <tr><td>📭 Unassigned</td><td style="font-family:var(--mono);font-weight:700">${unassigned}</td><td>${total?Math.round(unassigned/total*100):0}%</td></tr>
+    </tbody>`
+}
+
+function exportCSV(){
+  const rows=filtered()
+  const cols=['feedback_no','received_date','type','category','severity','status','customer_name','assigned_to','next_action_by','received_by','resolved_at','resolution_days','acknowledged','capa_required','vigilance_reportable']
+  const lines=[cols.join(',')]
+  for(const r of rows){
+    const rd=resolutionDays(r)
+    const vals=[r.feedback_no,r.received_date,r.type,r.category,r.severity,r.status,r.customer_name,r.assigned_to,r.next_action_by,r.received_by,r.resolved_at, rd==null?'':Math.round(rd*10)/10, r.notification_seen_at?'yes':'no', r.capa_required===true?'yes':'', r.vigilance_reportable===true?'yes':'']
+    lines.push(vals.map(v=>{ const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s }).join(','))
+  }
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'})
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob)
+  a.download=`feedback_analytics_${new Date().toISOString().slice(0,10)}.csv`; a.click()
+}
+
+// ── Wire controls ──
+$('rangeTabs').addEventListener('click', e=>{
+  const b=e.target.closest('.rt'); if(!b) return
+  $('rangeTabs').querySelectorAll('.rt').forEach(x=>x.classList.remove('active'))
+  b.classList.add('active'); rangeDays=parseInt(b.dataset.d,10); render()
+})
+$('typeFilter').addEventListener('change', render)
+$('catFilter').addEventListener('change', render)
+$('csvBtn').addEventListener('click', exportCSV)
+
+;(async()=>{ try{ await loadData(); render() }catch(e){ $('root').innerHTML='<div class="empty" style="color:var(--red)">Could not load analytics: '+esc(e.message||e)+'</div>' } })()
+</script>
+</body>
+</html>
