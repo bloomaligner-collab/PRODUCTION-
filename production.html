@@ -575,6 +575,22 @@ window.confirmCompletion=async function(){
   const empObj=allEmployees.find(e=>e.name===ord.assigned_to)
 
   if(ynChoice==='yes'){
+    // QC-before-delivery gate. Mirrors the DB trigger (enforce_qc_before_delivery)
+    // but runs first so we show a friendly message and never write a
+    // half-completed record. Honours the system_settings 'qc_gate_enabled'
+    // kill-switch. If the check itself errors, the DB trigger still enforces.
+    try{
+      const {data:gate}=await sb.from('system_settings').select('value').eq('key','qc_gate_enabled').maybeSingle()
+      const gateOn=!gate || ['true','1','yes','on'].includes(String(gate.value||'true').toLowerCase())
+      if(gateOn){
+        const cid=String(ord.case_id)
+        const {data:qc}=await sb.from('quality_controls')
+          .select('overall_result,result,case_id,order_no')
+          .or(`case_id.eq.${cid},order_no.eq.${cid}`)
+        const approved=(qc||[]).some(q=>['approved','pass','passed'].includes(String(q.overall_result||q.result||'').toLowerCase()))
+        if(!approved){ toast('🚦 QC required before delivery — approve QC (aligner quality, treatment-plan match, packaging, shipping) for this case first.','red'); return }
+      }
+    }catch(e){ /* DB trigger remains the hard backstop */ }
     const produced=planned||getProducedForCase(ord.case_id)||0
     const{error}=await sb.from('production_records').insert({
       case_id:String(ord.case_id),patient_name:ord.patient_name,doctor:ord.doctor,
