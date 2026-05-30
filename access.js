@@ -24,6 +24,10 @@ const CW_ACCESS = {
     { key: 'non_conformity',       label: 'Non-Conformity',      icon: '⚠️', file: 'non_conformity.html' },
     { key: 'internal_audit',       label: 'Internal Audit',      icon: '📋', file: 'internal_audit.html' },
     { key: 'customer_feedback',    label: 'Customer Feedback',   icon: '💬', file: 'customer_feedback.html' },
+    // Management report — admin-only. Has no page_access key of its own, so it
+    // is shown only to full-access tiers (buildNav reveals non-section items to
+    // fullAccess users); the page itself enforces CW_ACCESS.isAdmin().
+    { key: 'feedback_analytics',   label: 'Feedback Analytics',  icon: '📊', file: 'feedback_analytics.html' },
     { section: 'Resources' },
     { key: 'inventory',            label: 'Inventory',           icon: '📦', file: 'inventory.html' },
     { key: 'suppliers',            label: 'Suppliers',           icon: '🏭', file: 'suppliers.html' },
