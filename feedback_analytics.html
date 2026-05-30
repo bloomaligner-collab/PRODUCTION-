@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Cedarwings SAS — Customer Feedback Analytics</title>
 <script type="module" src="auth_guard.js?v=20260422c"></script>
+<!-- Page access: this management report is restricted to full-access tiers
+     (manager / admin / super_admin). auth_guard handles the logged-out case;
+     this bounces any authenticated non-admin to their own home page, matching
+     CW_ACCESS.guard() behaviour used across the app. -->
+<script src="access.js?v=20260422c"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      if (!sessionStorage.getItem('cw_name')) { window.location.replace('index.html'); return; }
+      if (!CW_ACCESS.isAdmin()) { window.location.replace(CW_ACCESS.homePage()); }
+    } catch (e) { /* if access.js failed to load, auth_guard still requires login */ }
+  });
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
