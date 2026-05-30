@@ -130,6 +130,11 @@ export function mountBulkActions(opts) {
       result = await sb.from(table).delete().in(idColumn, ids)
     } else if (reassignChoice) {
       const patch = { [reassignChoice.column]: reassignChoice.value }
+      // Optional: keep related columns in sync with the chosen value (e.g. the
+      // case board sets next_action_by so the ⚽ ball follows a bulk reassign).
+      if (Array.isArray(reassignCfg && reassignCfg.syncColumns)) {
+        for (const c of reassignCfg.syncColumns) patch[c] = reassignChoice.value
+      }
       result = await sb.from(table).update(patch).in(idColumn, ids)
     } else if (a.patch) {
       const raw = typeof a.patch === 'function' ? a.patch(ids) : a.patch

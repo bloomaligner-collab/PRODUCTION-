@@ -1990,6 +1990,8 @@ mountBulkActions({
         const src = document.getElementById('fAssigned')
         return {
           column: 'assigned_to',
+          // Ball follows the reassignment: the new assignee now owes the next action.
+          syncColumns: ['next_action_by'],
           options: src ? [...src.options].map(o => ({ v:o.value, t:o.text })) : [],
           // Fire email + WhatsApp to the newly-assigned party for
           // each record bulk-reassigned.
