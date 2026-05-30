@@ -1481,13 +1481,19 @@ window.quickSetStatus=async(id,status)=>{
   if(!cwFullAccess()){ ntf('Only full-access roles can set the status directly.','err'); return }
   const nowIso=new Date().toISOString()
   const patch={status, updated_at:nowIso, last_edited_by:currentUser||null, last_edited_at:nowIso}
-  if(status==='resolved' && !r.resolved_at) patch.resolved_at=nowIso
-  if(status==='open' || status==='in_progress') patch.resolved_at=null
+  // Keep the ball-in-court coherent with the new status, mirroring the
+  // Mark Resolved / Close / Reopen buttons:
+  //  · resolved → back to the creator to confirm   · closed → no further action
+  //  · open / in_progress → back to the assignee (the owner)
+  if(status==='resolved'){ if(!r.resolved_at) patch.resolved_at=nowIso; patch.next_action_by=r.received_by||null }
+  else if(status==='closed'){ patch.next_action_by=null }
+  else { patch.resolved_at=null; patch.next_action_by=r.assigned_to||null }
   const{error}=await sb.from('customer_feedback').update(patch).eq('id',id)
   if(error){ ntf('Status change failed: '+error.message,'err'); return }
   ntf(`Status set to “${status.replace(/_/g,' ')}”.`,'ok')
   Object.assign(r,patch)
-  viewRec(id)
+  paintCaseKpis(); applyFilter()
+  if(_viewOpenId!=null && String(_viewOpenId)===String(id)) _renderCaseView(r)
 }
 
 // ── Case activity log — rendered from the append-only audit_log ──────────
@@ -1617,8 +1623,11 @@ async function handleDuplicateCase(caseNo){
       if(act==='open'){ done(true); closeModal(); viewRec(id); return }
       if(act==='take'){
         b.disabled=true
+        // Taking over makes you the assignee AND puts the ball in your court —
+        // you're the one who now owes the next action. Keeps next_action_by in
+        // sync with assigned_to (the same invariant the Save flow maintains).
         const{error}=await sb.from('customer_feedback')
-          .update({assigned_to:currentUser||null,notification_seen_at:null,notification_seen_by:null})
+          .update({assigned_to:currentUser||null,next_action_by:currentUser||null,notification_seen_at:null,notification_seen_by:null})
           .eq('id',id)
         if(error){ ntf('Take over failed: '+error.message,'err'); b.disabled=false; return }
         ntf('You have taken over this complaint.','ok')
