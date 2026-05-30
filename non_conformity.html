@@ -763,6 +763,10 @@ mountSavedViews({
 // CSV export of current filters — ISO 13485 §8.3 evidence pack
 // Bulk actions — delegated to the shared module (bulk_actions.js)
 import { mountBulkActions } from './bulk_actions.js?v=20260423e';
+// Resolve permission flags up front. The DB (nc_delete policy + nc_enforce_close
+// trigger) is the hard backstop; this just hides actions the user can't do.
+const _ncPerm = async f => { try { const { data } = await sb.rpc('cw_user_has_role_flag', { p_flag: f }); return data === true } catch { return false } };
+const [_ncCanClose, _ncCanDelete] = await Promise.all([_ncPerm('can_close_nc'), _ncPerm('can_delete_nc')]);
 mountBulkActions({
   table:     'non_conformity_reports',
   sb,
@@ -772,9 +776,9 @@ mountBulkActions({
   tableBody: document.getElementById('tbl'),
   onComplete: () => load(),
   actions: [
-    { label:'✅ Mark closed', pastTense:'marked closed',
+    ...(_ncCanClose ? [{ label:'✅ Mark closed', pastTense:'marked closed',
       confirm: n => `Mark ${n} NC report${n===1?'':'s'} as closed? Closed date will be stamped to today.`,
-      patch: { status:'closed', closed_date: () => new Date().toISOString().slice(0,10) } },
+      patch: { status:'closed', closed_date: () => new Date().toISOString().slice(0,10) } }] : []),
     { label:'👤 Reassign…',
       // NC assigned_to is a free-text input (CAPA owner name),
       // not a select. Fall back to a text prompt.
@@ -796,7 +800,7 @@ mountBulkActions({
         return { assigned_to: value };
       },
       pastTense: 'reassigned' },
-    { label:'🗑️ Delete', danger:true, delete:true },
+    ...(_ncCanDelete ? [{ label:'🗑️ Delete', danger:true, delete:true }] : []),
   ],
 });
 window.onBulkCbChange = () => {};  // legacy no-op
