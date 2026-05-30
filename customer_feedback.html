@@ -610,6 +610,24 @@ function assignedToMe(v){
   const rn=v.slice(5)
   return rn===userPrimaryRole || userExtraRoles.includes(rn)
 }
+// The "other party" in a case, relative to the current user — i.e. who the ball
+// should pass to. A case has two sides: the creator (received_by) and the
+// assignee (assigned_to). Passing always hands the ball to the side that ISN'T
+// you, so the creator editing their own case passes to the assignee (not back
+// to themselves), and the assignee passes back to the creator.
+function caseOtherParty(r){
+  if(!r) return null
+  const creator=r.received_by||null
+  const assignee=r.assigned_to||null
+  // I'm the assignee (person or via role) → the other side is the creator.
+  if(assignedToMe(assignee) && creator && creator!==currentUser) return creator
+  // I'm the creator → the other side is the assignee.
+  if(creator && creator===currentUser && assignee) return assignee
+  // Fallbacks: prefer whichever side clearly isn't me.
+  if(creator && creator!==currentUser) return creator
+  if(assignee && !assignedToMe(assignee)) return assignee
+  return creator||assignee
+}
 // Per-role case action permissions. Full-access tiers always pass; otherwise
 // the user must hold a role (primary or extra) flagged for that action.
 // Mirrors the cw_user_has_case_perm() DB rule so the UI matches enforcement.
@@ -1282,14 +1300,16 @@ window.closeCase=async(id)=>{
   // lands. The case is archived either way — 'pass' stamps the ball on the
   // chosen party (useful for the audit history / a later reopen), 'keep'
   // leaves it with you. Closing the ✕ cancels.
+  const _other = caseOtherParty(r)
   const choice = await askBallTransfer(r, {
     verb:'closing',
     keepLabel:'🔒 Close · keep on me',
-    passLabel:'🔒 Close · pass to '+(((r&&r.received_by)||(r&&r.assigned_to))?prettyAssignee((r&&r.received_by)||(r&&r.assigned_to)):'the sender')
+    passTo:_other,
+    passLabel:'🔒 Close · pass to '+(_other?prettyAssignee(_other):'the other party')
   })
   if(choice==='cancel') return
   const ball = choice==='pass'
-    ? ((r&&r.received_by)||(r&&r.assigned_to)||null)
+    ? (_other||null)
     : (currentUser||null)
   const {error}=await sb.from('customer_feedback').update({
     status:'closed',
@@ -1670,8 +1690,8 @@ async function handleDuplicateCase(caseNo){
 function askBallTransfer(prev, ctx){
   ctx = ctx || {}
   const verb = ctx.verb || 'saving'           // wording: "After <verb>, …"
-  const passTo=(prev&&prev.received_by)||(prev&&prev.assigned_to)||null
-  const passName=passTo?prettyAssignee(passTo):'the sender'
+  const passTo=ctx.passTo!==undefined?ctx.passTo:caseOtherParty(prev)
+  const passName=passTo?prettyAssignee(passTo):'the other party'
   const holderName=(prev&&prev.next_action_by)?prettyAssignee(prev.next_action_by):'no one yet'
   const keepLabel = ctx.keepLabel || '✋ Keep it in my court'
   const passLabel = ctx.passLabel || ('➡️ Pass to '+passName)
@@ -1774,8 +1794,10 @@ window.save=async()=>{
   // This replaces the old silent reassignment flip so the ball never moves
   // without the owner's choice.
   if(editId){
+    // Pass → hand the ball to the OTHER party (creator↔assignee, relative to
+    // me), honouring any just-changed assignee; Keep → ball stays with me.
     rec.next_action_by = (_ballChoice==='pass')
-      ? ((prev&&prev.received_by) || newAssignee || null)
+      ? (caseOtherParty({received_by:prev&&prev.received_by, assigned_to:newAssignee}) || newAssignee || null)
       : (currentUser || null)
   }
   // Case # is immutable after the first save.
