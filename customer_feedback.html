@@ -2249,10 +2249,14 @@ async function _ccSend(){
   const isOpen = rec && rec.status!=='resolved' && rec.status!=='closed'
   if(isOpen && rec && assignedToMe(rec.next_action_by)){
     const ballBefore = rec.next_action_by
+    // Where the DB chat-trigger sends the ball: the sender's counterparty
+    // (creator<->assignee). Match the label + dialog body to that.
+    const _other = caseOtherParty(rec)
     const choice = await askBallTransfer(rec, {
       verb:'this reply',
       keepLabel:'✋ Keep it in my court',
-      passLabel:'➡️ Hand over to '+(((rec.received_by)||(rec.assigned_to))?prettyAssignee((rec.received_by)||(rec.assigned_to)):'the other party')
+      passTo:_other,
+      passLabel:'➡️ Hand over to '+(_other?prettyAssignee(_other):'the other party')
     })
     // 'keep' (or dismissing) → undo the trigger's flip so the ball stays put.
     // 'pass' → let the trigger's flip stand. We re-read first so we only
