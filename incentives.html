@@ -137,8 +137,20 @@ details.cfg>summary::-webkit-details-marker{display:none}
         <button class="rt" data-d="365">Year</button>
         <button class="rt" data-d="0">All</button>
       </div>
+      <button class="btn btn-ghost" id="helpBtn">❓ How it works</button>
       <button class="btn btn-ghost" onclick="window.print()">🖨️ PDF</button>
       <button class="btn btn-ghost" id="csvBtn">⬇️ CSV</button>
+    </div>
+  </div>
+
+  <!-- Help / program explanation -->
+  <div id="helpOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:900;padding:30px;overflow:auto">
+    <div style="max-width:820px;margin:0 auto;background:var(--card);border-radius:18px;box-shadow:var(--sh2);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--card)">
+        <div style="font-size:18px;font-weight:800">🏆 How the KPI & Incentive program works</div>
+        <button class="btn btn-ghost" id="helpClose">✕ Close</button>
+      </div>
+      <div id="helpBody" style="padding:8px 28px 28px;font-size:13.5px;line-height:1.6;color:var(--txt)"></div>
     </div>
   </div>
 
@@ -520,6 +532,42 @@ $('csvBtn').onclick=()=>{
   const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a')
   a.href=URL.createObjectURL(blob); a.download=`incentives_${new Date().toISOString().slice(0,10)}.csv`; a.click()
 }
+
+// ── In-page help: a plain-language explanation of the program ──────────────
+const HELP_HTML=`
+<p style="color:var(--mu);margin:14px 0 18px">The program turns work your team already records — resolved cases, completed production steps, time sessions, quality controls, complaints and outsourced orders — into a fair score, an accumulated points balance and a calculated bonus for each employee. Nothing has to be entered twice.</p>
+<h4 style="margin:16px 0 6px">⭐ The core idea: Points → Bonus</h4>
+<ul style="margin:0 0 8px 18px">
+  <li><strong>Points</strong> are earned for good output (aligners produced, steps completed, QC passed, cases resolved on time, high efficiency).</li>
+  <li><strong>Penalties</strong> subtract points for problems traced to the person (complaints, QC failures, reopened cases, overdue follow-ups).</li>
+  <li><strong>Net points</strong> = earned − penalties. <strong>Bonus</strong> = net points × the point-value you set (e.g. €0.50/point), with an optional cap.</li>
+  <li>A <strong>score /100</strong> ranks everyone and assigns a <strong>tier</strong> — 🥇 Gold / 🥈 Silver / 🥉 Bronze.</li>
+</ul>
+<h4 style="margin:16px 0 6px">🏭 Production employees</h4>
+<ul style="margin:0 0 8px 18px">
+  <li>Points per <strong>aligner</strong> produced and per production <strong>step</strong> completed.</li>
+  <li><strong>Efficiency %</strong> = productive ÷ (productive + waste + break) minutes; points for efficiency above a floor you set.</li>
+  <li>Points per <strong>approved QC</strong>; average cycle time is shown to spot bottlenecks.</li>
+</ul>
+<h4 style="margin:16px 0 6px">💬 Case handlers (Customer Feedback)</h4>
+<ul style="margin:0 0 8px 18px">
+  <li>Points per case <strong>resolved</strong>, plus a bonus when resolved <strong>within SLA</strong> (your day target).</li>
+  <li>Penalty for <strong>overdue follow-ups</strong>.</li>
+</ul>
+<h4 style="margin:16px 0 6px">🎯 Quality traced back to the person</h4>
+<p style="margin:0 0 8px">A complaint is traced — via the shared order/case number — to the operator who did the production step responsible for that complaint category (e.g. a <em>Packaging</em> complaint → the Packaging operator). That operator gets the penalty. The category→step map is editable.</p>
+<h4 style="margin:16px 0 6px">🚦 QC-before-delivery gate</h4>
+<p style="margin:0 0 8px">A case <strong>cannot be marked completed / ready for delivery</strong> unless its QC is <strong>approved</strong> (aligner quality, treatment-plan match, packaging, shipping). Enforced in the database so it can't be bypassed; a one-click admin switch can disable it in an emergency.</p>
+<h4 style="margin:16px 0 6px">🚚 Outsourcing</h4>
+<p style="margin:0 0 8px">Per supplier: orders, aligners, <strong>on-time return %</strong> and cost.</p>
+<h4 style="margin:16px 0 6px">⚙️ Everything is parametrable</h4>
+<p style="margin:0 0 8px">Open <strong>Incentive configuration</strong> on this page to change and save every value — point values, efficiency floor, penalties, SLA days, tier thresholds, bonus value, the QC gate, and the complaint→step map. Changes persist for all admins and recompute immediately.</p>
+<div style="margin-top:16px;padding:12px 14px;background:var(--b50);border-radius:10px;font-size:12.5px;color:var(--blue)">Tip: use the period tabs (This month / Quarter / Year / All), and export with CSV or 🖨️ PDF.</div>`
+;(()=>{ const o=$('helpOverlay'); $('helpBody').innerHTML=HELP_HTML
+  $('helpBtn').onclick=()=>{o.style.display='block'}
+  $('helpClose').onclick=()=>{o.style.display='none'}
+  o.onclick=e=>{ if(e.target===o) o.style.display='none' }
+})()
 
 document.querySelectorAll('#rangeTabs .rt').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#rangeTabs .rt').forEach(x=>x.classList.remove('active'))
