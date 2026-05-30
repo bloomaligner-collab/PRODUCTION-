@@ -290,6 +290,28 @@ tbody tr:last-child td{border:none}tbody tr:hover{background:#f8fafc}
         </div>
         <div style="font-size:11px;color:var(--mu);margin-top:6px">Full-access tiers (manager / admin / super admin) can always do all of these. Resolve & reopen are additive (granted on top of the assignee/creator). Close is restricted to flagged roles + full-access.</div>
       </div>
+      <div style="grid-column:1/-1">
+        <label class="form-label">Non-Conformity & Audit Permissions <span style="font-weight:400;color:var(--mu)">— restricted actions on those registers</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanCloseNc"/>
+            <span style="font-size:13px">⚠️ <strong>Close NC reports</strong></span>
+          </label>
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanDeleteNc"/>
+            <span style="font-size:13px">🗑️ <strong>Delete NC reports</strong></span>
+          </label>
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanCompleteAudit"/>
+            <span style="font-size:13px">🔍 <strong>Complete audits</strong></span>
+          </label>
+          <label class="page-check" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 11px">
+            <input type="checkbox" id="fCanDeleteAudit"/>
+            <span style="font-size:13px">🗑️ <strong>Delete audits</strong></span>
+          </label>
+        </div>
+        <div style="font-size:11px;color:var(--mu);margin-top:6px">Closing an NC, completing an audit, and deleting either are otherwise restricted to full-access tiers. All flags default off.</div>
+      </div>
     </div>
     <div style="margin-bottom:6px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -481,6 +503,10 @@ window.openNew=()=>{
   document.getElementById('fCanClose').checked=false;
   document.getElementById('fCanReopen').checked=false;
   document.getElementById('fCanDelete').checked=false;
+  document.getElementById('fCanCloseNc').checked=false;
+  document.getElementById('fCanDeleteNc').checked=false;
+  document.getElementById('fCanCompleteAudit').checked=false;
+  document.getElementById('fCanDeleteAudit').checked=false;
   buildPageGrid([]);
   document.getElementById('roleModal').classList.add('on');
 };
@@ -498,6 +524,10 @@ window.editRole=(id)=>{
   document.getElementById('fCanClose').checked=r.can_close_cases===true;
   document.getElementById('fCanReopen').checked=r.can_reopen_cases===true;
   document.getElementById('fCanDelete').checked=r.can_delete_cases===true;
+  document.getElementById('fCanCloseNc').checked=r.can_close_nc===true;
+  document.getElementById('fCanDeleteNc').checked=r.can_delete_nc===true;
+  document.getElementById('fCanCompleteAudit').checked=r.can_complete_audit===true;
+  document.getElementById('fCanDeleteAudit').checked=r.can_delete_audit===true;
   buildPageGrid(Array.isArray(r.page_access)?r.page_access:[]);
   document.getElementById('roleModal').classList.add('on');
 };
@@ -515,7 +545,11 @@ window.saveRole=async()=>{
     can_resolve_cases:document.getElementById('fCanResolve').checked,
     can_close_cases:document.getElementById('fCanClose').checked,
     can_reopen_cases:document.getElementById('fCanReopen').checked,
-    can_delete_cases:document.getElementById('fCanDelete').checked};
+    can_delete_cases:document.getElementById('fCanDelete').checked,
+    can_close_nc:document.getElementById('fCanCloseNc').checked,
+    can_delete_nc:document.getElementById('fCanDeleteNc').checked,
+    can_complete_audit:document.getElementById('fCanCompleteAudit').checked,
+    can_delete_audit:document.getElementById('fCanDeleteAudit').checked};
   const{error}=editId
     ?await sb.from('role_templates').update(rec).eq('id',editId)
     :await sb.from('role_templates').insert([rec]);
