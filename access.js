@@ -17,6 +17,9 @@ const CW_ACCESS = {
     { key: 'employees',            label: 'Employees',           icon: '👥', file: 'employees.html' },
     { key: 'employee_profile',     label: 'Employee Profile',    icon: '👤', file: 'employee_profile.html' },
     { key: 'time_report',          label: 'Time Report',         icon: '📈', file: 'time_report.html' },
+    // Management report — admin-only (no page_access key of its own; shown only
+    // to full-access tiers; the page itself enforces CW_ACCESS.isAdmin()).
+    { key: 'incentives',           label: 'KPI & Incentives',    icon: '🏆', file: 'incentives.html' },
     { key: 'chat',                 label: 'Team Chat',           icon: '💬', file: 'chat.html' },
     { section: 'Quality' },
     { key: 'tracabilite',          label: 'Traceability',        icon: '🔖', file: 'tracabilite.html' },
